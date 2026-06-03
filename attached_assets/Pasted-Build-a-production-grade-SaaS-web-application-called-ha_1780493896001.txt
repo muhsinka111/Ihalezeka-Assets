@@ -1,0 +1,83 @@
+Build a production-grade SaaS web application called İhaleZeka — an AI-powered Turkish public procurement (kamu ihale) intelligence platform. It is the Turkish-market adaptation of cleat.ai (CLEATUS), which serves the US government-contracting market. Our market is the Turkish EKAP system (Elektronik Kamu Alımları Platformu) and tenders governed by Law No. 4734 (Kamu İhale Kanunu).
+
+The entire UI must be in Turkish. I am attaching HTML mockups of every screen — match their layout, structure, and component design closely. They are the source of truth for look & feel.
+
+TECH STACK
+
+	•	Frontend: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+	•	UI: shadcn/ui, Tabler Icons (@tabler/icons-react), Sora (headings) + Inter (body) fonts
+	•	State/Data: TanStack Query for server state; Zustand for light client state
+	•	Backend: Next.js API routes (or a separate Express service if cleaner)
+	•	Database: PostgreSQL via Prisma ORM (Replit DB or Neon)
+	•	Auth: Clerk (multi-tenant: organization → business → users, like CLEATUS)
+	•	AI layer: Provider-agnostic — user supplies their OWN API key (OpenAI / Anthropic / Gemini). Store keys encrypted (AES-256), never log them.
+	•	Payments: Stripe (Trial / Essential / Pro / Enterprise + per-seat)
+
+DESIGN SYSTEM (match the mockups)
+
+	•	Light + dark theme with a top-bar toggle; persist choice. Use the CSS variables from the attached theme.css (brand navy-blue #2C46D8, green/amber/red semantic colors).
+	•	Shared shell: collapsible left sidebar (nav defined in one place) + sticky top bar (search + “AI Asistan” button + theme toggle + notifications + avatar).
+	•	Cards with subtle shadows, rounded corners (14-18px), generous spacing. Professional, not flashy.
+	•	Agency logo component: show real logo URL when available; otherwise a colored initials badge (hash agency name → consistent color). See izAgencyLogo in the mockup app.js.
+
+PAGES (each exists in the mockups)
+
+	1.	landing → Public marketing page (hero, features, data-source logos, stats band, how-it-works, CTA).
+	2.	Dashboard → 6 KPI cards, “en uygun ihaleler” list (agency logos + fit score), money-flow sparkline, AI quick-actions, pipeline summary, AI win-prediction bars.
+	3.	Fırsatlarım → Filterable tender table: fit-score badge (green/amber/red), agency logo, İKN, estimated value, deadline countdown, pagination.
+	4.	İhale Detayı → AI summary, circular fit-score gauge, qualification-criteria compliance checklist, pros & risks, “Benim adıma başvur” + “Teklif taslağı oluştur” CTAs, document list.
+	5.	Benim Adıma Başvur (wizard) → 6-step company-profile setup: (1) firma kimliği [vergi no, MERSİS, EKAP], (2) faaliyet alanları [NACE/CPV], (3) mali yeterlilik, (4) iş deneyimi & personel, (5) teklif stratejisi [bütçe, tercih/çalışılmayacak iller, kırım], (6) otomasyon yetkisi. Progress bar + step sidebar.
+	6.	Teklif Oluşturucu → Split view: left = AI chat, right = live editable proposal preview. Export to PDF/Word.
+	7.	İhale Arama → Natural-language search + faceted filters (il, tür, bedel, son tarih, idare, CPV, usul) + result cards with logos.
+	8.	Boru Hattı → Kanban: Fırsat Keşfi → Teklif Hazırlığı → Başvuru Yapıldı → Değerlendirme → Kazanıldı. Drag-and-drop.
+	9.	Rakip Analizi → Competitor table (kazanılan ihale, kırım oranı, karşılaşma), AI insight, category win-rate bars.
+	10.	Para Akışı → Agency-spending analytics: monthly trend chart, category donut, top-spending agencies table with logos.
+	11.	Belgelerim → Folders, document table with validity tracking, upload.
+	12.	Raporlar → Performance KPIs, applications-vs-wins bar chart, category-performance bars, AI executive summary.
+	13.	Entegrasyonlar & API → User connects their OWN AI keys (OpenAI/Claude/Gemini, encrypted), data-source toggles (EKAP active; belediye & international gated by plan), İhaleZeka REST API keys, webhook/Zapier.
+
+GLOBAL: Sliding AI Panel
+
+Right-side sliding panel (“İhaleZeka’ya Sor”, BETA) on every page via the top-bar “AI Asistan” button — mirrors CLEATUS’s “Ask CLEATUS”. Shows scored recommendations (e.g. 98/100), agency logos, CPV codes, status badges (PİPELINE’DA / YENİ / İZLENİYOR), action buttons (Pipeline’a ekle / Aç / Çıkar). Powered by the user’s connected AI key. Streaming responses.
+
+DATA MODEL (Prisma)
+
+	•	Organization → Business (1-n) → User (n, roles: owner/admin/member)
+	•	CompanyProfile (wizard data: nace[], cpv[], experienceCeiling, certifications[], personnel{}, strategy{}, automation{})
+	•	Tender (İKN, title, agencyName, agencyLogoUrl, type, method, estimatedValue, deadline, cpvCodes[], rawDocsUrls[], sourceSystem)
+	•	Match (tender ↔ profile, fitScore 0-100, reasoning, status)
+	•	PipelineItem (tender, stage enum, notes)
+	•	Proposal (tender, contentJson, status, versions)
+	•	Document (business, folder, name, fileUrl, validUntil, status)
+	•	ApiKey (business, provider enum, encryptedKey, lastUsedAt)
+	•	Subscription (Stripe: plan, seats, status)
+
+AI MATCHING LOGIC (core value)
+
+Given a CompanyProfile and a Tender, compute a 0-100 fit score by checking: CPV/NACE overlap, experience ceiling vs estimated value (≥50% rule), financial criteria, personnel requirements, geography preference. Return score + Turkish reasoning + pros/risks. Do the hard rule checks in code; use the user’s LLM only for the reasoning text.
+
+DATA SOURCE (most critical — ASK ME)
+
+The product’s lifeblood is tender data from EKAP. EKAP has no simple public bulk API like SAM.gov. Do not invent a data source. Build against a clean TenderRepository interface with a mock/seed adapter for now (realistic Turkish seed data — see mockups). Make swapping in a real adapter trivial later. Flag this in the README.
+
+LEGAL CONSTRAINT
+
+Do NOT build fully-automatic e-signature submission to EKAP. E-teklif requires a qualified electronic signature (NES); auto-signing on a user’s behalf is a serious legal/security risk. Flow: AI prepares → user reviews → user signs & submits. Keep the “otomatik e-imza” toggle present but disabled with an explanatory note.
+
+SECURITY
+
+	•	Encrypt stored API keys (AES-256), never log/expose them.
+	•	Multi-tenant isolation: every query scoped to the user’s organization/business.
+	•	KVKK (Turkish GDPR) compliant, privacy-by-default.
+
+BUILD ORDER (incremental)
+
+	1.	Scaffold + theme system + shared shell (sidebar/topbar/theme toggle) matching mockups.
+	2.	Auth (Clerk) + multi-tenant data model + seed data.
+	3.	Wire all 13 static pages to seed data via TanStack Query.
+	4.	Apply-on-my-behalf 6-step wizard writing to CompanyProfile.
+	5.	AI layer: integrations page (key storage) → fit-scoring → sliding AI panel → proposal generator.
+	6.	Stripe subscriptions + plan gating.
+	7.	Pipeline drag-and-drop + reports charts.
+
+Start with steps 1-3 and show me the running app before moving on. Ask me whenever a product decision is ambiguous rather than guessing. Match the attached mockups precisely.

@@ -3,20 +3,42 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: İhaleZeka API — Turkish public procurement intelligence platform
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard KPIs and summaries
+  - name: tenders
+    description: Tender/İhale operations
+  - name: matches
+    description: Tender match/fit scoring
+  - name: pipeline
+    description: Pipeline/Kanban operations
+  - name: company-profile
+    description: Company profile (wizard)
+  - name: documents
+    description: Document management
+  - name: proposals
+    description: Proposal generation
+  - name: competitors
+    description: Competitor analysis
+  - name: money-flow
+    description: Agency spending analytics
+  - name: reports
+    description: Performance reports
+  - name: api-keys
+    description: AI provider key management
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +46,672 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Dashboard ─────────────────────────────────────────────────────────────
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get KPI stats for the dashboard
+      responses:
+        "200":
+          description: Dashboard KPI stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/top-matches:
+    get:
+      operationId: getDashboardTopMatches
+      tags: [dashboard]
+      summary: Get top matched tenders for the dashboard
+      responses:
+        "200":
+          description: Top matched tenders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Match"
+
+  /dashboard/money-flow-sparkline:
+    get:
+      operationId: getDashboardMoneyFlowSparkline
+      tags: [dashboard]
+      summary: Get monthly money flow sparkline data
+      responses:
+        "200":
+          description: Monthly spend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlySpend"
+
+  /dashboard/pipeline-summary:
+    get:
+      operationId: getDashboardPipelineSummary
+      tags: [dashboard]
+      summary: Get pipeline stage counts for dashboard
+      responses:
+        "200":
+          description: Pipeline summary by stage
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineStageSummary"
+
+  /dashboard/win-predictions:
+    get:
+      operationId: getDashboardWinPredictions
+      tags: [dashboard]
+      summary: Get AI win prediction bars for active pipeline items
+      responses:
+        "200":
+          description: Win predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WinPrediction"
+
+  # ─── Tenders ────────────────────────────────────────────────────────────────
+  /tenders:
+    get:
+      operationId: listTenders
+      tags: [tenders]
+      summary: List tenders with optional filters
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Natural language or keyword search
+        - name: il
+          in: query
+          schema:
+            type: string
+          description: Province filter (il)
+        - name: tur
+          in: query
+          schema:
+            type: string
+          description: Tender type filter
+        - name: usul
+          in: query
+          schema:
+            type: string
+          description: Procurement method filter
+        - name: minBedel
+          in: query
+          schema:
+            type: number
+          description: Minimum estimated value
+        - name: maxBedel
+          in: query
+          schema:
+            type: number
+          description: Maximum estimated value
+        - name: idare
+          in: query
+          schema:
+            type: string
+          description: Agency name filter
+        - name: cpv
+          in: query
+          schema:
+            type: string
+          description: CPV code filter
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated list of tenders
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderPage"
+
+  /tenders/{id}:
+    get:
+      operationId: getTender
+      tags: [tenders]
+      summary: Get tender details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Tender detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderDetail"
+        "404":
+          description: Not found
+
+  # ─── Matches ─────────────────────────────────────────────────────────────────
+  /matches:
+    get:
+      operationId: listMatches
+      tags: [matches]
+      summary: List matched tenders with fit scores (Fırsatlarım)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, pipeline, watching, ignored]
+        - name: minFit
+          in: query
+          schema:
+            type: integer
+        - name: maxFit
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Paginated matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchPage"
+
+  /matches/{tenderId}:
+    get:
+      operationId: getMatch
+      tags: [matches]
+      summary: Get match details for a specific tender
+      parameters:
+        - name: tenderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Match detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchDetail"
+        "404":
+          description: Not found
+
+  /matches/{tenderId}/status:
+    patch:
+      operationId: updateMatchStatus
+      tags: [matches]
+      summary: Update match status (watch, ignore, etc.)
+      parameters:
+        - name: tenderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MatchStatusUpdate"
+      responses:
+        "200":
+          description: Updated match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Match"
+
+  # ─── Pipeline ────────────────────────────────────────────────────────────────
+  /pipeline:
+    get:
+      operationId: listPipelineItems
+      tags: [pipeline]
+      summary: List all pipeline items grouped by stage
+      responses:
+        "200":
+          description: Pipeline items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PipelineItem"
+
+    post:
+      operationId: createPipelineItem
+      tags: [pipeline]
+      summary: Add a tender to the pipeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineItemInput"
+      responses:
+        "201":
+          description: Created pipeline item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineItem"
+
+  /pipeline/{id}:
+    patch:
+      operationId: updatePipelineItem
+      tags: [pipeline]
+      summary: Update stage or notes of a pipeline item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PipelineItemUpdate"
+      responses:
+        "200":
+          description: Updated pipeline item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PipelineItem"
+
+    delete:
+      operationId: deletePipelineItem
+      tags: [pipeline]
+      summary: Remove a tender from the pipeline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Company Profile ──────────────────────────────────────────────────────────
+  /company-profile:
+    get:
+      operationId: getCompanyProfile
+      tags: [company-profile]
+      summary: Get the current business company profile
+      responses:
+        "200":
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyProfile"
+        "404":
+          description: Profile not set up yet
+
+    put:
+      operationId: upsertCompanyProfile
+      tags: [company-profile]
+      summary: Create or update company profile (wizard save)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyProfileInput"
+      responses:
+        "200":
+          description: Saved company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyProfile"
+
+  # ─── Documents ────────────────────────────────────────────────────────────────
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List business documents
+      parameters:
+        - name: folder
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Documents list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+    post:
+      operationId: createDocument
+      tags: [documents]
+      summary: Upload a document record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "201":
+          description: Created document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /documents/folders:
+    get:
+      operationId: listDocumentFolders
+      tags: [documents]
+      summary: List document folders with counts
+      responses:
+        "200":
+          description: Folder list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentFolder"
+
+  # ─── Proposals ────────────────────────────────────────────────────────────────
+  /proposals:
+    get:
+      operationId: listProposals
+      tags: [proposals]
+      summary: List proposals
+      responses:
+        "200":
+          description: Proposals list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Proposal"
+
+    post:
+      operationId: createProposal
+      tags: [proposals]
+      summary: Create a new proposal draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalInput"
+      responses:
+        "201":
+          description: Created proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+
+  /proposals/{id}:
+    get:
+      operationId: getProposal
+      tags: [proposals]
+      summary: Get a proposal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+
+    patch:
+      operationId: updateProposal
+      tags: [proposals]
+      summary: Update proposal content
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalUpdate"
+      responses:
+        "200":
+          description: Updated proposal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Proposal"
+
+  # ─── Competitors ──────────────────────────────────────────────────────────────
+  /competitors:
+    get:
+      operationId: listCompetitors
+      tags: [competitors]
+      summary: List competitor analysis data
+      responses:
+        "200":
+          description: Competitors list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Competitor"
+
+  /competitors/insights:
+    get:
+      operationId: getCompetitorInsights
+      tags: [competitors]
+      summary: Get AI-generated competitor insights and win-rate by category
+      responses:
+        "200":
+          description: Competitor insights
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorInsights"
+
+  # ─── Money Flow ───────────────────────────────────────────────────────────────
+  /money-flow/monthly:
+    get:
+      operationId: getMoneyFlowMonthly
+      tags: [money-flow]
+      summary: Get monthly agency spending trend
+      responses:
+        "200":
+          description: Monthly spend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlySpend"
+
+  /money-flow/categories:
+    get:
+      operationId: getMoneyFlowCategories
+      tags: [money-flow]
+      summary: Get spending by category (donut chart data)
+      responses:
+        "200":
+          description: Category spending
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpend"
+
+  /money-flow/top-agencies:
+    get:
+      operationId: getMoneyFlowTopAgencies
+      tags: [money-flow]
+      summary: Get top spending agencies
+      responses:
+        "200":
+          description: Top agencies by spend
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgencySpend"
+
+  # ─── Reports ──────────────────────────────────────────────────────────────────
+  /reports/summary:
+    get:
+      operationId: getReportsSummary
+      tags: [reports]
+      summary: Get performance KPIs and AI executive summary
+      responses:
+        "200":
+          description: Reports summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportsSummary"
+
+  /reports/applications-chart:
+    get:
+      operationId: getReportsApplicationsChart
+      tags: [reports]
+      summary: Get applications vs wins bar chart data by month
+      responses:
+        "200":
+          description: Monthly applications/wins data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyApplications"
+
+  /reports/category-performance:
+    get:
+      operationId: getReportsCategoryPerformance
+      tags: [reports]
+      summary: Get win rates by CPV category
+      responses:
+        "200":
+          description: Category performance
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryPerformance"
+
+  # ─── API Keys (Integrations) ──────────────────────────────────────────────────
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      tags: [api-keys]
+      summary: List connected AI provider keys (masked)
+      responses:
+        "200":
+          description: API keys list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiKey"
+
+    post:
+      operationId: createApiKey
+      tags: [api-keys]
+      summary: Store an encrypted AI provider API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyInput"
+      responses:
+        "201":
+          description: Created API key record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKey"
+
+  /api-keys/{id}:
+    delete:
+      operationId: deleteApiKey
+      tags: [api-keys]
+      summary: Delete an AI provider API key
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +719,580 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    # ─── Dashboard ──────────────────────────────────────────────────────────────
+    DashboardStats:
+      type: object
+      required: [activeMatches, pipelineCount, totalValue, winRate, newTendersToday, avgFitScore]
+      properties:
+        activeMatches:
+          type: integer
+          description: Active matching tenders
+        pipelineCount:
+          type: integer
+          description: Items currently in pipeline
+        totalValue:
+          type: number
+          description: Total estimated value of pipeline (TL)
+        winRate:
+          type: number
+          description: Win rate percentage
+        newTendersToday:
+          type: integer
+          description: New tenders matched today
+        avgFitScore:
+          type: number
+          description: Average fit score across active matches
+
+    MonthlySpend:
+      type: object
+      required: [month, amount]
+      properties:
+        month:
+          type: string
+        amount:
+          type: number
+
+    PipelineStageSummary:
+      type: object
+      required: [stage, count, totalValue]
+      properties:
+        stage:
+          type: string
+          enum: [discovery, preparation, applied, evaluation, won, lost]
+        count:
+          type: integer
+        totalValue:
+          type: number
+
+    WinPrediction:
+      type: object
+      required: [tenderId, tenderTitle, agencyName, probability]
+      properties:
+        tenderId:
+          type: integer
+        tenderTitle:
+          type: string
+        agencyName:
+          type: string
+        probability:
+          type: number
+          description: 0-100 win probability
+
+    # ─── Tender ─────────────────────────────────────────────────────────────────
+    Tender:
+      type: object
+      required: [id, ikn, title, agencyName, type, method, estimatedValue, deadline, status, il]
+      properties:
+        id:
+          type: integer
+        ikn:
+          type: string
+          description: İhale Kayıt Numarası
+        title:
+          type: string
+        agencyName:
+          type: string
+        agencyLogoUrl:
+          type: ["string", "null"]
+        type:
+          type: string
+          description: Tender type (e.g. mal alımı, hizmet alımı, yapım işi)
+        method:
+          type: string
+          description: Procurement method (e.g. açık ihale usulü)
+        estimatedValue:
+          type: number
+        deadline:
+          type: string
+          format: date-time
+        cpvCodes:
+          type: array
+          items:
+            type: string
+        il:
+          type: string
+          description: Province
+        status:
+          type: string
+          enum: [active, cancelled, awarded, draft]
+        sourceSystem:
+          type: string
+          default: ekap
+
+    TenderDetail:
+      allOf:
+        - $ref: "#/components/schemas/Tender"
+        - type: object
+          properties:
+            description:
+              type: ["string", "null"]
+            qualificationCriteria:
+              type: array
+              items:
+                type: string
+            documentsRequired:
+              type: array
+              items:
+                type: string
+            rawDocsUrls:
+              type: array
+              items:
+                type: string
+
+    TenderPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tender"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ─── Match ──────────────────────────────────────────────────────────────────
+    Match:
+      type: object
+      required: [id, tender, fitScore, status]
+      properties:
+        id:
+          type: integer
+        tender:
+          $ref: "#/components/schemas/Tender"
+        fitScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        reasoning:
+          type: ["string", "null"]
+        pros:
+          type: array
+          items:
+            type: string
+        risks:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [new, pipeline, watching, ignored]
+        createdAt:
+          type: string
+          format: date-time
+
+    MatchDetail:
+      allOf:
+        - $ref: "#/components/schemas/Match"
+        - type: object
+          properties:
+            tender:
+              $ref: "#/components/schemas/TenderDetail"
+            criteriaCompliance:
+              type: array
+              items:
+                $ref: "#/components/schemas/CriteriaCheck"
+
+    CriteriaCheck:
+      type: object
+      required: [criterion, compliant]
+      properties:
+        criterion:
+          type: string
+        compliant:
+          type: boolean
+        note:
+          type: ["string", "null"]
+
+    MatchStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [new, pipeline, watching, ignored]
+
+    MatchPage:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Match"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ─── Pipeline ────────────────────────────────────────────────────────────────
+    PipelineItem:
+      type: object
+      required: [id, tender, stage, createdAt]
+      properties:
+        id:
+          type: integer
+        tender:
+          $ref: "#/components/schemas/Tender"
+        stage:
+          type: string
+          enum: [discovery, preparation, applied, evaluation, won, lost]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PipelineItemInput:
+      type: object
+      required: [tenderId, stage]
+      properties:
+        tenderId:
+          type: integer
+        stage:
+          type: string
+          enum: [discovery, preparation, applied, evaluation, won, lost]
+        notes:
+          type: string
+
+    PipelineItemUpdate:
+      type: object
+      properties:
+        stage:
+          type: string
+          enum: [discovery, preparation, applied, evaluation, won, lost]
+        notes:
+          type: string
+
+    # ─── Company Profile ─────────────────────────────────────────────────────────
+    CompanyProfile:
+      type: object
+      required: [id, businessId, companyName, taxNumber]
+      properties:
+        id:
+          type: integer
+        businessId:
+          type: string
+        companyName:
+          type: string
+        taxNumber:
+          type: string
+        mersisNumber:
+          type: ["string", "null"]
+        ekapNumber:
+          type: ["string", "null"]
+        naceCodes:
+          type: array
+          items:
+            type: string
+        cpvCodes:
+          type: array
+          items:
+            type: string
+        experienceCeiling:
+          type: ["number", "null"]
+        certifications:
+          type: array
+          items:
+            type: string
+        personnelCount:
+          type: ["integer", "null"]
+        annualRevenue:
+          type: ["number", "null"]
+        preferredProvinces:
+          type: array
+          items:
+            type: string
+        excludedProvinces:
+          type: array
+          items:
+            type: string
+        discountStrategy:
+          type: ["string", "null"]
+        automationEnabled:
+          type: boolean
+          default: false
+        completionStep:
+          type: integer
+          minimum: 0
+          maximum: 6
+
+    CompanyProfileInput:
+      type: object
+      required: [companyName, taxNumber]
+      properties:
+        companyName:
+          type: string
+        taxNumber:
+          type: string
+        mersisNumber:
+          type: string
+        ekapNumber:
+          type: string
+        naceCodes:
+          type: array
+          items:
+            type: string
+        cpvCodes:
+          type: array
+          items:
+            type: string
+        experienceCeiling:
+          type: number
+        certifications:
+          type: array
+          items:
+            type: string
+        personnelCount:
+          type: integer
+        annualRevenue:
+          type: number
+        preferredProvinces:
+          type: array
+          items:
+            type: string
+        excludedProvinces:
+          type: array
+          items:
+            type: string
+        discountStrategy:
+          type: string
+        automationEnabled:
+          type: boolean
+        completionStep:
+          type: integer
+
+    # ─── Documents ───────────────────────────────────────────────────────────────
+    Document:
+      type: object
+      required: [id, name, folder, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        folder:
+          type: string
+        fileUrl:
+          type: ["string", "null"]
+        validUntil:
+          type: ["string", "null"]
+          format: date
+        status:
+          type: string
+          enum: [valid, expiring_soon, expired, pending]
+        createdAt:
+          type: string
+          format: date-time
+
+    DocumentInput:
+      type: object
+      required: [name, folder]
+      properties:
+        name:
+          type: string
+        folder:
+          type: string
+        fileUrl:
+          type: string
+        validUntil:
+          type: string
+          format: date
+
+    DocumentFolder:
+      type: object
+      required: [name, count]
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+        expiringCount:
+          type: integer
+
+    # ─── Proposals ───────────────────────────────────────────────────────────────
+    Proposal:
+      type: object
+      required: [id, tenderId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        tenderId:
+          type: integer
+        tenderTitle:
+          type: ["string", "null"]
+        contentJson:
+          type: ["string", "null"]
+          description: JSON-encoded proposal sections
+        status:
+          type: string
+          enum: [draft, finalized, submitted]
+        version:
+          type: integer
+          default: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProposalInput:
+      type: object
+      required: [tenderId]
+      properties:
+        tenderId:
+          type: integer
+        contentJson:
+          type: string
+
+    ProposalUpdate:
+      type: object
+      properties:
+        contentJson:
+          type: string
+        status:
+          type: string
+          enum: [draft, finalized, submitted]
+
+    # ─── Competitors ─────────────────────────────────────────────────────────────
+    Competitor:
+      type: object
+      required: [id, name, wonTenders, avgDiscountRate, encounters]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        wonTenders:
+          type: integer
+        avgDiscountRate:
+          type: number
+          description: Average discount (kırım) percentage
+        encounters:
+          type: integer
+          description: How many times this competitor appeared in same tenders
+
+    CompetitorInsights:
+      type: object
+      required: [aiInsight, categoryWinRates]
+      properties:
+        aiInsight:
+          type: string
+          description: AI-generated competitor analysis text
+        categoryWinRates:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryPerformance"
+
+    # ─── Money Flow ──────────────────────────────────────────────────────────────
+    CategorySpend:
+      type: object
+      required: [category, amount, percentage]
+      properties:
+        category:
+          type: string
+        amount:
+          type: number
+        percentage:
+          type: number
+
+    AgencySpend:
+      type: object
+      required: [agencyName, totalSpend, tenderCount]
+      properties:
+        agencyName:
+          type: string
+        agencyLogoUrl:
+          type: ["string", "null"]
+        totalSpend:
+          type: number
+        tenderCount:
+          type: integer
+        il:
+          type: string
+
+    # ─── Reports ─────────────────────────────────────────────────────────────────
+    ReportsSummary:
+      type: object
+      required: [totalApplications, wonCount, lostCount, pendingCount, successRate, aiSummary]
+      properties:
+        totalApplications:
+          type: integer
+        wonCount:
+          type: integer
+        lostCount:
+          type: integer
+        pendingCount:
+          type: integer
+        successRate:
+          type: number
+        totalWonValue:
+          type: number
+        aiSummary:
+          type: string
+
+    MonthlyApplications:
+      type: object
+      required: [month, applications, wins]
+      properties:
+        month:
+          type: string
+        applications:
+          type: integer
+        wins:
+          type: integer
+
+    CategoryPerformance:
+      type: object
+      required: [category, applications, wins, winRate]
+      properties:
+        category:
+          type: string
+        applications:
+          type: integer
+        wins:
+          type: integer
+        winRate:
+          type: number
+
+    # ─── API Keys ─────────────────────────────────────────────────────────────────
+    ApiKey:
+      type: object
+      required: [id, provider, maskedKey, createdAt]
+      properties:
+        id:
+          type: integer
+        provider:
+          type: string
+          enum: [openai, anthropic, gemini]
+        maskedKey:
+          type: string
+          description: Key with most characters masked (e.g. sk-...XXXX)
+        lastUsedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ApiKeyInput:
+      type: object
+      required: [provider, key]
+      properties:
+        provider:
+          type: string
+          enum: [openai, anthropic, gemini]
+        key:
+          type: string
+          description: Raw API key (will be encrypted before storage)

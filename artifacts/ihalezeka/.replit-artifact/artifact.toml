@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "İhaleZeka"
+version = "1.0.0"
+id = "artifacts/ihalezeka"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 8080
+
+[services.development]
+run = "pnpm --filter @workspace/ihalezeka run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ihalezeka", "run", "build" ]
+publicDir = "artifacts/ihalezeka/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24180"
+BASE_PATH = "/"
