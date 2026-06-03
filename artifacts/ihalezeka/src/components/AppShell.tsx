@@ -203,7 +203,7 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: topMatches } = useGetDashboardTopMatches();
   const [message, setMessage] = useState("");
 
-  const matches = topMatches ?? [];
+  const matches = Array.isArray(topMatches) ? topMatches : [];
 
   function fitChip(score: number) {
     if (score >= 70) return "bg-emerald-100 text-emerald-700";

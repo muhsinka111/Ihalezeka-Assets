@@ -22,3 +22,14 @@ When a react-vite artifact gets an unregistered port (e.g. 24180) and the workfl
    - The ihalezeka workflow can remain "failed" — proxy routing works regardless
 
 3. **Vite config PORT guard**: Remove the `throw new Error` if PORT is unset — use defaults (`?? "24180"`) so `vite build` works without env vars being set.
+
+## SPA fallback ordering (api-server serves frontend + /api)
+When one Express server serves both `/api` and the SPA shell, the catch-all index.html handler must NOT swallow API/asset/non-GET requests:
+- Mount a JSON 404 handler on `/api` AFTER the router, so unknown API routes return JSON 404 instead of the HTML shell.
+- Guard the SPA fallback: only serve index.html for `GET`/`HEAD` requests where `req.accepts("html")`; otherwise `next()`. This keeps missing assets and non-GET methods on Express's default 404 rather than returning HTML 200.
+
+## Clerk handshake 307 is expected on non-root routes (not a bug)
+With global `clerkMiddleware`, a `curl` (no cookie jar) to SPA routes like `/dashboard` returns `307` to `*.clerk.accounts.dev/v1/client/handshake` (`x-clerk-auth-reason: dev-browser-missing`). A real browser follows it, sets the session cookie, and lands fine — confirmed by working preview screenshots. Don't chase this 307 as a routing/fallback bug; only `/` returns 200 directly in curl.
+
+## build:watch caveat
+ihalezeka dev command is `vite build --watch` (no port). `emptyOutDir: true` can cause brief 404s on assets during the ~50s rebuild window while api-server serves `dist/public`. Minor dev-time only; production uses the static `serve` config, so left as-is.

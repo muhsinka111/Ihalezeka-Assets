@@ -15,7 +15,7 @@ paths = [ "/" ]
 localPort = 8080
 
 [services.development]
-run = "pnpm --filter @workspace/ihalezeka run dev"
+run = "pnpm --filter @workspace/ihalezeka run build:watch"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/ihalezeka", "run", "build" ]

@@ -52,6 +52,11 @@ app.use(
 
 app.use("/api", router);
 
+// Unknown /api routes must return JSON 404 — never fall through to the SPA shell.
+app.use("/api", (_req, res) => {
+  res.status(404).json({ title: "Not Found", status: 404 });
+});
+
 // Serve the built frontend from artifacts/ihalezeka/dist/public
 // __dirname here resolves to artifacts/api-server/dist at runtime
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -59,8 +64,12 @@ const FRONTEND_DIST = path.resolve(__dirname, "..", "..", "ihalezeka", "dist", "
 
 app.use("/", express.static(FRONTEND_DIST));
 
-// SPA fallback: all unmatched routes return index.html so client-side routing works
-app.use((_req, res) => {
+// SPA fallback: only navigational HTML GET requests return index.html so
+// client-side routing works. Non-GET methods and asset/JSON requests fall
+// through to Express's default 404 instead of receiving the HTML shell.
+app.use((req, res, next) => {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  if (!req.accepts("html")) return next();
   res.sendFile(path.join(FRONTEND_DIST, "index.html"));
 });
 
