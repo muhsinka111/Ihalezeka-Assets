@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useListTenders } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -115,18 +115,42 @@ function StatusBadge({ status }: { status?: string | null }) {
   return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">Aktif</span>;
 }
 
-function useScraperStatus() {
+function useScraperStatus(onFinished?: () => void) {
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(true);
+  const wasRunning = useRef(false);
+
   useEffect(() => {
     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
-    fetch(`${base}/api/admin/scraper/status`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data?.lastRunAt) setLastRunAt(data.lastRunAt); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    let timer: ReturnType<typeof setTimeout>;
+
+    async function poll() {
+      try {
+        const r = await fetch(`${base}/api/admin/scraper/status`);
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data?.lastRunAt) setLastRunAt(data.lastRunAt);
+        const running = Boolean(data?.isRunning);
+        setIsRunning(running);
+        if (wasRunning.current && !running) {
+          onFinished?.();
+        }
+        wasRunning.current = running;
+        if (running) {
+          timer = setTimeout(poll, 3000);
+        }
+      } catch {
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    poll();
+    return () => clearTimeout(timer);
   }, []);
-  return { lastRunAt, loading };
+
+  return { lastRunAt, isRunning, loading };
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -174,8 +198,6 @@ export default function IhaleAramaPage() {
   const [secTarih, setSecTarih] = useState(true);
   const [secKaynak, setSecKaynak] = useState(true);
 
-  const { lastRunAt, loading: statusLoading } = useScraperStatus();
-
   const apiParams: any = {
     q: applied.q,
     il: applied.il,
@@ -193,8 +215,12 @@ export default function IhaleAramaPage() {
   };
   Object.keys(apiParams).forEach(k => apiParams[k] === undefined && delete apiParams[k]);
 
-  const { data, isLoading } = useListTenders(apiParams);
+  const { data, isLoading, refetch } = useListTenders(apiParams);
   const tenders = data?.items ?? [];
+
+  const { lastRunAt, isRunning, loading: statusLoading } = useScraperStatus(
+    useCallback(() => { refetch(); }, [refetch])
+  );
 
   const applyFilters = useCallback((f: Filters) => {
     setApplied(f);
@@ -429,6 +455,25 @@ export default function IhaleAramaPage() {
           </div>
         </div>
       </div>
+
+      {/* Scraper Running Banner */}
+      {isRunning && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium">İhaleler yükleniyor, lütfen bekleyin…</p>
+            <p className="text-xs text-blue-600 mt-0.5">Veriler toplanıyor. Tamamlanınca sonuçlar otomatik görünecek.</p>
+            <div className="mt-2 h-1.5 w-full rounded-full bg-blue-200 overflow-hidden relative">
+              <div
+                className="absolute h-full rounded-full bg-blue-500"
+                style={{
+                  width: "40%",
+                  animation: "scraper-slide 1.8s ease-in-out infinite",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="flex gap-2">

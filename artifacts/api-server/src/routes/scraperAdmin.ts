@@ -7,6 +7,7 @@ import { runEkapScraper } from "../scrapers/ekap-scraper.js";
 import { runIlanScraper } from "../scrapers/ilan-scraper.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { logger } from "../lib/logger.js";
+import { isScraperRunning } from "../scrapers/scheduler.js";
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.get("/admin/scraper/status", async (_req, res) => {
     const totalFetched = rows.reduce((sum, r) => sum + r.recordsFetched, 0);
 
     res.json({
+      isRunning: isScraperRunning(),
       lastRunAt,
       recentRuns: rows.slice(0, 5).map((r) => ({
         source: r.source,
