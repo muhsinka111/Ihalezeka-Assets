@@ -24,9 +24,8 @@ export function Navbar() {
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <div className="container mx-auto px-6 md:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="İhaleZeka Logo" className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary" />
-          <span className="font-heading font-bold text-xl md:text-2xl tracking-tight text-foreground">İhaleZeka</span>
+        <div className="flex items-center">
+          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="İhaleZeka" className="h-8 md:h-9 w-auto" />
         </div>
         
         <nav className="hidden md:flex items-center gap-8 font-medium text-sm text-muted-foreground">

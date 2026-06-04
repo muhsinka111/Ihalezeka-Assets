@@ -6,9 +6,8 @@ export function Footer() {
       <div className="container mx-auto px-6 md:px-12">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-16">
           <div className="col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-3 mb-6">
-              <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="İhaleZeka Logo" className="w-8 h-8 rounded-full bg-primary" />
-              <span className="font-heading font-bold text-xl tracking-tight text-foreground">İhaleZeka</span>
+            <div className="flex items-center mb-6">
+              <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="İhaleZeka" className="h-9 w-auto" />
             </div>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
               Türkiye'nin yapay zeka destekli ilk ve en gelişmiş kamu ihale istihbarat platformu. Hedefinize odaklanın, ihaleleri biz bulalım.

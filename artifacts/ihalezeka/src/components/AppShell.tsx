@@ -79,8 +79,13 @@ export function AppShell({ children }: AppShellProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className={cn("flex items-center gap-3 p-4 border-b border-sidebar-border", collapsed && "justify-center px-2")}>
-        <img src={`${basePath}/logo.svg`} alt="İhaleZeka" className="h-8 w-8 rounded-full shrink-0" />
-        {!collapsed && <span className="font-heading font-bold text-lg text-white tracking-tight">İhaleZeka</span>}
+        {collapsed ? (
+          <span className="font-heading font-bold text-lg text-white tracking-tight select-none">İZ</span>
+        ) : (
+          <div className="bg-white rounded-lg px-2 py-1">
+            <img src={`${basePath}/logo.svg`} alt="İhaleZeka" className="h-6 w-auto" />
+          </div>
+        )}
       </div>
 
       {/* Nav */}
