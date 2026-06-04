@@ -36,6 +36,24 @@ uri = "file://attached_assets/logo_ai_v3.png"
 type = "image"
 title = "ihalezeka AI eye scan logo v3"
 
+[[generated]]
+id = "Cnw-MlMREKDuTWknLWl_9"
+uri = "file://attached_assets/logo_geo_v1.png"
+type = "image"
+title = "ihalezeka sharp Z chevron logo"
+
+[[generated]]
+id = "s_IHpwhL9Y1Tr62CQgBar"
+uri = "file://attached_assets/logo_geo_v2.png"
+type = "image"
+title = "ihalezeka diamond IZ cutout logo"
+
+[[generated]]
+id = "JtidLhFXSMbpLziz2U_sK"
+uri = "file://attached_assets/logo_geo_v3.png"
+type = "image"
+title = "ihalezeka sharp typographic wordmark"
+
 [[outputs]]
 id = "AUZLaFPQlxXFsIpA4Xvxh"
 uri = "file://attached_assets/logo_v1.png"
@@ -71,3 +89,21 @@ id = "XzPkxECu7YRnwAYH_8xSf"
 uri = "file://attached_assets/logo_ai_v3.png"
 type = "image"
 title = "Option C — AI scanning eye"
+
+[[outputs]]
+id = "IjKVk4KUVtwzY--YIn31_"
+uri = "file://attached_assets/logo_geo_v1.png"
+type = "image"
+title = "Option A — Angular Z chevron mark"
+
+[[outputs]]
+id = "VHBfsKqy5Wo5zHrpVwHsC"
+uri = "file://attached_assets/logo_geo_v2.png"
+type = "image"
+title = "Option B — Diamond with IZ cutout"
+
+[[outputs]]
+id = "mtBx3aH-FIyCF8uwEVtdD"
+uri = "file://attached_assets/logo_geo_v3.png"
+type = "image"
+title = "Option C — Sharp typographic wordmark"
