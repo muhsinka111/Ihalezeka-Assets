@@ -53,14 +53,10 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link href="/sign-up">
+            {/* DEV BYPASS button — remove and restore sign-up/sign-in links when going to production */}
+            <Link href="/dashboard">
               <Button size="lg" className="h-14 px-8 text-base font-bold shadow-lg shadow-primary/25 w-full sm:w-auto">
-                Hemen Başlayın <IconArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-            <Link href="/sign-in">
-              <Button variant="outline" size="lg" className="h-14 px-8 text-base font-bold w-full sm:w-auto bg-background/50 backdrop-blur-sm border-border hover:bg-muted">
-                Sisteme Giriş Yap
+                Beta Girişi — Geliştirici Erişimi <IconArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
           </motion.div>

@@ -99,20 +99,24 @@ function HomeRedirect() {
   return <LandingPage />;
 }
 
+// DEV BYPASS: auth check skipped until project is ready for production.
+// To re-enable, replace the body with the commented-out block below.
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
-    <>
-      <Show when="signed-in">
-        <AppShell>
-          <Component />
-        </AppShell>
-      </Show>
-      <Show when="signed-out">
-        <Redirect to="/sign-in" />
-      </Show>
-    </>
+    <AppShell>
+      <Component />
+    </AppShell>
   );
 }
+// PRODUCTION version (restore when ready):
+// function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+//   return (
+//     <>
+//       <Show when="signed-in"><AppShell><Component /></AppShell></Show>
+//       <Show when="signed-out"><Redirect to="/sign-in" /></Show>
+//     </>
+//   );
+// }
 
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
