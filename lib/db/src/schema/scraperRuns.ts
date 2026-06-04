@@ -8,6 +8,7 @@ export const scraperRunsTable = pgTable("scraper_runs", {
   recordsFetched: integer("records_fetched").notNull().default(0),
   recordsInserted: integer("records_inserted").notNull().default(0),
   recordsUpdated: integer("records_updated").notNull().default(0),
+  recordsAnalyzed: integer("records_analyzed").notNull().default(0),
   errorMessage: text("error_message"),
 });
 

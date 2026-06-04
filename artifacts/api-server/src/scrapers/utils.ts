@@ -9,6 +9,7 @@ export interface ScraperResult {
   fetched: number;
   inserted: number;
   updated: number;
+  analyzed?: number;
   newTenderIds?: number[];
   error?: string;
 }
@@ -148,6 +149,11 @@ export async function upsertTender(
   }
 }
 
-export async function logScraperRun(run: InsertScraperRun): Promise<void> {
-  await db.insert(scraperRunsTable).values(run);
+export async function logScraperRun(run: InsertScraperRun): Promise<string> {
+  const [row] = await db.insert(scraperRunsTable).values(run).returning({ id: scraperRunsTable.id });
+  return row.id;
+}
+
+export async function updateScraperRunAnalyzed(id: string, recordsAnalyzed: number): Promise<void> {
+  await db.update(scraperRunsTable).set({ recordsAnalyzed }).where(eq(scraperRunsTable.id, id));
 }

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgencyLogo } from "@/components/AgencyLogo";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   IconArrowLeft, IconCheck, IconX, IconFileText, IconBolt,
   IconClipboardList, IconDownload, IconExternalLink, IconLoader2,
@@ -83,10 +83,58 @@ interface AiAnalysis {
   analyzedAt: string;
 }
 
-function AiDocumentAnalysis({ tenderId, initial }: { tenderId: number; initial: AiAnalysis | null }) {
+function AiDocumentAnalysis({
+  tenderId,
+  initial,
+  hasDocs,
+  isEkap,
+}: {
+  tenderId: number;
+  initial: AiAnalysis | null;
+  hasDocs: boolean;
+  isEkap: boolean;
+}) {
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
+
+  const isPending = !analysis && hasDocs && isEkap;
+
+  useEffect(() => {
+    if (!isPending) return;
+    setPolling(true);
+    let attempts = 0;
+    const maxAttempts = 24;
+    const intervalMs = 5_000;
+
+    const intervalId = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`/api/matches/${tenderId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fetchedAnalysis = data?.aiSummary ?? null;
+          if (fetchedAnalysis) {
+            setAnalysis(fetchedAnalysis);
+            setPolling(false);
+            clearInterval(intervalId);
+            return;
+          }
+        }
+      } catch {
+      }
+      if (attempts >= maxAttempts) {
+        setPolling(false);
+        clearInterval(intervalId);
+      }
+    }, intervalMs);
+
+    return () => {
+      clearInterval(intervalId);
+      setPolling(false);
+    };
+  }, [isPending, tenderId]);
 
   async function runAnalysis() {
     setLoading(true);
@@ -101,6 +149,49 @@ function AiDocumentAnalysis({ tenderId, initial }: { tenderId: number; initial: 
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!analysis && isPending) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IconBolt className="h-5 w-5 text-primary" />
+            Yapay Zeka Belge Analizi
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 py-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <IconLoader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <span>Analiz bekleniyor... Belgeler arka planda işleniyor.</span>
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-16 rounded-lg" />
+            <Skeleton className="h-16 rounded-lg" />
+            <Skeleton className="h-16 rounded-lg" />
+          </div>
+          {!polling && (
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <p className="text-xs text-muted-foreground text-center">
+                Analiz tamamlanmadıysa manuel olarak başlatabilirsiniz.
+              </p>
+              <Button onClick={runAnalysis} disabled={loading} variant="outline" size="sm" className="gap-2">
+                {loading ? (
+                  <><IconLoader2 className="h-3 w-3 animate-spin" />Analiz Ediliyor...</>
+                ) : (
+                  <><IconBolt className="h-3 w-3" />Şimdi Analiz Et</>
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   }
 
   if (!analysis) {
@@ -347,7 +438,12 @@ export default function IhaleDetayPage() {
           </Card>
 
           {/* AI Document Analysis */}
-          <AiDocumentAnalysis tenderId={tenderId} initial={aiSummary} />
+          <AiDocumentAnalysis
+            tenderId={tenderId}
+            initial={aiSummary}
+            hasDocs={documents.some((d) => !!d.url)}
+            isEkap={tenderAny.sourceSystem === "ekap"}
+          />
 
           {/* Criteria Compliance */}
           {criteria.length > 0 && (
