@@ -54,8 +54,17 @@ export function useNotifications() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+
+    const es = new EventSource(`${BASE}/api/notifications/stream`);
+
+    es.addEventListener("new_notifications", () => {
+      load();
+    });
+
+    es.onerror = () => {
+    };
+
+    return () => es.close();
   }, []);
 
   return { data, reload: load };

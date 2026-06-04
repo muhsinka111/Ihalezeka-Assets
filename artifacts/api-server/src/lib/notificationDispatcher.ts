@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "./logger.js";
 import { sendEmail, buildMatchEmailHtml } from "./emailService.js";
 import { scoreNewTenders, type ScoredMatch } from "./tenderScorer.js";
+import { broadcastToBusinessId } from "./sseManager.js";
 
 export interface DispatchResult {
   notificationsCreated: number;
@@ -84,6 +85,10 @@ export async function scoreAndNotify(newTenderIds: number[]): Promise<DispatchRe
 
         await db.insert(notificationsTable).values(notifications);
         result.notificationsCreated += notifications.length;
+
+        broadcastToBusinessId(pref.businessId, "new_notifications", {
+          count: notifications.length,
+        });
       }
 
       // Step 4b: send email (independent of in-app)

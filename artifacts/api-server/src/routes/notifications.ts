@@ -6,6 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, and, isNull, desc, count, gt } from "drizzle-orm";
 import { getBusinessId } from "../lib/authHelpers.js";
+import { addSseClient } from "../lib/sseManager.js";
 
 const router = Router();
 
@@ -70,6 +71,28 @@ function validatePrefsBody(body: unknown): { ok: true; data: PrefsBody } | { ok:
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────
+
+router.get("/notifications/stream", (req, res) => {
+  let businessId: string;
+  try {
+    businessId = getBusinessId(req);
+  } catch {
+    res.status(401).end();
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  res.write(": connected\n\n");
+
+  const cleanup = addSseClient(businessId, res);
+
+  req.on("close", cleanup);
+});
 
 router.get("/notifications", async (req, res) => {
   try {
