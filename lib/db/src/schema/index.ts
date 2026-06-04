@@ -7,3 +7,4 @@ export * from "./proposals";
 export * from "./competitors";
 export * from "./apiKeys";
 export * from "./scraperRuns";
+export * from "./notifications";

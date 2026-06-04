@@ -2,6 +2,8 @@ import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { runEkapScraper } from "../scrapers/ekap-scraper.js";
 import { runIlanScraper } from "../scrapers/ilan-scraper.js";
+import { scoreAndNotify } from "../lib/notificationDispatcher.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -23,11 +25,21 @@ router.post("/admin/scraper/run", async (req, res) => {
   try {
     if (source === "ekap") {
       const result = await runEkapScraper();
+      if (result.newTenderIds && result.newTenderIds.length > 0) {
+        scoreAndNotify(result.newTenderIds).catch((err) =>
+          logger.error({ err }, "Notification dispatch failed")
+        );
+      }
       return res.json({ source: "ekap", result });
     }
 
     if (source === "ilan_gov") {
       const result = await runIlanScraper();
+      if (result.newTenderIds && result.newTenderIds.length > 0) {
+        scoreAndNotify(result.newTenderIds).catch((err) =>
+          logger.error({ err }, "Notification dispatch failed")
+        );
+      }
       return res.json({ source: "ilan_gov", result });
     }
 
@@ -35,6 +47,19 @@ router.post("/admin/scraper/run", async (req, res) => {
       runEkapScraper(),
       runIlanScraper(),
     ]);
+
+    const allNewIds: number[] = [];
+    if (ekapResult.status === "fulfilled" && ekapResult.value.newTenderIds) {
+      allNewIds.push(...ekapResult.value.newTenderIds);
+    }
+    if (ilanResult.status === "fulfilled" && ilanResult.value.newTenderIds) {
+      allNewIds.push(...ilanResult.value.newTenderIds);
+    }
+    if (allNewIds.length > 0) {
+      scoreAndNotify(allNewIds).catch((err) =>
+        logger.error({ err }, "Notification dispatch failed")
+      );
+    }
 
     return res.json({
       ekap:

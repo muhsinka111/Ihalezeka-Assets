@@ -4,7 +4,7 @@ import { mapIlanToTender, upsertTender, logScraperRun, retry, ScraperResult } fr
 
 export async function runIlanScraper(): Promise<ScraperResult> {
   const startedAt = new Date();
-  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0 };
+  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
   try {
     logger.info("ilan.gov.tr scraper starting");
@@ -15,9 +15,10 @@ export async function runIlanScraper(): Promise<ScraperResult> {
     for (const ad of ads) {
       try {
         const mapped = mapIlanToTender(ad);
-        const { inserted } = await upsertTender(mapped);
+        const { inserted, tenderId } = await upsertTender(mapped);
         if (inserted) {
           result.inserted++;
+          result.newTenderIds!.push(tenderId);
         } else {
           result.updated++;
         }

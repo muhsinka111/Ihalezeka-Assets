@@ -7,6 +7,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { AgencyLogo } from "@/components/AgencyLogo";
+import { NotificationPanel, useNotifications } from "@/components/NotificationPanel";
+import { NotificationPrefsModal } from "@/components/NotificationPrefsModal";
 import { useGetDashboardTopMatches } from "@workspace/api-client-react";
 import {
   IconLayoutDashboard,
@@ -64,6 +66,9 @@ export function AppShell({ children }: AppShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  const [prefsModalOpen, setPrefsModalOpen] = useState(false);
+  const { data: notifData } = useNotifications();
 
   const toggleDark = () => {
     document.documentElement.classList.toggle("dark");
@@ -208,10 +213,26 @@ export function AppShell({ children }: AppShellProps) {
               {darkMode ? <IconSun className="h-4 w-4" /> : <IconMoon className="h-4 w-4" />}
             </Button>
 
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-              <IconBell className="h-4 w-4" />
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
-            </Button>
+            <div className="relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 relative"
+                onClick={() => setNotifPanelOpen((o) => !o)}
+              >
+                <IconBell className="h-4 w-4" />
+                {notifData.unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive flex items-center justify-center text-[9px] font-bold text-white leading-none">
+                    {notifData.unreadCount > 9 ? "9+" : notifData.unreadCount}
+                  </span>
+                )}
+              </Button>
+              <NotificationPanel
+                open={notifPanelOpen}
+                onClose={() => setNotifPanelOpen(false)}
+                onPrefsClick={() => { setNotifPanelOpen(false); setPrefsModalOpen(true); }}
+              />
+            </div>
 
             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer">
               {user?.firstName?.[0] ?? <IconUser className="h-3.5 w-3.5" />}
@@ -227,6 +248,9 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* AI Panel */}
       <AiPanel open={aiOpen} onClose={closePanel} />
+
+      {/* Notification Preferences Modal */}
+      <NotificationPrefsModal open={prefsModalOpen} onClose={() => setPrefsModalOpen(false)} />
     </div>
   );
 }

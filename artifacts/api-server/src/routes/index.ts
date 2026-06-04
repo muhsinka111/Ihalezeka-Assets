@@ -12,6 +12,7 @@ import moneyFlowRouter from "./moneyFlow";
 import reportsRouter from "./reports";
 import apiKeysRouter from "./apiKeys";
 import scraperAdminRouter from "./scraperAdmin";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(moneyFlowRouter);
 router.use(reportsRouter);
 router.use(apiKeysRouter);
 router.use(scraperAdminRouter);
+router.use(notificationsRouter);
 
 export default router;

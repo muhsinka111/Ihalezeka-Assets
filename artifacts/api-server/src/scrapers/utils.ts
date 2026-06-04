@@ -9,6 +9,7 @@ export interface ScraperResult {
   fetched: number;
   inserted: number;
   updated: number;
+  newTenderIds?: number[];
   error?: string;
 }
 
@@ -121,7 +122,7 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
 
 export async function upsertTender(
   tender: InsertTender,
-): Promise<{ inserted: boolean }> {
+): Promise<{ inserted: boolean; tenderId: number }> {
   const existing = await db
     .select({ id: tendersTable.id })
     .from(tendersTable)
@@ -133,10 +134,10 @@ export async function upsertTender(
       .update(tendersTable)
       .set({ ...tender, updatedAt: new Date() })
       .where(eq(tendersTable.ikn, tender.ikn));
-    return { inserted: false };
+    return { inserted: false, tenderId: existing[0].id };
   } else {
-    await db.insert(tendersTable).values(tender);
-    return { inserted: true };
+    const [inserted] = await db.insert(tendersTable).values(tender).returning({ id: tendersTable.id });
+    return { inserted: true, tenderId: inserted.id };
   }
 }
 

@@ -7,7 +7,7 @@ export async function runEkapScraper(
   endDateOverride?: string,
 ): Promise<ScraperResult> {
   const startedAt = new Date();
-  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0 };
+  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
   try {
     const { start, end } = formatEkapDate();
@@ -24,9 +24,10 @@ export async function runEkapScraper(
     for (const tender of tenders) {
       try {
         const mapped = mapEkapToTender(tender);
-        const { inserted } = await upsertTender(mapped);
+        const { inserted, tenderId } = await upsertTender(mapped);
         if (inserted) {
           result.inserted++;
+          result.newTenderIds!.push(tenderId);
         } else {
           result.updated++;
         }
