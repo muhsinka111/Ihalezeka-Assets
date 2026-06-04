@@ -1,35 +1,36 @@
 ---
-name: Replit port routing and workflow monitor quirks
-description: How Replit proxy routing and workflow monitor work together, and why ports not in [[ports]] fail detection
+name: Replit port routing & workflow readiness
+description: How Replit monitors ports, routes proxy traffic, and what causes "Your app is starting..." for multi-artifact setups.
 ---
 
 ## Rule
-New Vite/frontend artifacts assigned ports NOT listed in `.replit` `[[ports]]` will always fail with "DIDNT_OPEN_A_PORT" — even when the dev server starts successfully. The workflow monitor cannot TCP-detect ports outside the registered `[[ports]]` set. Direct edits to `.replit` are blocked.
+Each artifact's **workflow process** must itself open the port declared in `[services.env] PORT`. Replit tracks which process opened which port — another process (different workflow) having the same port open does NOT satisfy the check.
 
-**Why:** The workflow monitor runs in a different network namespace. Only ports listed in `[[ports]]` have a network bridge the monitor can reach. `createArtifact()` does NOT automatically add ports to `[[ports]]`.
+**Why:** "Your app is starting…" persists indefinitely if the ihalezeka workflow never opens PORT. Replit's readiness monitor is per-workflow, not global TCP check.
 
-## How to apply
-When a react-vite artifact gets an unregistered port (e.g. 24180) and the workflow constantly fails:
+**How to apply:** If an artifact's dev command is a build-only tool (e.g. `vite build --watch`), it will never open a port and will always show "starting…". The dev command MUST serve on PORT.
 
-1. **Serve the frontend from the api-server** (already on port 8080, which IS in `[[ports]]`):
-   - Build the frontend: `pnpm --filter @workspace/<slug> run build`
-   - Add `express.static(FRONTEND_DIST)` + `app.use((_req,res) => res.sendFile(index.html))` to api-server's `app.ts` AFTER the `/api` router
-   - Express 5 SPA fallback: use `app.use(handler)` not `app.get("*", ...)` — path-to-regexp v8 rejects both `*` and `(.*)`
+## Current Architecture (as of 2026-06-04)
 
-2. **Update the ihalezeka artifact.toml to point localPort to 8080** using `verifyAndReplaceArtifactToml`:
-   - Change `localPort = 24180` → `localPort = 8080` in the `[[services]]` block
-   - The Replit proxy will then route "/" to port 8080 (api-server)
-   - The ihalezeka workflow can remain "failed" — proxy routing works regardless
+| Artifact | Workflow command | Port | Role |
+|---|---|---|---|
+| ihalezeka | `pnpm run serve` → `vite build && vite preview` | 8080 | Frontend SPA + static assets |
+| api-server | `pnpm run dev` | 9090 | REST API only (no static serving) |
 
-3. **Vite config PORT guard**: Remove the `throw new Error` if PORT is unset — use defaults (`?? "24180"`) so `vite build` works without env vars being set.
+- **ihalezeka** serves at path `/` (localPort=8080), PORT=8080 via `[services.env]`
+- **api-server** runs internally on port 9090, paths=["/api"]. Replit proxy routes /api → 9090.
+- **vite proxy**: ihalezeka's vite.config.ts proxies `/api` → `http://localhost:9090` (for local curl testing)
+- **`[[ports]]` in .replit**: only 8080 and 8081 are listed. api-server on 9090 is NOT in [[ports]] → monitor shows "failed" but proxy routing still works.
 
-## SPA fallback ordering (api-server serves frontend + /api)
-When one Express server serves both `/api` and the SPA shell, the catch-all index.html handler must NOT swallow API/asset/non-GET requests:
-- Mount a JSON 404 handler on `/api` AFTER the router, so unknown API routes return JSON 404 instead of the HTML shell.
-- Guard the SPA fallback: only serve index.html for `GET`/`HEAD` requests where `req.accepts("html")`; otherwise `next()`. This keeps missing assets and non-GET methods on Express's default 404 rather than returning HTML 200.
+## SPA fallback removed from api-server
+api-server no longer serves static files. ihalezeka's `vite preview` handles all frontend serving.
 
-## Clerk handshake 307 is expected on non-root routes (not a bug)
-With global `clerkMiddleware`, a `curl` (no cookie jar) to SPA routes like `/dashboard` returns `307` to `*.clerk.accounts.dev/v1/client/handshake` (`x-clerk-auth-reason: dev-browser-missing`). A real browser follows it, sets the session cookie, and lands fine — confirmed by working preview screenshots. Don't chase this 307 as a routing/fallback bug; only `/` returns 200 directly in curl.
+## Clerk middleware
+`clerkMiddleware()` with NO arguments (reads CLERK_PUBLISHABLE_KEY + CLERK_SECRET_KEY from env directly). Dynamic `publishableKeyFromHost` was removed — it caused a mismatch/redirect-loop under Replit proxy headers.
 
-## build:watch caveat
-ihalezeka dev command is `vite build --watch` (no port). `emptyOutDir: true` can cause brief 404s on assets during the ~50s rebuild window while api-server serves `dist/public`. Minor dev-time only; production uses the static `serve` config, so left as-is.
+## Express 5 SPA fallback (historical)
+`app.use(handler)` not `app.get("*")` — path-to-regexp v8 rejects wildcards. No longer needed (static serving removed from api-server).
+
+## Build note
+`vite build --watch` does NOT open any port. Use `vite build && vite preview` as the dev command for a web artifact that needs to be served.
+After any frontend source change: `pnpm --filter @workspace/ihalezeka run build` rebuilds dist/public. vite preview serves new files automatically (no restart needed).
