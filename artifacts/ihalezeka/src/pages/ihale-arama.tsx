@@ -192,7 +192,7 @@ export default function IhaleAramaPage() {
   const applyFilters = useCallback((f: Filters) => {
     setApplied(f);
     const qs = filtersToUrlParams(f);
-    navigate(`/ihale-arama${qs ? `?${qs}` : ""}`, { replace: true } as any);
+    navigate(`/ihale-arama${qs ? `?${qs}` : ""}`);
   }, [navigate]);
 
   const handleApply = () => applyFilters(draft);
@@ -207,6 +207,8 @@ export default function IhaleAramaPage() {
     const next = { ...applied };
     delete next[key];
     if (key === "sortBy") delete next.sortDir;
+    if (key === "deadlineFrom") delete next.deadlineTo;
+    if (key === "deadlineTo") delete next.deadlineFrom;
     setDraft(next);
     applyFilters(next);
   };

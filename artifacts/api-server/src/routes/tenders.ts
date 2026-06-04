@@ -29,7 +29,7 @@ router.get("/tenders", async (req, res) => {
     const limit = query.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    const sortDir = query.sortDir === "asc" ? asc : desc;
+    const sortDir = query.sortDir === "desc" ? desc : asc;
     const sortCol =
       query.sortBy === "estimatedValue" ? tendersTable.estimatedValue :
       query.sortBy === "createdAt" ? tendersTable.createdAt :
