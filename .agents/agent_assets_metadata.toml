@@ -1,0 +1,37 @@
+uploads = []
+
+[[generated]]
+id = "sSxS2cAhKect9HYtlNqst"
+uri = "file://attached_assets/logo_v1.png"
+type = "image"
+title = "ihalezeka logo v1 wordmark lightning"
+
+[[generated]]
+id = "oM1n1x45j40LDhApGt6S5"
+uri = "file://attached_assets/logo_v2.png"
+type = "image"
+title = "ihalezeka logo v2 hexagon neural"
+
+[[generated]]
+id = "miRgrWmyji49PwG5gXSRn"
+uri = "file://attached_assets/logo_v3.png"
+type = "image"
+title = "ihalezeka logo v3 nodes indigo"
+
+[[outputs]]
+id = "AUZLaFPQlxXFsIpA4Xvxh"
+uri = "file://attached_assets/logo_v1.png"
+type = "image"
+title = "Option 1 — Wordmark + Lightning/Magnifier icon"
+
+[[outputs]]
+id = "QR_diW0dSxq2jnTdQFR5Q"
+uri = "file://attached_assets/logo_v2.png"
+type = "image"
+title = "Option 2 — Hexagon neural network mark"
+
+[[outputs]]
+id = "wOskae_XUDuat5UQm-HZe"
+uri = "file://attached_assets/logo_v3.png"
+type = "image"
+title = "Option 3 — Node-graph lettermark"
