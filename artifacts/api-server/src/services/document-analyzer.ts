@@ -22,11 +22,32 @@ const AES_KEY = Buffer.from("Qm2LtXR0aByP69vZNKef4wMJ");
  */
 const EKAP_HOSTNAME_RE = /^ekapv2?\.kik\.gov\.tr$/i;
 
+const EKAP_TLS_ERRORS = new Set([
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "ERR_TLS_CERT_ALTNAME_INVALID",
+  "CERT_HAS_EXPIRED",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+]);
+
 const strictAgent = new https.Agent({ rejectUnauthorized: true });
 const ekapFallbackAgent = new https.Agent({
   rejectUnauthorized: false,
   minVersion: "TLSv1.2",
 });
+
+// ── In-process download cache ──────────────────────────────────────
+// Keyed by normalised URL; lives for the lifetime of the process.
+// Avoids re-fetching the same document on re-analyze calls.
+const downloadCache = new Map<string, Buffer>();
+
+const DOWNLOAD_TIMEOUT_MS = 20_000;
+const MAX_DOWNLOAD_ATTEMPTS = 3;
+const BACKOFF_BASE_MS = 500; // 500 ms → 1 000 ms → 2 000 ms
+
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
+}
 
 function aesCbcEncrypt(plaintext: string, key: Buffer, iv: Buffer): string {
   const cipher = crypto.createCipheriv("aes-192-cbc", key, iv);
@@ -45,16 +66,8 @@ function generateSecurityHeaders(): Record<string, string> {
   };
 }
 
-async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
-  const fullUrl = url.startsWith("http") ? url : `${EKAP_BASE}${url}`;
-  let hostname: string;
-  try {
-    hostname = new URL(fullUrl).hostname;
-  } catch {
-    return null;
-  }
-
-  const isEkap = EKAP_HOSTNAME_RE.test(hostname);
+/** Single HTTP attempt — returns Buffer on success, throws on failure. */
+async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer> {
   const headers = {
     ...generateSecurityHeaders(),
     Accept: "*/*",
@@ -67,27 +80,80 @@ async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
   try {
     const res = await axios.get(fullUrl, {
       responseType: "arraybuffer",
-      timeout: 20000,
+      timeout: DOWNLOAD_TIMEOUT_MS,
       httpsAgent: strictAgent,
       headers,
     });
     return Buffer.from(res.data);
   } catch (strictErr: any) {
-    if (isEkap && (strictErr?.code === "DEPTH_ZERO_SELF_SIGNED_CERT" || strictErr?.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE" || strictErr?.code === "ERR_TLS_CERT_ALTNAME_INVALID" || strictErr?.code === "CERT_HAS_EXPIRED" || strictErr?.code === "UNABLE_TO_GET_ISSUER_CERT_LOCALLY")) {
-      try {
-        const res = await axios.get(fullUrl, {
-          responseType: "arraybuffer",
-          timeout: 20000,
-          httpsAgent: ekapFallbackAgent,
-          headers,
-        });
-        return Buffer.from(res.data);
-      } catch {
-        return null;
-      }
+    // For EKAP hosts only: fall back to relaxed TLS when the government CA is
+    // not trusted — this mirrors the same pattern in ekap-client.ts.
+    if (isEkap && EKAP_TLS_ERRORS.has(strictErr?.code)) {
+      const res = await axios.get(fullUrl, {
+        responseType: "arraybuffer",
+        timeout: DOWNLOAD_TIMEOUT_MS,
+        httpsAgent: ekapFallbackAgent,
+        headers,
+      });
+      return Buffer.from(res.data);
     }
+    throw strictErr;
+  }
+}
+
+/**
+ * Fetch document bytes with:
+ *  - up to MAX_DOWNLOAD_ATTEMPTS retries with exponential back-off
+ *  - per-attempt error logging
+ *  - in-process cache: successful buffers are stored for the process lifetime
+ *    so re-analyze calls skip the network entirely.
+ *
+ * Returns null if all attempts fail.
+ */
+async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
+  const fullUrl = url.startsWith("http") ? url : `${EKAP_BASE}${url}`;
+  const cacheKey = fullUrl;
+
+  // Cache hit — no network round-trip needed.
+  const cached = downloadCache.get(cacheKey);
+  if (cached) return cached;
+
+  let hostname: string;
+  try {
+    hostname = new URL(fullUrl).hostname;
+  } catch {
+    console.warn(`[document-analyzer] Invalid URL, skipping: ${url}`);
     return null;
   }
+
+  const isEkap = EKAP_HOSTNAME_RE.test(hostname);
+
+  for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+    try {
+      const buffer = await attemptDownload(fullUrl, isEkap);
+      if (buffer.length === 0) {
+        console.warn(
+          `[document-analyzer] Empty response on attempt ${attempt}/${MAX_DOWNLOAD_ATTEMPTS}: ${fullUrl}`,
+        );
+        // Treat empty body as a retriable failure.
+        throw new Error("empty-response");
+      }
+      // Cache and return on success.
+      downloadCache.set(cacheKey, buffer);
+      return buffer;
+    } catch (err: any) {
+      const code = err?.code ?? err?.message ?? "unknown";
+      const isLast = attempt === MAX_DOWNLOAD_ATTEMPTS;
+      console.warn(
+        `[document-analyzer] Download ${isLast ? "FAILED" : "error"} (attempt ${attempt}/${MAX_DOWNLOAD_ATTEMPTS}, code=${code}): ${fullUrl}`,
+      );
+      if (isLast) return null;
+      // Exponential back-off: 500 ms, 1 000 ms, …
+      await sleep(BACKOFF_BASE_MS * attempt);
+    }
+  }
+
+  return null; // unreachable, but satisfies TypeScript
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {
@@ -205,7 +271,16 @@ export interface DocumentAnalysisInput {
   documents: Array<{ name: string; url: string; type: string }>;
 }
 
-export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<AiAnalysis> {
+/** Result type returned by analyzeDocuments — extends AiAnalysis with coverage stats. */
+export interface DocumentAnalysisResult {
+  analysis: AiAnalysis;
+  /** Number of documents successfully downloaded and parsed. */
+  docsDownloaded: number;
+  /** Total number of document URLs provided (including ones that failed). */
+  docsTotal: number;
+}
+
+export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<DocumentAnalysisResult> {
   const { tenderTitle, tenderType, tenderMethod, agencyName, documents } = input;
 
   const contextPrefix = [
@@ -216,16 +291,29 @@ export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<Ai
     .filter(Boolean)
     .join(" | ");
 
+  const docsToFetch = (documents ?? []).filter((d) => !!d.url).slice(0, 3);
+  const docsTotal = docsToFetch.length;
+  let docsDownloaded = 0;
+
   const allText: string[] = [];
-  const docsToFetch = (documents ?? []).slice(0, 3);
 
   for (const doc of docsToFetch) {
-    if (!doc.url) continue;
     const buffer = await fetchDocumentBytes(doc.url);
-    if (!buffer || buffer.length === 0) continue;
+    if (!buffer || buffer.length === 0) {
+      console.warn(
+        `[document-analyzer] Skipping doc after all retries — tender="${tenderTitle}" doc="${doc.name}"`,
+      );
+      continue;
+    }
+
     const text = await extractTextFromDocument(buffer, doc.type ?? "", doc.name ?? "");
     if (text.trim().length > 50) {
+      docsDownloaded++;
       allText.push(`=== ${doc.name} ===\n${text.trim()}`);
+    } else {
+      console.warn(
+        `[document-analyzer] Doc downloaded but no extractable text — tender="${tenderTitle}" doc="${doc.name}"`,
+      );
     }
     if (allText.join("\n").length > 15_000) break;
   }
@@ -238,7 +326,9 @@ export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<Ai
       : allText.join("\n\n");
 
   const combinedText = contextPrefix ? `${contextPrefix}\n\n${bodyText}` : bodyText;
-  return analyzeWithAI(combinedText, tenderTitle);
+  const analysis = await analyzeWithAI(combinedText, tenderTitle);
+
+  return { analysis, docsDownloaded, docsTotal };
 }
 
 export interface CriteriaComplianceItem {

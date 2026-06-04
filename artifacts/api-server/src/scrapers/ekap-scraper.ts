@@ -20,7 +20,7 @@ async function backgroundAnalyzeTender(tenderId: number): Promise<void> {
     const documents =
       (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
 
-    const analysis = await analyzeDocuments({
+    const { analysis, docsDownloaded, docsTotal } = await analyzeDocuments({
       tenderTitle: tender.title,
       tenderType: tender.type ?? undefined,
       tenderMethod: tender.method ?? undefined,
@@ -36,7 +36,7 @@ async function backgroundAnalyzeTender(tenderId: number): Promise<void> {
       .set({ aiSummary: analysis, rawData: updatedRawData, updatedAt: new Date() })
       .where(eq(tendersTable.id, tenderId));
 
-    logger.info({ tenderId }, "Background AI document analysis completed");
+    logger.info({ tenderId, docsDownloaded, docsTotal }, "Background AI document analysis completed");
   } catch (err) {
     logger.warn({ tenderId, err }, "Background AI document analysis failed");
   }

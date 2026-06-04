@@ -57,7 +57,7 @@ router.post("/tenders/:id/analyze", async (req, res) => {
 
     const documents = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
 
-    const analysis = await analyzeDocuments({
+    const { analysis, docsDownloaded, docsTotal } = await analyzeDocuments({
       tenderTitle: tender.title,
       tenderType: tender.type ?? undefined,
       tenderMethod: tender.method ?? undefined,
@@ -73,7 +73,7 @@ router.post("/tenders/:id/analyze", async (req, res) => {
       .set({ aiSummary: analysis, rawData: updatedRawData, updatedAt: new Date() })
       .where(eq(tendersTable.id, id));
 
-    res.json({ ok: true, analysis });
+    res.json({ ok: true, analysis, docsDownloaded, docsTotal });
   } catch (err) {
     console.error("Tender analyze error:", err);
     res.status(500).json({ error: "Analysis failed" });

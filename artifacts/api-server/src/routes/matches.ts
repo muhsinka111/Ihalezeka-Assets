@@ -80,7 +80,7 @@ router.get("/matches/:tenderId", async (req, res) => {
       .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
       .limit(1);
 
-    let criteriaCompliance: Array<{ criterion: string; compliant: boolean; note: string | null }>;
+    let criteriaCompliance: Array<{ criterion: string; compliant: boolean | null; note: string | null }>;
 
     if (aiSummary) {
       criteriaCompliance = computeCriteriaCompliance(aiSummary, {
