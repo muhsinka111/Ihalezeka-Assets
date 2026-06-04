@@ -30,6 +30,9 @@ import {
   IconChevronLeft,
   IconSend,
   IconBuilding,
+  IconCrown,
+  IconBolt,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -96,16 +99,46 @@ export function AppShell({ children }: AppShellProps) {
         })}
       </nav>
 
+      {/* Premium Plan Card */}
+      {!collapsed && (
+        <div className="mx-3 mb-3 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-3 shadow-lg">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="h-6 w-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+              <IconCrown className="h-3.5 w-3.5 text-yellow-300" />
+            </div>
+            <span className="text-xs font-bold text-white">Premium Plan</span>
+            <Badge className="text-[9px] px-1 py-0 h-3.5 bg-white/20 border-white/30 text-white ml-auto">PRO</Badge>
+          </div>
+          <p className="text-[10px] text-white/70 mb-2.5 leading-relaxed">
+            Daha fazla fırsata erişin ve kazanma oranınızı artırın.
+          </p>
+          <button className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+            <IconBolt className="h-3 w-3 text-yellow-300" />
+            Planı Yükselt
+          </button>
+        </div>
+      )}
+      {collapsed && (
+        <div className="flex justify-center pb-2">
+          <button className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center hover:opacity-90 transition-opacity">
+            <IconCrown className="h-4 w-4 text-yellow-300" />
+          </button>
+        </div>
+      )}
+
       {/* User */}
       <div className={cn("p-3 border-t border-sidebar-border", collapsed && "px-2")}>
         <div className={cn("flex items-center gap-2.5", collapsed && "justify-center")}>
-          <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center shrink-0 text-xs font-semibold text-white">
-            {user?.firstName?.[0] ?? <IconUser className="h-4 w-4" />}
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 text-xs font-semibold text-white shadow-sm">
+            {user?.firstName?.[0] ?? "M"}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.firstName ?? "Kullanıcı"}</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">{user?.emailAddresses?.[0]?.emailAddress ?? ""}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.firstName ?? "Mehmet Yılmaz"}</p>
+                <Badge className="text-[9px] px-1 py-0 h-3.5 bg-indigo-500/30 text-indigo-200 border-indigo-500/30">Pro</Badge>
+              </div>
+              <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.emailAddresses?.[0]?.emailAddress ?? "mehmet@firma.com"}</p>
             </div>
           )}
           {!collapsed && (
