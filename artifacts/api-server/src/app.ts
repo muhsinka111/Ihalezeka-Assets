@@ -3,12 +3,15 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
+import sitemapRouter from "./routes/sitemap";
+import blogRouter from "./routes/blog";
 import { logger } from "./lib/logger";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
 } from "./middlewares/clerkProxyMiddleware";
 import { startScraperScheduler } from "./scrapers/scheduler";
+import { startSocialPostScheduler } from "./routes/marketing";
 
 const app: Express = express();
 
@@ -44,11 +47,16 @@ app.use(clerkMiddleware());
 
 app.use("/api", router);
 
+// Sitemap and blog served at root level (no /api prefix) for SEO crawlability
+app.use(sitemapRouter);
+app.use(blogRouter);
+
 // Unknown /api routes → JSON 404
 app.use("/api", (_req, res) => {
   res.status(404).json({ title: "Not Found", status: 404 });
 });
 
 startScraperScheduler();
+startSocialPostScheduler();
 
 export default app;

@@ -13,6 +13,7 @@ import reportsRouter from "./reports";
 import apiKeysRouter from "./apiKeys";
 import scraperAdminRouter from "./scraperAdmin";
 import notificationsRouter from "./notifications";
+import marketingRouter from "./marketing";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(reportsRouter);
 router.use(apiKeysRouter);
 router.use(scraperAdminRouter);
 router.use(notificationsRouter);
+router.use(marketingRouter);
 
 export default router;

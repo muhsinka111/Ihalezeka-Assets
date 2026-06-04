@@ -1,21 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>İhaleZeka</title>
-    <meta name="description" content="İhaleZeka — built on Replit. Update this description to reflect the app." />
+    <title>İhaleZeka – Akıllı İhale Takip Platformu</title>
+    <meta name="description" content="İhaleZeka, Türkiye'deki KOBİ'lerin kamu ihalelerini AI destekli eşleştirme ile otomatik takip etmesini sağlayan akıllı ihale platformudur." />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="İhaleZeka" />
-    <meta property="og:description" content="İhaleZeka — built on Replit. Update this description to reflect the app." />
+    <meta name="keywords" content="ihale takip, kamu ihale, EKAP, ihale yazılımı, KOBİ ihale, AI ihale eşleştirme, Türkiye ihale" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="İhaleZeka" />
+    <meta property="og:title" content="İhaleZeka – Akıllı İhale Takip Platformu" />
+    <meta property="og:description" content="Kamu ihalelerini AI ile otomatik takip edin. EKAP ve ilan.gov.tr'den gelen ihaleleri profilinize göre eşleştirin." />
+    <meta property="og:url" content="https://ihalezeka.replit.app/" />
+
+    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="İhaleZeka" />
-    <meta name="twitter:description" content="İhaleZeka — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:title" content="İhaleZeka – Akıllı İhale Takip Platformu" />
+    <meta name="twitter:description" content="Kamu ihalelerini AI ile otomatik takip edin. EKAP ve ilan.gov.tr'den gelen ihaleleri profilinize göre eşleştirin." />
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- JSON-LD: WebSite + SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://ihalezeka.replit.app/#website",
+          "url": "https://ihalezeka.replit.app/",
+          "name": "İhaleZeka",
+          "description": "Akıllı İhale Takip Platformu",
+          "inLanguage": "tr-TR"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://ihalezeka.replit.app/#app",
+          "name": "İhaleZeka",
+          "url": "https://ihalezeka.replit.app/",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "description": "Türkiye'deki kamu ihalelerini AI destekli eşleştirme ile otomatik takip eden SaaS platformu.",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
+          "publisher": { "@type": "Organization", "name": "İhaleZeka", "url": "https://ihalezeka.replit.app/" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

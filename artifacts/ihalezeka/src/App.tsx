@@ -20,6 +20,11 @@ import ParaAkisiPage from "@/pages/para-akisi";
 import BelgelerimPage from "@/pages/belgelerim";
 import RaporlarPage from "@/pages/raporlar";
 import EntegrasyonlarPage from "@/pages/entegrasyonlar";
+import PazarlamaPage from "@/pages/pazarlama/index";
+import ContentGeneratorPage from "@/pages/pazarlama/content-generator";
+import ContentCalendarPage from "@/pages/pazarlama/content-calendar";
+import BlogAdminPage from "@/pages/pazarlama/blog";
+import SocialConnectionsPage from "@/pages/pazarlama/social-connections";
 import NotFound from "@/pages/not-found";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -173,6 +178,12 @@ function ClerkProviderWithRoutes() {
           <Route path="/belgelerim"><ProtectedRoute component={BelgelerimPage} /></Route>
           <Route path="/raporlar"><ProtectedRoute component={RaporlarPage} /></Route>
           <Route path="/entegrasyonlar"><ProtectedRoute component={EntegrasyonlarPage} /></Route>
+
+          <Route path="/pazarlama"><ProtectedRoute component={PazarlamaPage} /></Route>
+          <Route path="/pazarlama/icerik-uretici"><ProtectedRoute component={ContentGeneratorPage} /></Route>
+          <Route path="/pazarlama/takvim"><ProtectedRoute component={ContentCalendarPage} /></Route>
+          <Route path="/pazarlama/blog"><ProtectedRoute component={BlogAdminPage} /></Route>
+          <Route path="/pazarlama/baglantilar"><ProtectedRoute component={SocialConnectionsPage} /></Route>
 
           <Route component={NotFound} />
         </Switch>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
+import { useQuery } from "@tanstack/react-query";
 import { useAiPanelStore } from "@/store/aiPanelStore";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -35,6 +36,7 @@ import {
   IconCrown,
   IconBolt,
   IconSparkles,
+  IconSpeakerphone,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +52,7 @@ const NAV_ITEMS = [
   { href: "/belgelerim", label: "Belgelerim", icon: IconFileText },
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine },
   { href: "/entegrasyonlar", label: "Entegrasyonlar", icon: IconPlug },
+  { href: "/pazarlama", label: "Pazarlama", icon: IconSpeakerphone, adminOnly: true },
 ];
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -58,12 +61,25 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
 export function AppShell({ children }: AppShellProps) {
   const [location] = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
   const { isOpen: aiOpen, togglePanel, closePanel } = useAiPanelStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const { data: adminCheckData } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["admin-check"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/marketing/admin-check`);
+      if (!res.ok) return { isAdmin: false };
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const isAdmin = adminCheckData?.isAdmin ?? false;
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
@@ -90,21 +106,28 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ href, label, icon: Icon, adminOnly }, idx, visibleItems) => {
           const active = location === href || location.startsWith(href + "/");
+          const prevItem = visibleItems[idx - 1];
+          const showDivider = adminOnly && prevItem && !prevItem.adminOnly;
           return (
-            <Link key={href} href={href} onClick={() => setMobileSidebarOpen(false)}>
-              <a className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-                collapsed && "justify-center px-2",
-                active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}>
-                <Icon className="h-4.5 w-4.5 shrink-0 h-[18px] w-[18px]" />
-                {!collapsed && label}
-              </a>
-            </Link>
+            <React.Fragment key={href}>
+              {showDivider && (
+                <div className={cn("border-t border-sidebar-border my-2 mx-1", collapsed && "mx-0")} />
+              )}
+              <Link href={href} onClick={() => setMobileSidebarOpen(false)}>
+                <a className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                  collapsed && "justify-center px-2",
+                  active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}>
+                  <Icon className="h-4.5 w-4.5 shrink-0 h-[18px] w-[18px]" />
+                  {!collapsed && label}
+                </a>
+              </Link>
+            </React.Fragment>
           );
         })}
       </nav>
