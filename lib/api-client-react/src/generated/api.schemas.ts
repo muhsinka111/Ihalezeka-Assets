@@ -483,6 +483,26 @@ cpv?: string;
  * Filter by data source
  */
 source?: ListTendersSource;
+/**
+ * Tender status filter
+ */
+durum?: 'active' | 'awarded' | 'cancelled';
+/**
+ * Deadline range start (ISO date)
+ */
+deadlineFrom?: string;
+/**
+ * Deadline range end (ISO date)
+ */
+deadlineTo?: string;
+/**
+ * Sort field
+ */
+sortBy?: 'deadline' | 'estimatedValue' | 'createdAt';
+/**
+ * Sort direction
+ */
+sortDir?: 'asc' | 'desc';
 page?: number;
 limit?: number;
 };

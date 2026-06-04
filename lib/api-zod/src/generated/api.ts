@@ -122,6 +122,11 @@ export const ListTendersQueryParams = zod.object({
   "idare": zod.coerce.string().optional().describe('Agency name filter'),
   "cpv": zod.coerce.string().optional().describe('CPV code filter'),
   "source": zod.enum(['ekap', 'ilan_gov']).optional().describe('Filter by data source'),
+  "durum": zod.enum(['active', 'awarded', 'cancelled']).optional().describe('Tender status filter'),
+  "deadlineFrom": zod.coerce.string().optional().describe('Deadline range start (ISO date)'),
+  "deadlineTo": zod.coerce.string().optional().describe('Deadline range end (ISO date)'),
+  "sortBy": zod.enum(['deadline', 'estimatedValue', 'createdAt']).optional().describe('Sort field'),
+  "sortDir": zod.enum(['asc', 'desc']).optional().describe('Sort direction'),
   "page": zod.coerce.number().default(listTendersQueryPageDefault),
   "limit": zod.coerce.number().default(listTendersQueryLimitDefault)
 })
