@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, useLocation, Router as WouterRouter } from "wouter";
@@ -87,16 +87,16 @@ function SignUpPage() {
 }
 
 function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <LandingPage />
-      </Show>
-    </>
-  );
+  const { isLoaded, isSignedIn } = useAuth();
+
+  // Redirect signed-in users to the dashboard once Clerk confirms auth state.
+  // Until then (loading) or for signed-out users, show the public landing page
+  // immediately so the page is never blank in the preview pane.
+  if (isLoaded && isSignedIn) {
+    return <Redirect to="/dashboard" />;
+  }
+
+  return <LandingPage />;
 }
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
