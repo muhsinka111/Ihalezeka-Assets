@@ -18,6 +18,24 @@ uri = "file://attached_assets/logo_v3.png"
 type = "image"
 title = "ihalezeka logo v3 nodes indigo"
 
+[[generated]]
+id = "1t93YUAqscjeKVP5sDaYA"
+uri = "file://attached_assets/logo_ai_v1.png"
+type = "image"
+title = "ihalezeka AI neural brain logo v1"
+
+[[generated]]
+id = "6BSjSv4MfECedCn16uoPN"
+uri = "file://attached_assets/logo_ai_v2.png"
+type = "image"
+title = "ihalezeka circuit Z monogram logo v2"
+
+[[generated]]
+id = "Av9cg-NKdOBw647MeP3J4"
+uri = "file://attached_assets/logo_ai_v3.png"
+type = "image"
+title = "ihalezeka AI eye scan logo v3"
+
 [[outputs]]
 id = "AUZLaFPQlxXFsIpA4Xvxh"
 uri = "file://attached_assets/logo_v1.png"
@@ -35,3 +53,21 @@ id = "wOskae_XUDuat5UQm-HZe"
 uri = "file://attached_assets/logo_v3.png"
 type = "image"
 title = "Option 3 — Node-graph lettermark"
+
+[[outputs]]
+id = "hZ0Nz7TsaphjV4FO-M2ja"
+uri = "file://attached_assets/logo_ai_v1.png"
+type = "image"
+title = "Option A — Neural brain icon + wordmark"
+
+[[outputs]]
+id = "crM_bKg2ry1WsgPgmSAWV"
+uri = "file://attached_assets/logo_ai_v2.png"
+type = "image"
+title = "Option B — Circuit Z monogram"
+
+[[outputs]]
+id = "XzPkxECu7YRnwAYH_8xSf"
+uri = "file://attached_assets/logo_ai_v3.png"
+type = "image"
+title = "Option C — AI scanning eye"
