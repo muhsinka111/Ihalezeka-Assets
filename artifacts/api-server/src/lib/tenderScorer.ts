@@ -6,6 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
+import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
 
 export interface ScoredMatch {
   tenderId: number;
@@ -22,7 +23,7 @@ export interface ScoredMatch {
   sourceUrl: string | null;
 }
 
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -31,15 +32,106 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function computeFitScore(
+interface AiScoreResult {
+  fitScore: number;
+  reasoning: string;
+  pros: string[];
+  risks: string[];
+}
+
+function buildScoringPrompt(
   tender: typeof tendersTable.$inferSelect,
   profile: typeof companyProfilesTable.$inferSelect,
-): { score: number; pros: string[]; risks: string[]; reasoning: string } {
+): string {
+  const tenderDetails = [
+    `Başlık: ${tender.title}`,
+    `Kurum: ${tender.agencyName}`,
+    `Tür: ${tender.type}`,
+    `İl: ${tender.il || "Belirtilmemiş"}`,
+    `Tahmini Değer: ${tender.estimatedValue ? `${tender.estimatedValue.toLocaleString("tr-TR")} TL` : "Belirtilmemiş"}`,
+    `CPV Kodları: ${tender.cpvCodes.length > 0 ? tender.cpvCodes.join(", ") : "Belirtilmemiş"}`,
+    `Son Başvuru: ${tender.deadline.toLocaleDateString("tr-TR")}`,
+    `Durum: ${tender.status}`,
+    tender.description ? `Açıklama: ${tender.description.slice(0, 500)}` : null,
+    tender.qualificationCriteria.length > 0
+      ? `Yeterlilik Kriterleri: ${tender.qualificationCriteria.slice(0, 5).join("; ")}`
+      : null,
+  ].filter(Boolean).join("\n");
+
+  const aiSummarySection = tender.aiSummary
+    ? [
+        "\n--- Belge Analizi ---",
+        `Özet: ${tender.aiSummary.summary}`,
+        tender.aiSummary.requiredTurnover
+          ? `Gerekli Ciro: ${tender.aiSummary.requiredTurnover.toLocaleString("tr-TR")} TL`
+          : null,
+        tender.aiSummary.experienceYears
+          ? `Gerekli Deneyim: ${tender.aiSummary.experienceYears} yıl`
+          : null,
+        tender.aiSummary.personnelCount
+          ? `Gerekli Personel: ${tender.aiSummary.personnelCount}`
+          : null,
+        tender.aiSummary.technicalSpecs.length > 0
+          ? `Teknik Gereksinimler: ${tender.aiSummary.technicalSpecs.slice(0, 5).join("; ")}`
+          : null,
+      ].filter(Boolean).join("\n")
+    : "";
+
+  const profileDetails = [
+    `Şirket: ${profile.companyName}`,
+    profile.cpvCodes.length > 0 ? `CPV Kodları: ${profile.cpvCodes.join(", ")}` : null,
+    profile.naceCodes.length > 0 ? `NACE Kodları: ${profile.naceCodes.join(", ")}` : null,
+    profile.certifications.length > 0
+      ? `Sertifikalar: ${profile.certifications.join(", ")}`
+      : null,
+    profile.preferredProvinces.length > 0
+      ? `Tercih Edilen İller: ${profile.preferredProvinces.join(", ")}`
+      : null,
+    profile.excludedProvinces.length > 0
+      ? `Hariç Tutulan İller: ${profile.excludedProvinces.join(", ")}`
+      : null,
+    profile.experienceCeiling
+      ? `Deneyim Üst Limiti: ${profile.experienceCeiling.toLocaleString("tr-TR")} TL`
+      : null,
+    profile.annualRevenue
+      ? `Yıllık Ciro: ${profile.annualRevenue.toLocaleString("tr-TR")} TL`
+      : null,
+    profile.personnelCount ? `Personel Sayısı: ${profile.personnelCount}` : null,
+  ].filter(Boolean).join("\n");
+
+  return `Sen bir ihale uyum analisti olarak çalışıyorsun. Aşağıdaki ihale ve şirket profilini değerlendirerek uyum skorunu belirle.
+
+## İhale Bilgileri
+${tenderDetails}${aiSummarySection}
+
+## Şirket Profili
+${profileDetails}
+
+## Görev
+Bu ihalenin söz konusu şirkete ne kadar uygun olduğunu 0-100 arasında bir skorla değerlendir. Şunları dikkate al:
+1. CPV/NACE kodu örtüşmesi ve faaliyet alanı uyumu
+2. Coğrafi tercihler ve konumsal uygunluk
+3. Finansal yeterlilik (ciro, deneyim limiti)
+4. Teknik gereksinimler ve sertifikasyon uyumu
+5. İhale büyüklüğü ve şirket kapasitesi
+
+Yanıtını YALNIZCA aşağıdaki JSON formatında ver, başka açıklama ekleme:
+{
+  "fitScore": <0-100 arası tamsayı>,
+  "reasoning": "<tek paragraf Türkçe açıklama>",
+  "pros": ["<avantaj 1>", "<avantaj 2>", "<avantaj 3>"],
+  "risks": ["<risk 1>", "<risk 2>"]
+}`;
+}
+
+function computeRuleBasedScore(
+  tender: typeof tendersTable.$inferSelect,
+  profile: typeof companyProfilesTable.$inferSelect,
+): AiScoreResult {
   const pros: string[] = [];
   const risks: string[] = [];
   let score = 50;
 
-  // CPV code overlap (up to +25 pts)
   if (profile.cpvCodes.length > 0 && tender.cpvCodes.length > 0) {
     const matchCount = profile.cpvCodes.filter((c) =>
       tender.cpvCodes.some((tc) => tc.startsWith(c.slice(0, 4)) || c.startsWith(tc.slice(0, 4)))
@@ -54,12 +146,14 @@ function computeFitScore(
     }
   }
 
-  // Geographic preference (up to +15 pts)
   if (tender.il) {
     if (profile.excludedProvinces.includes(tender.il)) {
       score -= 20;
       risks.push(`${tender.il} hariç tutulan il listesinde`);
-    } else if (profile.preferredProvinces.length === 0 || profile.preferredProvinces.includes(tender.il)) {
+    } else if (
+      profile.preferredProvinces.length === 0 ||
+      profile.preferredProvinces.includes(tender.il)
+    ) {
       score += 15;
       pros.push(`${tender.il} tercih edilen bölgede`);
     } else {
@@ -68,7 +162,6 @@ function computeFitScore(
     }
   }
 
-  // Experience ceiling check (up to +10 pts / -15 pts)
   if (profile.experienceCeiling && tender.estimatedValue > 0) {
     if (tender.estimatedValue <= profile.experienceCeiling) {
       score += 10;
@@ -79,15 +172,12 @@ function computeFitScore(
     }
   }
 
-  // Status penalty
   if (tender.status === "cancelled" || tender.status === "awarded") {
     score -= 30;
     risks.push("İhale iptal edilmiş veya sonuçlanmış olabilir");
   }
 
-  // Clamp to [0, 100]
   const finalScore = Math.max(0, Math.min(100, Math.round(score)));
-
   const reasoning =
     finalScore >= 75
       ? "Profil kriterleri güçlü bir eşleşme gösteriyor."
@@ -95,7 +185,65 @@ function computeFitScore(
       ? "Profil kriterleriyle orta düzeyde uyum var."
       : "Bu ihale mevcut profilinizle sınırlı uyum gösteriyor.";
 
-  return { score: finalScore, pros, risks, reasoning };
+  return { fitScore: finalScore, pros, risks, reasoning };
+}
+
+let _aiAvailable: boolean | null = null;
+
+function isAiAvailable(): boolean {
+  if (_aiAvailable === null) {
+    _aiAvailable =
+      !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+      !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (!_aiAvailable) {
+      logger.warn(
+        "AI_INTEGRATIONS_OPENAI_BASE_URL or AI_INTEGRATIONS_OPENAI_API_KEY not set — " +
+          "tender scoring will use rule-based fallback only"
+      );
+    }
+  }
+  return _aiAvailable;
+}
+
+async function scoreWithAi(
+  tender: typeof tendersTable.$inferSelect,
+  profile: typeof companyProfilesTable.$inferSelect,
+): Promise<AiScoreResult> {
+  const { openai } = await import("@workspace/integrations-openai-ai-server");
+
+  const prompt = buildScoringPrompt(tender, profile);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-5-mini",
+    max_completion_tokens: 512,
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty AI response");
+
+  const parsed = JSON.parse(content) as Partial<AiScoreResult>;
+  if (
+    typeof parsed.fitScore !== "number" ||
+    !Array.isArray(parsed.pros) ||
+    !Array.isArray(parsed.risks) ||
+    typeof parsed.reasoning !== "string"
+  ) {
+    throw new Error("Invalid AI response shape");
+  }
+
+  return {
+    fitScore: Math.max(0, Math.min(100, Math.round(parsed.fitScore))),
+    reasoning: parsed.reasoning,
+    pros: parsed.pros.slice(0, 5).map(String),
+    risks: parsed.risks.slice(0, 5).map(String),
+  };
+}
+
+interface ScoringPair {
+  tender: typeof tendersTable.$inferSelect;
+  profile: typeof companyProfilesTable.$inferSelect;
 }
 
 export async function scoreNewTenders(newTenderIds: number[]): Promise<ScoredMatch[]> {
@@ -108,69 +256,108 @@ export async function scoreNewTenders(newTenderIds: number[]): Promise<ScoredMat
 
   if (tenders.length === 0 || profiles.length === 0) return [];
 
-  const results: ScoredMatch[] = [];
-
+  const pairs: ScoringPair[] = [];
   for (const profile of profiles) {
     for (const tender of tenders) {
-      const { score, pros, risks, reasoning } = computeFitScore(tender, profile);
+      pairs.push({ tender, profile });
+    }
+  }
 
-      try {
-        const existing = await db
-          .select({ id: matchesTable.id })
-          .from(matchesTable)
-          .where(
-            and(
-              eq(matchesTable.businessId, profile.businessId),
-              eq(matchesTable.tenderId, tender.id)
-            )
-          )
-          .limit(1);
+  const aiEnabled = isAiAvailable();
+  logger.info(
+    { pairs: pairs.length, tenders: tenders.length, profiles: profiles.length, aiEnabled },
+    "Starting tender scoring"
+  );
 
-        let matchId: number;
-        if (existing.length > 0) {
-          await db
-            .update(matchesTable)
-            .set({ fitScore: score, reasoning, pros, risks, status: "new" })
-            .where(eq(matchesTable.id, existing[0].id));
-          matchId = existing[0].id;
-        } else {
-          const [inserted] = await db
-            .insert(matchesTable)
-            .values({
-              businessId: profile.businessId,
-              tenderId: tender.id,
-              fitScore: score,
-              reasoning,
-              pros,
-              risks,
-              status: "new",
-            })
-            .returning({ id: matchesTable.id });
-          matchId = inserted.id;
+  const scoredPairs = await batchProcess(
+    pairs,
+    async ({ tender, profile }) => {
+      let result: AiScoreResult;
+      if (aiEnabled) {
+        try {
+          result = await scoreWithAi(tender, profile);
+          logger.debug(
+            { tenderId: tender.id, businessId: profile.businessId, fitScore: result.fitScore },
+            "AI scoring succeeded"
+          );
+        } catch (err) {
+          logger.warn(
+            { err, tenderId: tender.id, businessId: profile.businessId },
+            "AI scoring failed — falling back to rule-based"
+          );
+          result = computeRuleBasedScore(tender, profile);
         }
-
-        results.push({
-          tenderId: tender.id,
-          businessId: profile.businessId,
-          matchId,
-          fitScore: score,
-          reasoning,
-          pros,
-          risks,
-          tenderTitle: tender.title,
-          agencyName: tender.agencyName,
-          sourceSystem: tender.sourceSystem,
-          tenderType: tender.type,
-          sourceUrl: tender.sourceUrl ?? null,
-        });
-      } catch (err) {
-        logger.warn({ err, tenderId: tender.id, businessId: profile.businessId }, "Failed to upsert match");
+      } else {
+        result = computeRuleBasedScore(tender, profile);
       }
+      return { tender, profile, ...result };
+    },
+    { concurrency: 3, retries: 5 }
+  );
+
+  const results: ScoredMatch[] = [];
+
+  for (const item of scoredPairs) {
+    if (!item) continue;
+    const { tender, profile, fitScore, reasoning, pros, risks } = item;
+
+    try {
+      const existing = await db
+        .select({ id: matchesTable.id })
+        .from(matchesTable)
+        .where(
+          and(
+            eq(matchesTable.businessId, profile.businessId),
+            eq(matchesTable.tenderId, tender.id)
+          )
+        )
+        .limit(1);
+
+      let matchId: number;
+      if (existing.length > 0) {
+        await db
+          .update(matchesTable)
+          .set({ fitScore, reasoning, pros, risks, status: "new" })
+          .where(eq(matchesTable.id, existing[0].id));
+        matchId = existing[0].id;
+      } else {
+        const [inserted] = await db
+          .insert(matchesTable)
+          .values({
+            businessId: profile.businessId,
+            tenderId: tender.id,
+            fitScore,
+            reasoning,
+            pros,
+            risks,
+            status: "new",
+          })
+          .returning({ id: matchesTable.id });
+        matchId = inserted.id;
+      }
+
+      results.push({
+        tenderId: tender.id,
+        businessId: profile.businessId,
+        matchId,
+        fitScore,
+        reasoning,
+        pros,
+        risks,
+        tenderTitle: tender.title,
+        agencyName: tender.agencyName,
+        sourceSystem: tender.sourceSystem,
+        tenderType: tender.type,
+        sourceUrl: tender.sourceUrl ?? null,
+      });
+    } catch (err) {
+      logger.warn(
+        { err, tenderId: tender.id, businessId: profile.businessId },
+        "Failed to upsert match"
+      );
     }
   }
 
   logger.info({ scored: results.length }, "Tender scoring complete");
   return results;
 }
-
-export { escapeHtml };
