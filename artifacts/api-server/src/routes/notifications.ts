@@ -7,6 +7,7 @@ import {
 import { eq, and, isNull, desc, count, gt } from "drizzle-orm";
 import { getBusinessId } from "../lib/authHelpers.js";
 import { addSseClient } from "../lib/sseManager.js";
+import { getEmailProvider } from "../lib/emailService.js";
 
 const router = Router();
 
@@ -284,6 +285,52 @@ router.post("/notifications/update-last-visit", async (req, res) => {
       });
     }
     res.json({ ok: true, lastVisitedAt: now.toISOString() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/email-status", (_req, res) => {
+  const provider = getEmailProvider();
+  const displayProvider =
+    provider === "resend-connector" || provider === "resend-key" ? "resend" : provider;
+  res.json({
+    configured: provider !== null,
+    provider: displayProvider,
+  });
+});
+
+router.post("/notification-preferences/test-email", async (req, res) => {
+  try {
+    const businessId = getBusinessId(req);
+
+    const [pref] = await db
+      .select()
+      .from(notificationPreferencesTable)
+      .where(eq(notificationPreferencesTable.businessId, businessId));
+
+    if (!pref?.emailAddress) {
+      return res.status(400).json({ error: "E-posta adresi kayıtlı değil" });
+    }
+
+    const { sendEmail, buildMatchEmailHtml } = await import("../lib/emailService.js");
+
+    const html = buildMatchEmailHtml([
+      { title: "Test İhalesi — E-posta Bildirim Testi", fitScore: 85, agencyName: "İhaleZeka Test Servisi", sourceUrl: null },
+    ]);
+
+    const sent = await sendEmail({
+      to: pref.emailAddress,
+      subject: "İhaleZeka: E-posta Bildirimleri Aktif",
+      html,
+    });
+
+    if (sent) {
+      res.json({ ok: true, to: pref.emailAddress });
+    } else {
+      res.status(503).json({ error: "E-posta gönderilemedi — e-posta sağlayıcısı yapılandırılmamış veya bir hata oluştu" });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });

@@ -13,6 +13,9 @@ import {
   IconBell,
   IconMail,
   IconCheck,
+  IconSend,
+  IconAlertCircle,
+  IconCircleCheck,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +32,11 @@ interface NotificationPrefs {
   categories: string[];
 }
 
+interface EmailStatus {
+  configured: boolean;
+  provider: "resend" | "smtp" | null;
+}
+
 async function loadPrefs(): Promise<NotificationPrefs> {
   const res = await fetch(`${BASE}/api/notification-preferences`);
   if (!res.ok) return { emailEnabled: false, emailAddress: null, inAppEnabled: true, minFitScore: 60, sources: ["ekap", "ilan_gov"], categories: [] };
@@ -42,6 +50,19 @@ async function savePrefs(prefs: Partial<NotificationPrefs>): Promise<Notificatio
     body: JSON.stringify(prefs),
   });
   return res.json();
+}
+
+async function loadEmailStatus(): Promise<EmailStatus> {
+  const res = await fetch(`${BASE}/api/email-status`);
+  if (!res.ok) return { configured: false, provider: null };
+  return res.json();
+}
+
+async function sendTestEmail(): Promise<{ ok: boolean; error?: string; to?: string }> {
+  const res = await fetch(`${BASE}/api/notification-preferences/test-email`, { method: "POST" });
+  const body = await res.json();
+  if (!res.ok) return { ok: false, error: body.error ?? "Bilinmeyen hata" };
+  return { ok: true, to: body.to };
 }
 
 interface Props {
@@ -78,13 +99,19 @@ export function NotificationPrefsModal({ open, onClose }: Props) {
     sources: ["ekap", "ilan_gov"],
     categories: [],
   });
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testState, setTestState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [testMessage, setTestMessage] = useState("");
 
   useEffect(() => {
     if (open) {
       loadPrefs().then(setPrefs);
+      loadEmailStatus().then(setEmailStatus);
       setSaved(false);
+      setTestState("idle");
+      setTestMessage("");
     }
   }, [open]);
 
@@ -123,6 +150,27 @@ export function NotificationPrefsModal({ open, onClose }: Props) {
       onClose();
     }, 1000);
   };
+
+  const handleTestEmail = async () => {
+    if (!prefs.emailAddress) return;
+    setTestState("sending");
+    setTestMessage("");
+    const result = await sendTestEmail();
+    if (result.ok) {
+      setTestState("sent");
+      setTestMessage(`Test e-postası ${result.to ?? prefs.emailAddress} adresine gönderildi`);
+    } else {
+      setTestState("error");
+      setTestMessage(result.error ?? "Gönderim başarısız");
+    }
+  };
+
+  const providerLabel =
+    emailStatus?.provider === "resend"
+      ? "Resend"
+      : emailStatus?.provider === "smtp"
+      ? "SMTP"
+      : null;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -163,7 +211,21 @@ export function NotificationPrefsModal({ open, onClose }: Props) {
                   <IconMail className="h-4 w-4 text-muted-foreground" />
                   E-posta Bildirimleri
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">SMTP yapılandırması gereklidir</p>
+                {emailStatus ? (
+                  emailStatus.configured ? (
+                    <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
+                      <IconCircleCheck className="h-3 w-3" />
+                      {providerLabel} üzerinden aktif
+                    </p>
+                  ) : (
+                    <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                      <IconAlertCircle className="h-3 w-3" />
+                      E-posta sağlayıcısı yapılandırılmamış
+                    </p>
+                  )
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-0.5">Durum kontrol ediliyor…</p>
+                )}
               </div>
               <button
                 onClick={() => setPrefs((p) => ({ ...p, emailEnabled: !p.emailEnabled }))}
@@ -179,15 +241,47 @@ export function NotificationPrefsModal({ open, onClose }: Props) {
               </button>
             </div>
             {prefs.emailEnabled && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">E-posta Adresi</Label>
-                <Input
-                  type="email"
-                  placeholder="ornek@firma.com"
-                  value={prefs.emailAddress ?? ""}
-                  onChange={(e) => setPrefs((p) => ({ ...p, emailAddress: e.target.value }))}
-                  className="h-9 text-sm"
-                />
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">E-posta Adresi</Label>
+                  <Input
+                    type="email"
+                    placeholder="ornek@firma.com"
+                    value={prefs.emailAddress ?? ""}
+                    onChange={(e) => setPrefs((p) => ({ ...p, emailAddress: e.target.value }))}
+                    className="h-9 text-sm"
+                  />
+                </div>
+                {prefs.emailAddress && emailStatus?.configured && (
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={handleTestEmail}
+                      disabled={testState === "sending"}
+                      className="flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <IconSend className="h-3 w-3" />
+                      {testState === "sending" ? "Gönderiliyor…" : "Test e-postası gönder"}
+                    </button>
+                    {testState === "sent" && (
+                      <p className="text-xs text-emerald-600 flex items-center gap-1">
+                        <IconCircleCheck className="h-3 w-3" />
+                        {testMessage}
+                      </p>
+                    )}
+                    {testState === "error" && (
+                      <p className="text-xs text-destructive flex items-center gap-1">
+                        <IconAlertCircle className="h-3 w-3" />
+                        {testMessage}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {prefs.emailEnabled && !emailStatus?.configured && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    E-posta göndermek için sunucuda <code className="font-mono">RESEND_API_KEY</code> ortam değişkenini ayarlayın.
+                  </p>
+                )}
               </div>
             )}
           </div>

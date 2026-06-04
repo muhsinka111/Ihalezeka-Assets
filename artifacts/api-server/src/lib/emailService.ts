@@ -6,17 +6,80 @@ export interface EmailPayload {
   html: string;
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+// Attempts to send via the Replit Connectors SDK (OAuth-managed Resend).
+// Returns null if the connector is not available, false on send failure, true on success.
+// The connector proxy is only available when REPLIT_CONNECTORS_HOSTNAME is set AND
+// a valid Resend connection has been bound to this Repl.
+// See: connection:conn_resend_01KTA6XWPP93KS6343SBPNHWZA
+async function tryViaResendConnector(payload: EmailPayload): Promise<boolean | null> {
+  if (!process.env.REPLIT_CONNECTORS_HOSTNAME) return null;
+
+  const fromAddress = process.env.RESEND_FROM ?? "İhaleZeka <onboarding@resend.dev>";
+  try {
+    const { ReplitConnectors } = await import("@replit/connectors-sdk");
+    const connectors = new ReplitConnectors();
+    const response = await connectors.proxy("resend", "/emails", {
+      method: "POST",
+      body: JSON.stringify({
+        from: fromAddress,
+        to: [payload.to],
+        subject: payload.subject,
+        html: payload.html,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      logger.warn({ status: response.status, body, to: payload.to }, "Resend connector send failed — will try next provider");
+      return false;
+    }
+
+    logger.info({ to: payload.to, subject: payload.subject }, "Email sent via Resend (connector)");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to: payload.to }, "Resend connector unavailable — will try next provider");
+    return null;
+  }
+}
+
+// Attempts to send via an explicit RESEND_API_KEY env var.
+// Returns null if not configured, false on send failure, true on success.
+async function tryViaResendApiKey(payload: EmailPayload): Promise<boolean | null> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+
+  const fromAddress = process.env.RESEND_FROM ?? "İhaleZeka <onboarding@resend.dev>";
+  try {
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+    });
+    if (error) {
+      logger.warn({ error, to: payload.to }, "Resend API key send failed — will try next provider");
+      return false;
+    }
+    logger.info({ to: payload.to, subject: payload.subject }, "Email sent via Resend (API key)");
+    return true;
+  } catch (err) {
+    logger.warn({ err, to: payload.to }, "Resend API key send error — will try next provider");
+    return false;
+  }
+}
+
+// Attempts to send via SMTP/nodemailer.
+// Returns null if not configured, false on send failure, true on success.
+async function tryViaSmtp(payload: EmailPayload): Promise<boolean | null> {
   const smtpHost = process.env.SMTP_HOST;
   const smtpPort = process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587;
   const smtpUser = process.env.SMTP_USER;
   const smtpPass = process.env.SMTP_PASS;
   const fromAddress = process.env.SMTP_FROM ?? "noreply@ihalezeka.com";
 
-  if (!smtpHost || !smtpUser || !smtpPass) {
-    logger.info({ to: payload.to, subject: payload.subject }, "Email skipped: SMTP not configured");
-    return false;
-  }
+  if (!smtpHost || !smtpUser || !smtpPass) return null;
 
   try {
     const nodemailer = await import("nodemailer");
@@ -26,20 +89,54 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
       secure: smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
     });
-
     await transporter.sendMail({
       from: fromAddress,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
     });
-
-    logger.info({ to: payload.to, subject: payload.subject }, "Email sent");
+    logger.info({ to: payload.to, subject: payload.subject }, "Email sent via SMTP");
     return true;
   } catch (err) {
-    logger.error({ err, to: payload.to }, "Failed to send email");
+    logger.error({ err, to: payload.to }, "SMTP send failed");
     return false;
   }
+}
+
+// Returns which provider is statically configured (based on env vars).
+// "resend" covers both the connector and a raw API key.
+// This reflects configuration, not runtime send success.
+export function getEmailProvider(): "resend" | "smtp" | null {
+  if (process.env.REPLIT_CONNECTORS_HOSTNAME || process.env.RESEND_API_KEY) return "resend";
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) return "smtp";
+  return null;
+}
+
+// Sends an email via the first available provider in priority order:
+//   1. Replit Connectors (OAuth-managed Resend) — tried if REPLIT_CONNECTORS_HOSTNAME is set
+//   2. RESEND_API_KEY — explicit Resend API key
+//   3. SMTP — nodemailer fallback
+// Each provider falls through on null (not configured) or false (send failure).
+export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+  // 1. Try Replit connector (falls through to next if unavailable or fails)
+  const connectorResult = await tryViaResendConnector(payload);
+  if (connectorResult === true) return true;
+
+  // 2. Try raw Resend API key
+  const apiKeyResult = await tryViaResendApiKey(payload);
+  if (apiKeyResult === true) return true;
+
+  // 3. Try SMTP
+  const smtpResult = await tryViaSmtp(payload);
+  if (smtpResult === true) return true;
+
+  // All providers exhausted
+  if (connectorResult === null && apiKeyResult === null && smtpResult === null) {
+    logger.warn({ to: payload.to }, "Email skipped: no email provider configured");
+  } else {
+    logger.error({ to: payload.to }, "Email delivery failed across all configured providers");
+  }
+  return false;
 }
 
 function escapeHtml(str: string): string {
