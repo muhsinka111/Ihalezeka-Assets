@@ -11,6 +11,7 @@ import competitorsRouter from "./competitors";
 import moneyFlowRouter from "./moneyFlow";
 import reportsRouter from "./reports";
 import apiKeysRouter from "./apiKeys";
+import scraperAdminRouter from "./scraperAdmin";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(competitorsRouter);
 router.use(moneyFlowRouter);
 router.use(reportsRouter);
 router.use(apiKeysRouter);
+router.use(scraperAdminRouter);
 
 export default router;

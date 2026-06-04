@@ -5,7 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgencyLogo } from "@/components/AgencyLogo";
-import { IconArrowLeft, IconCheck, IconX, IconFileText, IconBolt, IconClipboardList } from "@tabler/icons-react";
+import {
+  IconArrowLeft, IconCheck, IconX, IconFileText, IconBolt,
+  IconClipboardList, IconDownload, IconExternalLink,
+} from "@tabler/icons-react";
 
 function FitGauge({ score }: { score: number }) {
   const radius = 54;
@@ -34,6 +37,37 @@ function FitGauge({ score }: { score: number }) {
       <span className="text-sm text-muted-foreground font-medium">Uyum Skoru</span>
     </div>
   );
+}
+
+function StatusBadge({ status }: { status?: string | null }) {
+  if (!status || status === "active") {
+    return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">Aktif</Badge>;
+  }
+  if (status === "cancelled") {
+    return <Badge variant="destructive">İptal</Badge>;
+  }
+  if (status === "awarded") {
+    return <Badge className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-100">Sonuçlandı</Badge>;
+  }
+  return <Badge variant="outline">{status}</Badge>;
+}
+
+function SourceBadge({ source }: { source?: string | null }) {
+  if (!source || source === "ekap") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+        EKAP
+      </span>
+    );
+  }
+  if (source === "ilan_gov") {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+        ilan.gov.tr
+      </span>
+    );
+  }
+  return null;
 }
 
 export default function IhaleDetayPage() {
@@ -69,6 +103,8 @@ export default function IhaleDetayPage() {
   const deadlineText = daysLeft > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti";
   const deadlineColor = daysLeft <= 0 ? "text-destructive" : daysLeft <= 7 ? "text-amber-500" : "text-emerald-600";
   const criteria = (match as any).criteriaCompliance ?? [];
+  const tenderAny = tender as any;
+  const documents: Array<{ name: string; url: string; type: string }> = tenderAny.documents ?? [];
 
   return (
     <div className="space-y-6">
@@ -84,20 +120,26 @@ export default function IhaleDetayPage() {
         <div className="flex items-start gap-4">
           <AgencyLogo name={tender.agencyName} logoUrl={tender.agencyLogoUrl} className="h-12 w-12 rounded-lg" />
           <div>
-            <p className="text-sm text-muted-foreground font-mono">{tender.ikn}</p>
-            <h1 className="text-xl font-bold font-heading leading-snug mt-0.5">{tender.title}</h1>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm text-muted-foreground font-mono">{tender.ikn}</p>
+              <SourceBadge source={tenderAny.sourceSystem} />
+            </div>
+            <h1 className="text-xl font-bold font-heading leading-snug">{tender.title}</h1>
             <p className="text-sm text-muted-foreground mt-1">{tender.agencyName} • {tender.il}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0 items-center">
           <Badge variant="outline">{tender.type}</Badge>
-          <Badge variant="outline">{tender.method}</Badge>
+          {tenderAny.procurementMethod && (
+            <Badge variant="outline">{tenderAny.procurementMethod}</Badge>
+          )}
+          <StatusBadge status={tenderAny.status} />
           <span className={`text-sm font-semibold ${deadlineColor}`}>{deadlineText}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: AI summary + criteria */}
+        {/* Left: AI summary + criteria + documents */}
         <div className="lg:col-span-2 space-y-6">
           {/* AI Summary */}
           <Card>
@@ -163,8 +205,46 @@ export default function IhaleDetayPage() {
             </Card>
           )}
 
-          {/* Documents Required */}
-          {(tender.documentsRequired?.length ?? 0) > 0 && (
+          {/* Scraped Documents */}
+          {documents.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <IconDownload className="h-5 w-5 text-primary" />
+                  Belgeler
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {documents.map((doc, i) => (
+                    <li key={i} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
+                      <IconFileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                        {doc.type && <p className="text-xs text-muted-foreground">{doc.type}</p>}
+                      </div>
+                      {doc.url && (
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0"
+                        >
+                          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                            <IconExternalLink className="h-3.5 w-3.5" />
+                            İndir
+                          </Button>
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Required Documents (legacy field) */}
+          {(tenderAny.documentsRequired?.length ?? 0) > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -174,7 +254,7 @@ export default function IhaleDetayPage() {
               </CardHeader>
               <CardContent>
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {(tender.documentsRequired ?? []).map((doc: string, i: number) => (
+                  {(tenderAny.documentsRequired ?? []).map((doc: string, i: number) => (
                     <li key={i} className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded-lg">
                       <IconFileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       {doc}
@@ -204,6 +284,16 @@ export default function IhaleDetayPage() {
                   <span className="text-muted-foreground">Usul</span>
                   <span className="font-medium">{tender.method}</span>
                 </div>
+                {tenderAny.procurementMethod && tenderAny.procurementMethod !== tender.method && (
+                  <div className="flex justify-between border-b border-border pb-2">
+                    <span className="text-muted-foreground">İhale Usulü</span>
+                    <span className="font-medium">{tenderAny.procurementMethod}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-border pb-2">
+                  <span className="text-muted-foreground">Durum</span>
+                  <StatusBadge status={tenderAny.status} />
+                </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Son Başvuru</span>
                   <span className={`font-semibold ${deadlineColor}`}>{new Date(tender.deadline).toLocaleDateString("tr-TR")}</span>
@@ -211,6 +301,15 @@ export default function IhaleDetayPage() {
               </div>
             </CardContent>
           </Card>
+
+          {tenderAny.sourceUrl && (
+            <a href={tenderAny.sourceUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="w-full gap-2">
+                <IconExternalLink className="h-4 w-4" />
+                Kaynakta Görüntüle
+              </Button>
+            </a>
+          )}
 
           <div className="space-y-2">
             <Link href="/basvuru-sihirbazi">

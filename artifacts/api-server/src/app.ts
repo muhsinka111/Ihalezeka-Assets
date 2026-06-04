@@ -8,6 +8,7 @@ import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
 } from "./middlewares/clerkProxyMiddleware";
+import { startScraperScheduler } from "./scrapers/scheduler";
 
 const app: Express = express();
 
@@ -47,5 +48,7 @@ app.use("/api", router);
 app.use("/api", (_req, res) => {
   res.status(404).json({ title: "Not Found", status: 404 });
 });
+
+startScraperScheduler();
 
 export default app;

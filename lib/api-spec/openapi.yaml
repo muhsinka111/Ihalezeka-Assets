@@ -168,6 +168,12 @@ paths:
           schema:
             type: string
           description: CPV code filter
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [ekap, ilan_gov]
+          description: Filter by data source
         - name: page
           in: query
           schema:
@@ -781,6 +787,17 @@ components:
           description: 0-100 win probability
 
     # ─── Tender ─────────────────────────────────────────────────────────────────
+    TenderDocument:
+      type: object
+      required: [name, url, type]
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        type:
+          type: string
+
     Tender:
       type: object
       required: [id, ikn, title, agencyName, type, method, estimatedValue, deadline, status, il]
@@ -820,6 +837,17 @@ components:
         sourceSystem:
           type: string
           default: ekap
+        sourceUrl:
+          type: ["string", "null"]
+        procurementMethod:
+          type: ["string", "null"]
+        lastFetchedAt:
+          type: ["string", "null"]
+          format: date-time
+        documents:
+          type: ["array", "null"]
+          items:
+            $ref: "#/components/schemas/TenderDocument"
 
     TenderDetail:
       allOf:

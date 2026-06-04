@@ -6,3 +6,4 @@ export * from "./documents";
 export * from "./proposals";
 export * from "./competitors";
 export * from "./apiKeys";
+export * from "./scraperRuns";

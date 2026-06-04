@@ -5,6 +5,7 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { TenderDocument } from './tenderDocument';
 import type { TenderStatus } from './tenderStatus';
 
 export interface Tender {
@@ -26,4 +27,12 @@ export interface Tender {
   il: string;
   status: TenderStatus;
   sourceSystem?: string;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  procurementMethod?: string | null;
+  /** @nullable */
+  lastFetchedAt?: Date | null;
+  /** @nullable */
+  documents?: TenderDocument[] | null;
 }

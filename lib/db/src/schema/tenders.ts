@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, real, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, real, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -20,6 +20,11 @@ export const tendersTable = pgTable("tenders", {
   documentsRequired: text("documents_required").array().notNull().default([]),
   rawDocsUrls: text("raw_docs_urls").array().notNull().default([]),
   sourceSystem: text("source_system").notNull().default("ekap"),
+  sourceUrl: text("source_url"),
+  procurementMethod: text("procurement_method"),
+  documents: jsonb("documents").$type<Array<{ name: string; url: string; type: string }>>(),
+  rawData: jsonb("raw_data"),
+  lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

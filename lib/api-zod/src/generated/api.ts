@@ -53,7 +53,15 @@ export const GetDashboardTopMatchesResponseItem = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(getDashboardTopMatchesResponseTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(getDashboardTopMatchesResponseTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "fitScore": zod.number().min(getDashboardTopMatchesResponseFitScoreMin).max(getDashboardTopMatchesResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -113,6 +121,7 @@ export const ListTendersQueryParams = zod.object({
   "maxBedel": zod.coerce.number().optional().describe('Maximum estimated value'),
   "idare": zod.coerce.string().optional().describe('Agency name filter'),
   "cpv": zod.coerce.string().optional().describe('CPV code filter'),
+  "source": zod.enum(['ekap', 'ilan_gov']).optional().describe('Filter by data source'),
   "page": zod.coerce.number().default(listTendersQueryPageDefault),
   "limit": zod.coerce.number().default(listTendersQueryLimitDefault)
 })
@@ -133,7 +142,15 @@ export const ListTendersResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(listTendersResponseItemsItemSourceSystemDefault)
+  "sourceSystem": zod.string().default(listTendersResponseItemsItemSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 })),
   "total": zod.number(),
   "page": zod.number(),
@@ -163,7 +180,15 @@ export const GetTenderResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(getTenderResponseOneSourceSystemDefault)
+  "sourceSystem": zod.string().default(getTenderResponseOneSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }).and(zod.object({
   "description": zod.string().nullish(),
   "qualificationCriteria": zod.array(zod.string()).optional(),
@@ -208,7 +233,15 @@ export const ListMatchesResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(listMatchesResponseItemsItemTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(listMatchesResponseItemsItemTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "fitScore": zod.number().min(listMatchesResponseItemsItemFitScoreMin).max(listMatchesResponseItemsItemFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -251,7 +284,15 @@ export const GetMatchResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(getMatchResponseOneTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(getMatchResponseOneTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "fitScore": zod.number().min(getMatchResponseOneFitScoreMin).max(getMatchResponseOneFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -273,7 +314,15 @@ export const GetMatchResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(getMatchResponseTwoTenderOneSourceSystemDefault)
+  "sourceSystem": zod.string().default(getMatchResponseTwoTenderOneSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }).and(zod.object({
   "description": zod.string().nullish(),
   "qualificationCriteria": zod.array(zod.string()).optional(),
@@ -320,7 +369,15 @@ export const UpdateMatchStatusResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(updateMatchStatusResponseTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(updateMatchStatusResponseTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "fitScore": zod.number().min(updateMatchStatusResponseFitScoreMin).max(updateMatchStatusResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -351,7 +408,15 @@ export const ListPipelineItemsResponseItem = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(listPipelineItemsResponseTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(listPipelineItemsResponseTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "stage": zod.enum(['discovery', 'preparation', 'applied', 'evaluation', 'won', 'lost']),
   "notes": zod.string().nullish(),
@@ -400,7 +465,15 @@ export const UpdatePipelineItemResponse = zod.object({
   "cpvCodes": zod.array(zod.string()).optional(),
   "il": zod.string().describe('Province'),
   "status": zod.enum(['active', 'cancelled', 'awarded', 'draft']),
-  "sourceSystem": zod.string().default(updatePipelineItemResponseTenderSourceSystemDefault)
+  "sourceSystem": zod.string().default(updatePipelineItemResponseTenderSourceSystemDefault),
+  "sourceUrl": zod.string().nullish(),
+  "procurementMethod": zod.string().nullish(),
+  "lastFetchedAt": zod.coerce.date().nullish(),
+  "documents": zod.array(zod.object({
+  "name": zod.string(),
+  "url": zod.string(),
+  "type": zod.string()
+})).nullish()
 }),
   "stage": zod.enum(['discovery', 'preparation', 'applied', 'evaluation', 'won', 'lost']),
   "notes": zod.string().nullish(),

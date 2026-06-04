@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
-import { eq, ilike, and, gte, lte, type SQL, desc, count, sql } from "drizzle-orm";
+import { eq, ilike, and, gte, lte, type SQL, desc, count } from "drizzle-orm";
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
 
 const router = Router();
@@ -18,6 +18,7 @@ router.get("/tenders", async (req, res) => {
     if (query.idare) conditions.push(ilike(tendersTable.agencyName, `%${query.idare}%`));
     if (query.minBedel) conditions.push(gte(tendersTable.estimatedValue, query.minBedel));
     if (query.maxBedel) conditions.push(lte(tendersTable.estimatedValue, query.maxBedel));
+    if ((query as any).source) conditions.push(eq(tendersTable.sourceSystem, (query as any).source));
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const page = query.page ?? 1;

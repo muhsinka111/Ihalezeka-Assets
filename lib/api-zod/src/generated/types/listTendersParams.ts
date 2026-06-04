@@ -5,6 +5,7 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { ListTendersSource } from './listTendersSource';
 
 export type ListTendersParams = {
 /**
@@ -39,6 +40,10 @@ idare?: string;
  * CPV code filter
  */
 cpv?: string;
+/**
+ * Filter by data source
+ */
+source?: ListTendersSource;
 page?: number;
 limit?: number;
 };

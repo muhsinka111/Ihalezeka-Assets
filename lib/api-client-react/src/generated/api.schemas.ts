@@ -55,6 +55,12 @@ export interface WinPrediction {
   probability: number;
 }
 
+export interface TenderDocument {
+  name: string;
+  url: string;
+  type: string;
+}
+
 export type TenderStatus = typeof TenderStatus[keyof typeof TenderStatus];
 
 
@@ -84,6 +90,14 @@ export interface Tender {
   il: string;
   status: TenderStatus;
   sourceSystem?: string;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  procurementMethod?: string | null;
+  /** @nullable */
+  lastFetchedAt?: string | null;
+  /** @nullable */
+  documents?: TenderDocument[] | null;
 }
 
 export type TenderDetail = Tender & ({
@@ -465,9 +479,21 @@ idare?: string;
  * CPV code filter
  */
 cpv?: string;
+/**
+ * Filter by data source
+ */
+source?: ListTendersSource;
 page?: number;
 limit?: number;
 };
+
+export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTendersSource];
+
+
+export const ListTendersSource = {
+  ekap: 'ekap',
+  ilan_gov: 'ilan_gov',
+} as const;
 
 export type ListMatchesParams = {
 status?: ListMatchesStatus;

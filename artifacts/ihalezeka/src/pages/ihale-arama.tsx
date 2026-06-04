@@ -14,18 +14,43 @@ const ILLER = ["Ankara", "İstanbul", "İzmir", "Bursa", "Antalya", "Adana", "Ko
 const TYPES = ["Hizmet Alımı", "Yapım İşleri", "Mal Alımı", "Danışmanlık"];
 const METHODS = ["Açık İhale", "Belli İstekliler Arasında İhale", "Pazarlık Usulü"];
 
+function SourceBadge({ source }: { source?: string | null }) {
+  if (!source || source === "ekap") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">
+        EKAP
+      </span>
+    );
+  }
+  if (source === "ilan_gov") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+        ilan.gov.tr
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function IhaleAramaPage() {
   const [q, setQ] = useState("");
   const [il, setIl] = useState<string | undefined>();
   const [tur, setTur] = useState<string | undefined>();
   const [usul, setUsul] = useState<string | undefined>();
-  const [search, setSearch] = useState<{ q?: string; il?: string; tur?: string; usul?: string }>({});
+  const [source, setSource] = useState<string | undefined>();
+  const [search, setSearch] = useState<{ q?: string; il?: string; tur?: string; usul?: string; source?: string }>({});
 
-  const { data, isLoading } = useListTenders(search);
+  const { data, isLoading } = useListTenders(search as any);
   const tenders = data?.items ?? [];
 
   const handleSearch = () => {
-    setSearch({ q: q || undefined, il: il || undefined, tur: tur || undefined, usul: usul || undefined });
+    setSearch({
+      q: q || undefined,
+      il: il || undefined,
+      tur: tur || undefined,
+      usul: usul || undefined,
+      source: source || undefined,
+    });
   };
 
   return (
@@ -70,6 +95,14 @@ export default function IhaleAramaPage() {
                 {METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={source} onValueChange={(v) => setSource(v === "all" ? undefined : v)}>
+              <SelectTrigger className="w-40"><SelectValue placeholder="Kaynak" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Kaynaklar</SelectItem>
+                <SelectItem value="ekap">EKAP</SelectItem>
+                <SelectItem value="ilan_gov">ilan.gov.tr</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={handleSearch} className="gap-2">
               <IconFilter className="h-4 w-4" /> Filtrele
             </Button>
@@ -86,7 +119,7 @@ export default function IhaleAramaPage() {
         ) : tenders.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">
             <p className="text-muted-foreground">Arama kriterlerinize uygun ihale bulunamadı.</p>
-            <Button variant="outline" size="sm" onClick={() => { setSearch({}); setQ(""); setIl(undefined); setTur(undefined); setUsul(undefined); }}>
+            <Button variant="outline" size="sm" onClick={() => { setSearch({}); setQ(""); setIl(undefined); setTur(undefined); setUsul(undefined); setSource(undefined); }}>
               Filtreleri Temizle
             </Button>
           </div>
@@ -103,7 +136,10 @@ export default function IhaleAramaPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-xs text-muted-foreground font-mono mb-0.5">{tender.ikn}</p>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-xs text-muted-foreground font-mono">{tender.ikn}</p>
+                              <SourceBadge source={tender.sourceSystem} />
+                            </div>
                             <Link href={`/ihale/${tender.id}`}>
                               <p className="font-semibold text-sm hover:text-primary cursor-pointer transition-colors line-clamp-2">{tender.title}</p>
                             </Link>
