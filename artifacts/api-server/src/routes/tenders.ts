@@ -20,6 +20,7 @@ router.get("/tenders", async (req, res) => {
     if (query.minBedel) conditions.push(gte(tendersTable.estimatedValue, query.minBedel));
     if (query.maxBedel) conditions.push(lte(tendersTable.estimatedValue, query.maxBedel));
     if (query.source) conditions.push(eq(tendersTable.sourceSystem, query.source));
+    if (query.category) conditions.push(eq(tendersTable.category, query.category));
     if (query.durum) conditions.push(eq(tendersTable.status, query.durum));
     if (query.deadlineFrom) conditions.push(gte(tendersTable.deadline, new Date(query.deadlineFrom)));
     if (query.deadlineTo) {

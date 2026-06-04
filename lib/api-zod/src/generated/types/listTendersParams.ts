@@ -48,6 +48,10 @@ cpv?: string;
  */
 source?: ListTendersSource;
 /**
+ * Filter by tender category
+ */
+category?: 'ihale' | 'hibe' | 'uluslararasi';
+/**
  * Status filter
  */
 durum?: ListTendersDurum;

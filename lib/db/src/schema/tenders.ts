@@ -26,6 +26,7 @@ export const tendersTable = pgTable("tenders", {
   cpvCodes: text("cpv_codes").array().notNull().default([]),
   il: text("il").notNull().default(""),
   status: text("status").notNull().default("active"),
+  category: text("category").notNull().default("ihale"),
   description: text("description"),
   qualificationCriteria: text("qualification_criteria").array().notNull().default([]),
   documentsRequired: text("documents_required").array().notNull().default([]),

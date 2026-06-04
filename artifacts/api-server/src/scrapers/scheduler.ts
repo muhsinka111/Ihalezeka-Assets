@@ -2,6 +2,13 @@ import cron from "node-cron";
 import { logger } from "../lib/logger.js";
 import { runEkapScraper } from "./ekap-scraper.js";
 import { runIlanScraper } from "./ilan-scraper.js";
+import { runTedScraper } from "./ted-scraper.js";
+import { runWorldBankScraper } from "./worldbank-scraper.js";
+import { runEbrdScraper } from "./ebrd-scraper.js";
+import { runKitScraper } from "./kit-scraper.js";
+import { runTubitakScraper } from "./tubitak-scraper.js";
+import { runKosgbScraper } from "./kosgeb-scraper.js";
+import { runKalkinmaScraper } from "./kalkinma-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 
@@ -11,19 +18,28 @@ export function isScraperRunning(): boolean {
   return _scraperRunning;
 }
 
-async function runAllScrapers(ekapDaysBack = 2, ilanHoursBack = 48): Promise<void> {
+async function runAllScrapers(ekapDaysBack = 2, ilanHoursBack = 48, grantDaysBack = 30, intlDaysBack = 7): Promise<void> {
   _scraperRunning = true;
   try {
     const { start, end } = formatEkapDate(ekapDaysBack);
+
     const results = await Promise.allSettled([
       runEkapScraper(start, end),
       runIlanScraper(ilanHoursBack),
+      runTedScraper(intlDaysBack),
+      runWorldBankScraper(intlDaysBack),
+      runEbrdScraper(),
+      runKitScraper(),
+      runTubitakScraper(),
+      runKosgbScraper(),
+      runKalkinmaScraper(),
     ]);
 
+    const sourceNames = ["ekap", "ilan_gov", "ted", "worldbank", "ebrd", "kit", "tubitak", "kosgeb", "kalkinma_ajansi"];
     const allNewIds: number[] = [];
 
     results.forEach((r, i) => {
-      const src = i === 0 ? "ekap" : "ilan_gov";
+      const src = sourceNames[i];
       if (r.status === "fulfilled") {
         logger.info({ src, result: r.value }, "Scraper run completed");
         if (r.value.newTenderIds && r.value.newTenderIds.length > 0) {
@@ -46,10 +62,10 @@ async function runAllScrapers(ekapDaysBack = 2, ilanHoursBack = 48): Promise<voi
 }
 
 export function startScraperScheduler(): void {
-  // Fire immediately on startup with a 30-day lookback to populate the DB
+  // Fire immediately on startup with a wide lookback to populate the DB
   setImmediate(() => {
-    logger.info("Startup: running initial scraper with 30-day lookback");
-    runAllScrapers(30, 30 * 24).catch((err) =>
+    logger.info("Startup: running initial scraper with extended lookback");
+    runAllScrapers(30, 30 * 24, 30, 30).catch((err) =>
       logger.error({ err }, "Startup scraper run failed")
     );
   });
@@ -59,10 +75,10 @@ export function startScraperScheduler(): void {
     "0 3,9,15 * * *",
     async () => {
       logger.info("Cron: starting scheduled scraper run");
-      await runAllScrapers(2, 48);
+      await runAllScrapers(2, 48, 30, 7);
     },
     { timezone: "UTC" },
   );
 
-  logger.info("Scraper scheduler started (06:00, 12:00, 18:00 Istanbul time)");
+  logger.info("Scraper scheduler started — EKAP, ilan.gov.tr, TED, World Bank, EBRD, KİT, TÜBİTAK, KOSGEB, Kalkınma Ajansları");
 }

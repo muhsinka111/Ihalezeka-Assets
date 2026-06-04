@@ -58,6 +58,7 @@ interface Filters {
   deadlineFrom?: string;
   deadlineTo?: string;
   source?: string;
+  category?: string;
   sortBy?: string;
   sortDir?: string;
 }
@@ -76,6 +77,7 @@ function parseUrlFilters(search: string): Filters {
     deadlineFrom: p.get("deadlineFrom") || undefined,
     deadlineTo: p.get("deadlineTo") || undefined,
     source: p.get("source") || undefined,
+    category: p.get("category") || undefined,
     sortBy: p.get("sortBy") || undefined,
     sortDir: p.get("sortDir") || undefined,
   };
@@ -94,19 +96,31 @@ function filtersToUrlParams(f: Filters): string {
   if (f.deadlineFrom) p.set("deadlineFrom", f.deadlineFrom);
   if (f.deadlineTo) p.set("deadlineTo", f.deadlineTo);
   if (f.source) p.set("source", f.source);
+  if (f.category) p.set("category", f.category);
   if (f.sortBy) p.set("sortBy", f.sortBy);
   if (f.sortDir) p.set("sortDir", f.sortDir);
   return p.toString();
 }
 
+const SOURCE_META: Record<string, { label: string; className: string }> = {
+  ekap:            { label: "EKAP",           className: "bg-blue-100 text-blue-700 border-blue-200" },
+  ilan_gov:        { label: "ilan.gov.tr",    className: "bg-amber-100 text-amber-700 border-amber-200" },
+  ted:             { label: "TED AB",         className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  worldbank:       { label: "Dünya Bankası",  className: "bg-cyan-100 text-cyan-700 border-cyan-200" },
+  ebrd:            { label: "EBRD",           className: "bg-purple-100 text-purple-700 border-purple-200" },
+  kit:             { label: "KİT",            className: "bg-slate-100 text-slate-700 border-slate-200" },
+  tubitak:         { label: "TÜBİTAK",       className: "bg-orange-100 text-orange-700 border-orange-200" },
+  kosgeb:          { label: "KOSGEB",         className: "bg-lime-100 text-lime-700 border-lime-200" },
+  kalkinma_ajansi: { label: "Kalkınma",       className: "bg-teal-100 text-teal-700 border-teal-200" },
+};
+
 function SourceBadge({ source }: { source?: string | null }) {
-  if (!source || source === "ekap") {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-700 border border-blue-200">EKAP</span>;
-  }
-  if (source === "ilan_gov") {
-    return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">ilan.gov.tr</span>;
-  }
-  return null;
+  const meta = SOURCE_META[source ?? "ekap"] ?? SOURCE_META["ekap"];
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${meta.className}`}>
+      {meta.label}
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status?: string | null }) {
@@ -210,6 +224,7 @@ export default function IhaleAramaPage() {
     deadlineFrom: applied.deadlineFrom,
     deadlineTo: applied.deadlineTo,
     source: applied.source,
+    category: applied.category,
     sortBy: applied.sortBy,
     sortDir: applied.sortDir,
   };
@@ -273,7 +288,8 @@ export default function IhaleAramaPage() {
   if (applied.maxBedel) activeChips.push({ key: "maxBedel", label: `Max ₺${applied.maxBedel.toLocaleString("tr-TR")}` });
   if (applied.durum) activeChips.push({ key: "durum", label: STATUS_OPTIONS.find(s => s.value === applied.durum)?.label ?? applied.durum });
   if (applied.deadlineFrom || applied.deadlineTo) activeChips.push({ key: "deadlineFrom", label: `Tarih: ${applied.deadlineFrom ?? "…"} → ${applied.deadlineTo ?? "…"}` });
-  if (applied.source) activeChips.push({ key: "source", label: applied.source === "ekap" ? "EKAP" : "ilan.gov.tr" });
+  if (applied.source) activeChips.push({ key: "source", label: SOURCE_META[applied.source]?.label ?? applied.source });
+  if (applied.category) activeChips.push({ key: "category", label: applied.category === "ihale" ? "İhale" : applied.category === "hibe" ? "Hibe / Destek" : "Uluslararası" });
 
   const FilterPanel = () => (
     <div className="flex flex-col gap-4 text-sm">
@@ -411,17 +427,48 @@ export default function IhaleAramaPage() {
       <Separator />
 
       <div>
-        <SectionHeader title="Kaynak" open={secKaynak} onToggle={() => setSecKaynak(v => !v)} />
+        <SectionHeader title="Kategori" open={secKaynak} onToggle={() => setSecKaynak(v => !v)} />
         {secKaynak && (
-          <div className="mt-2">
-            <Select value={draft.source ?? "all"} onValueChange={v => setDraft(d => ({ ...d, source: v === "all" ? undefined : v }))}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tüm Kaynaklar" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Kaynaklar</SelectItem>
-                <SelectItem value="ekap">EKAP</SelectItem>
-                <SelectItem value="ilan_gov">ilan.gov.tr</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="mt-2 space-y-3">
+            <div className="flex gap-1 flex-wrap">
+              {[
+                { value: undefined, label: "Tümü" },
+                { value: "ihale", label: "İhale" },
+                { value: "hibe", label: "Hibe / Destek" },
+                { value: "uluslararasi", label: "Uluslararası" },
+              ].map(opt => (
+                <button
+                  key={opt.label}
+                  onClick={() => setDraft(d => ({ ...d, category: opt.value }))}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full border text-[11px] font-medium transition-colors",
+                    draft.category === opt.value
+                      ? "bg-primary text-white border-primary"
+                      : "hover:bg-muted"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">Kaynak</label>
+              <Select value={draft.source ?? "all"} onValueChange={v => setDraft(d => ({ ...d, source: v === "all" ? undefined : v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tüm Kaynaklar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Kaynaklar</SelectItem>
+                  <SelectItem value="ekap">EKAP</SelectItem>
+                  <SelectItem value="ilan_gov">ilan.gov.tr</SelectItem>
+                  <SelectItem value="ted">TED AB</SelectItem>
+                  <SelectItem value="worldbank">Dünya Bankası</SelectItem>
+                  <SelectItem value="ebrd">EBRD</SelectItem>
+                  <SelectItem value="kit">KİT (TCDD, BOTAŞ…)</SelectItem>
+                  <SelectItem value="tubitak">TÜBİTAK</SelectItem>
+                  <SelectItem value="kosgeb">KOSGEB</SelectItem>
+                  <SelectItem value="kalkinma_ajansi">Kalkınma Ajansları</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
       </div>

@@ -517,6 +517,10 @@ cpv?: string;
  */
 source?: ListTendersSource;
 /**
+ * Filter by tender category
+ */
+category?: ListTendersCategory;
+/**
  * Status filter
  */
 durum?: ListTendersDurum;
@@ -546,6 +550,22 @@ export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTender
 export const ListTendersSource = {
   ekap: 'ekap',
   ilan_gov: 'ilan_gov',
+  ted: 'ted',
+  worldbank: 'worldbank',
+  ebrd: 'ebrd',
+  kit: 'kit',
+  tubitak: 'tubitak',
+  kosgeb: 'kosgeb',
+  kalkinma_ajansi: 'kalkinma_ajansi',
+} as const;
+
+export type ListTendersCategory = typeof ListTendersCategory[keyof typeof ListTendersCategory];
+
+
+export const ListTendersCategory = {
+  ihale: 'ihale',
+  hibe: 'hibe',
+  uluslararasi: 'uluslararasi',
 } as const;
 
 export type ListTendersDurum = typeof ListTendersDurum[keyof typeof ListTendersDurum];
