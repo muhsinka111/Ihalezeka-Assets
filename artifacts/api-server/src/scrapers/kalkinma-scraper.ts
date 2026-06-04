@@ -1,11 +1,8 @@
 import axios from "axios";
-import https from "https";
 import { load } from "cheerio";
 import { logger } from "../lib/logger.js";
 import { upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
 import type { InsertTender } from "@workspace/db";
-
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
 interface KalkinmaTarget {
   agency: string;
@@ -77,7 +74,6 @@ async function scrapeKalkinmaPage(target: KalkinmaTarget, url: string): Promise<
   try {
     const res = await axios.get<string>(url, {
       timeout: 20000,
-      httpsAgent,
       headers: {
         "User-Agent": "Mozilla/5.0 (compatible; İhaleZeka/1.0)",
         "Accept": "text/html",
