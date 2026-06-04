@@ -159,6 +159,13 @@ export default function IhaleAramaPage() {
 
   const [draft, setDraft] = useState<Filters>(initialFilters);
   const [applied, setApplied] = useState<Filters>(initialFilters);
+
+  useEffect(() => {
+    const parsed = parseUrlFilters(rawSearch);
+    setDraft(parsed);
+    setApplied(parsed);
+  }, [rawSearch]);
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 

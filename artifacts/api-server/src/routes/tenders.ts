@@ -22,7 +22,11 @@ router.get("/tenders", async (req, res) => {
     if (query.source) conditions.push(eq(tendersTable.sourceSystem, query.source));
     if (query.durum) conditions.push(eq(tendersTable.status, query.durum));
     if (query.deadlineFrom) conditions.push(gte(tendersTable.deadline, new Date(query.deadlineFrom)));
-    if (query.deadlineTo) conditions.push(lte(tendersTable.deadline, new Date(query.deadlineTo)));
+    if (query.deadlineTo) {
+      const endOfDay = new Date(query.deadlineTo);
+      endOfDay.setHours(23, 59, 59, 999);
+      conditions.push(lte(tendersTable.deadline, endOfDay));
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const page = query.page ?? 1;
