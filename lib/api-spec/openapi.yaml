@@ -174,6 +174,34 @@ paths:
             type: string
             enum: [ekap, ilan_gov]
           description: Filter by data source
+        - name: durum
+          in: query
+          schema:
+            type: string
+            enum: [active, cancelled, awarded, draft]
+          description: Status filter
+        - name: deadlineFrom
+          in: query
+          schema:
+            type: string
+          description: Filter tenders with deadline on or after this date (YYYY-MM-DD)
+        - name: deadlineTo
+          in: query
+          schema:
+            type: string
+          description: Filter tenders with deadline on or before this date (YYYY-MM-DD)
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [deadline, estimatedValue, createdAt]
+          description: Sort column
+        - name: sortDir
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+          description: Sort direction
         - name: page
           in: query
           schema:
@@ -884,6 +912,43 @@ components:
         limit:
           type: integer
 
+    AiSummary:
+      type: object
+      required: [summary, analyzedAt]
+      properties:
+        summary:
+          type: string
+        requiredTurnover:
+          type: ["number", "null"]
+          description: Minimum annual turnover required (TL)
+        experienceYears:
+          type: ["number", "null"]
+          description: Minimum years of experience required
+        personnelCount:
+          type: ["integer", "null"]
+          description: Minimum personnel count required
+        technicalSpecs:
+          type: array
+          items:
+            type: string
+        scoringWeights:
+          type: object
+          additionalProperties:
+            type: number
+        qualificationCriteria:
+          type: array
+          items:
+            type: object
+            required: [criterion]
+            properties:
+              criterion:
+                type: string
+              threshold:
+                type: ["string", "null"]
+        analyzedAt:
+          type: string
+          format: date-time
+
     # ─── Match ──────────────────────────────────────────────────────────────────
     Match:
       type: object
@@ -910,6 +975,11 @@ components:
         status:
           type: string
           enum: [new, pipeline, watching, ignored]
+        aiSummary:
+          allOf:
+            - $ref: "#/components/schemas/AiSummary"
+          nullable: true
+          description: AI-extracted document analysis (null when no documents analyzed)
         createdAt:
           type: string
           format: date-time

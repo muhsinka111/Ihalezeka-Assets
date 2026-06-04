@@ -5,6 +5,9 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { ListTendersDurum } from './listTendersDurum';
+import type { ListTendersSortBy } from './listTendersSortBy';
+import type { ListTendersSortDir } from './listTendersSortDir';
 import type { ListTendersSource } from './listTendersSource';
 
 export type ListTendersParams = {
@@ -45,25 +48,25 @@ cpv?: string;
  */
 source?: ListTendersSource;
 /**
- * Tender status filter
+ * Status filter
  */
-durum?: 'active' | 'awarded' | 'cancelled';
+durum?: ListTendersDurum;
 /**
- * Deadline range start (ISO date)
+ * Filter tenders with deadline on or after this date (YYYY-MM-DD)
  */
 deadlineFrom?: string;
 /**
- * Deadline range end (ISO date)
+ * Filter tenders with deadline on or before this date (YYYY-MM-DD)
  */
 deadlineTo?: string;
 /**
- * Sort field
+ * Sort column
  */
-sortBy?: 'deadline' | 'estimatedValue' | 'createdAt';
+sortBy?: ListTendersSortBy;
 /**
  * Sort direction
  */
-sortDir?: 'asc' | 'desc';
+sortDir?: ListTendersSortDir;
 page?: number;
 limit?: number;
 };

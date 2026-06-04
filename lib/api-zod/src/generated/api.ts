@@ -68,6 +68,19 @@ export const GetDashboardTopMatchesResponseItem = zod.object({
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
+  "aiSummary": zod.object({
+  "summary": zod.string(),
+  "requiredTurnover": zod.number().nullish().describe('Minimum annual turnover required (TL)'),
+  "experienceYears": zod.number().nullish().describe('Minimum years of experience required'),
+  "personnelCount": zod.number().nullish().describe('Minimum personnel count required'),
+  "technicalSpecs": zod.array(zod.string()).optional(),
+  "scoringWeights": zod.record(zod.string(), zod.number()).optional(),
+  "qualificationCriteria": zod.array(zod.object({
+  "criterion": zod.string(),
+  "threshold": zod.string().nullish()
+})).optional(),
+  "analyzedAt": zod.coerce.date()
+}).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })
 export const GetDashboardTopMatchesResponse = zod.array(GetDashboardTopMatchesResponseItem)
@@ -122,10 +135,10 @@ export const ListTendersQueryParams = zod.object({
   "idare": zod.coerce.string().optional().describe('Agency name filter'),
   "cpv": zod.coerce.string().optional().describe('CPV code filter'),
   "source": zod.enum(['ekap', 'ilan_gov']).optional().describe('Filter by data source'),
-  "durum": zod.enum(['active', 'awarded', 'cancelled']).optional().describe('Tender status filter'),
-  "deadlineFrom": zod.coerce.string().optional().describe('Deadline range start (ISO date)'),
-  "deadlineTo": zod.coerce.string().optional().describe('Deadline range end (ISO date)'),
-  "sortBy": zod.enum(['deadline', 'estimatedValue', 'createdAt']).optional().describe('Sort field'),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional().describe('Status filter'),
+  "deadlineFrom": zod.coerce.string().optional().describe('Filter tenders with deadline on or after this date (YYYY-MM-DD)'),
+  "deadlineTo": zod.coerce.string().optional().describe('Filter tenders with deadline on or before this date (YYYY-MM-DD)'),
+  "sortBy": zod.enum(['deadline', 'estimatedValue', 'createdAt']).optional().describe('Sort column'),
   "sortDir": zod.enum(['asc', 'desc']).optional().describe('Sort direction'),
   "page": zod.coerce.number().default(listTendersQueryPageDefault),
   "limit": zod.coerce.number().default(listTendersQueryLimitDefault)
@@ -253,6 +266,19 @@ export const ListMatchesResponse = zod.object({
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
+  "aiSummary": zod.object({
+  "summary": zod.string(),
+  "requiredTurnover": zod.number().nullish().describe('Minimum annual turnover required (TL)'),
+  "experienceYears": zod.number().nullish().describe('Minimum years of experience required'),
+  "personnelCount": zod.number().nullish().describe('Minimum personnel count required'),
+  "technicalSpecs": zod.array(zod.string()).optional(),
+  "scoringWeights": zod.record(zod.string(), zod.number()).optional(),
+  "qualificationCriteria": zod.array(zod.object({
+  "criterion": zod.string(),
+  "threshold": zod.string().nullish()
+})).optional(),
+  "analyzedAt": zod.coerce.date()
+}).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })),
   "total": zod.number(),
@@ -304,6 +330,19 @@ export const GetMatchResponse = zod.object({
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
+  "aiSummary": zod.object({
+  "summary": zod.string(),
+  "requiredTurnover": zod.number().nullish().describe('Minimum annual turnover required (TL)'),
+  "experienceYears": zod.number().nullish().describe('Minimum years of experience required'),
+  "personnelCount": zod.number().nullish().describe('Minimum personnel count required'),
+  "technicalSpecs": zod.array(zod.string()).optional(),
+  "scoringWeights": zod.record(zod.string(), zod.number()).optional(),
+  "qualificationCriteria": zod.array(zod.object({
+  "criterion": zod.string(),
+  "threshold": zod.string().nullish()
+})).optional(),
+  "analyzedAt": zod.coerce.date()
+}).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 }).and(zod.object({
   "tender": zod.object({
@@ -389,6 +428,19 @@ export const UpdateMatchStatusResponse = zod.object({
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
+  "aiSummary": zod.object({
+  "summary": zod.string(),
+  "requiredTurnover": zod.number().nullish().describe('Minimum annual turnover required (TL)'),
+  "experienceYears": zod.number().nullish().describe('Minimum years of experience required'),
+  "personnelCount": zod.number().nullish().describe('Minimum personnel count required'),
+  "technicalSpecs": zod.array(zod.string()).optional(),
+  "scoringWeights": zod.record(zod.string(), zod.number()).optional(),
+  "qualificationCriteria": zod.array(zod.object({
+  "criterion": zod.string(),
+  "threshold": zod.string().nullish()
+})).optional(),
+  "analyzedAt": zod.coerce.date()
+}).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })
 

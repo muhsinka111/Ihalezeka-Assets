@@ -5,6 +5,7 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { AiSummary } from './aiSummary';
 import type { MatchStatus } from './matchStatus';
 import type { Tender } from './tender';
 
@@ -21,5 +22,7 @@ export interface Match {
   pros?: string[];
   risks?: string[];
   status: MatchStatus;
+  /** AI-extracted document analysis (null when no documents analyzed) */
+  aiSummary?: AiSummary | null;
   createdAt?: Date;
 }

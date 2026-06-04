@@ -7,6 +7,9 @@
  */
 
 export * from './agencySpend';
+export * from './aiSummary';
+export * from './aiSummaryQualificationCriteriaItem';
+export * from './aiSummaryScoringWeights';
 export * from './apiKey';
 export * from './apiKeyInput';
 export * from './apiKeyInputProvider';
@@ -27,7 +30,10 @@ export * from './healthStatus';
 export * from './listDocumentsParams';
 export * from './listMatchesParams';
 export * from './listMatchesStatus';
+export * from './listTendersDurum';
 export * from './listTendersParams';
+export * from './listTendersSortBy';
+export * from './listTendersSortDir';
 export * from './listTendersSource';
 export * from './match';
 export * from './matchDetail';

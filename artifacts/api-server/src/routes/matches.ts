@@ -21,6 +21,7 @@ const formatMatch = (m: any, t: any) => ({
   pros: m.pros,
   risks: m.risks,
   status: m.status,
+  aiSummary: t.aiSummary ?? null,
   createdAt: m.createdAt instanceof Date ? m.createdAt.toISOString() : m.createdAt,
 });
 

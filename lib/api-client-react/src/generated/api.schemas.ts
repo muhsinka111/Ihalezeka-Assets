@@ -115,6 +115,37 @@ export interface TenderPage {
   limit: number;
 }
 
+export type AiSummaryScoringWeights = {[key: string]: number};
+
+export type AiSummaryQualificationCriteriaItem = {
+  criterion: string;
+  /** @nullable */
+  threshold?: string | null;
+};
+
+export interface AiSummary {
+  summary: string;
+  /**
+     * Minimum annual turnover required (TL)
+     * @nullable
+     */
+  requiredTurnover?: number | null;
+  /**
+     * Minimum years of experience required
+     * @nullable
+     */
+  experienceYears?: number | null;
+  /**
+     * Minimum personnel count required
+     * @nullable
+     */
+  personnelCount?: number | null;
+  technicalSpecs?: string[];
+  scoringWeights?: AiSummaryScoringWeights;
+  qualificationCriteria?: AiSummaryQualificationCriteriaItem[];
+  analyzedAt: string;
+}
+
 export type MatchStatus = typeof MatchStatus[keyof typeof MatchStatus];
 
 
@@ -138,6 +169,8 @@ export interface Match {
   pros?: string[];
   risks?: string[];
   status: MatchStatus;
+  /** AI-extracted document analysis (null when no documents analyzed) */
+  aiSummary?: AiSummary | null;
   createdAt?: string;
 }
 
@@ -484,25 +517,25 @@ cpv?: string;
  */
 source?: ListTendersSource;
 /**
- * Tender status filter
+ * Status filter
  */
-durum?: 'active' | 'awarded' | 'cancelled';
+durum?: ListTendersDurum;
 /**
- * Deadline range start (ISO date)
+ * Filter tenders with deadline on or after this date (YYYY-MM-DD)
  */
 deadlineFrom?: string;
 /**
- * Deadline range end (ISO date)
+ * Filter tenders with deadline on or before this date (YYYY-MM-DD)
  */
 deadlineTo?: string;
 /**
- * Sort field
+ * Sort column
  */
-sortBy?: 'deadline' | 'estimatedValue' | 'createdAt';
+sortBy?: ListTendersSortBy;
 /**
  * Sort direction
  */
-sortDir?: 'asc' | 'desc';
+sortDir?: ListTendersSortDir;
 page?: number;
 limit?: number;
 };
@@ -513,6 +546,33 @@ export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTender
 export const ListTendersSource = {
   ekap: 'ekap',
   ilan_gov: 'ilan_gov',
+} as const;
+
+export type ListTendersDurum = typeof ListTendersDurum[keyof typeof ListTendersDurum];
+
+
+export const ListTendersDurum = {
+  active: 'active',
+  cancelled: 'cancelled',
+  awarded: 'awarded',
+  draft: 'draft',
+} as const;
+
+export type ListTendersSortBy = typeof ListTendersSortBy[keyof typeof ListTendersSortBy];
+
+
+export const ListTendersSortBy = {
+  deadline: 'deadline',
+  estimatedValue: 'estimatedValue',
+  createdAt: 'createdAt',
+} as const;
+
+export type ListTendersSortDir = typeof ListTendersSortDir[keyof typeof ListTendersSortDir];
+
+
+export const ListTendersSortDir = {
+  asc: 'asc',
+  desc: 'desc',
 } as const;
 
 export type ListMatchesParams = {
