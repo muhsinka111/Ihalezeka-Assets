@@ -133,10 +133,10 @@ export async function getAllEkapTendersForDate(
   return allTenders;
 }
 
-export function formatEkapDate(): { start: string; end: string } {
+export function formatEkapDate(daysBack = 1): { start: string; end: string } {
   const now = new Date();
-  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  return { start: formatDate(yesterday), end: formatDate(now) };
+  const past = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+  return { start: formatDate(past), end: formatDate(now) };
 }
 
 function delay(ms: number): Promise<void> {

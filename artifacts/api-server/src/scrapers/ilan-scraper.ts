@@ -2,14 +2,14 @@ import { logger } from "../lib/logger.js";
 import { getAllRecentIlanAds } from "./ilan-client.js";
 import { mapIlanToTender, upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
 
-export async function runIlanScraper(): Promise<ScraperResult> {
+export async function runIlanScraper(hoursBack = 48): Promise<ScraperResult> {
   const startedAt = new Date();
   const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
   try {
-    logger.info("ilan.gov.tr scraper starting");
+    logger.info({ hoursBack }, "ilan.gov.tr scraper starting");
 
-    const ads = await retry(() => getAllRecentIlanAds(48));
+    const ads = await retry(() => getAllRecentIlanAds(hoursBack));
     result.fetched = ads.length;
 
     for (const ad of ads) {

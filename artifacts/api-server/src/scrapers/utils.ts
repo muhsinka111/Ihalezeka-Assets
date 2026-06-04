@@ -50,6 +50,13 @@ export async function retry<T>(
   throw lastError;
 }
 
+function toTitleCase(str: string): string {
+  if (!str) return str;
+  return str
+    .toLocaleLowerCase("tr")
+    .replace(/(^|[\s\-])(\S)/gu, (_, sep: string, char: string) => sep + char.toLocaleUpperCase("tr"));
+}
+
 export function mapEkapToTender(tender: EkapTender): InsertTender {
   const deadline = parseTurkishDate(tender.ihaleTarihSaat);
 
@@ -68,7 +75,7 @@ export function mapEkapToTender(tender: EkapTender): InsertTender {
     estimatedValue: 0,
     deadline,
     cpvCodes: [],
-    il: tender.ihaleIlAdi ?? "",
+    il: toTitleCase(tender.ihaleIlAdi ?? ""),
     status: mapEkapStatus(tender.ihaleDurum, tender.ihaleDurumAciklama),
     sourceSystem: "ekap",
     sourceUrl: `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,

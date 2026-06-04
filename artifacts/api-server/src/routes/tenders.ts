@@ -13,7 +13,7 @@ router.get("/tenders", async (req, res) => {
     const conditions: SQL[] = [];
 
     if (query.q) conditions.push(ilike(tendersTable.title, `%${query.q}%`));
-    if (query.il) conditions.push(eq(tendersTable.il, query.il));
+    if (query.il) conditions.push(ilike(tendersTable.il, query.il));
     if (query.tur) conditions.push(eq(tendersTable.type, query.tur));
     if (query.usul) conditions.push(eq(tendersTable.method, query.usul));
     if (query.idare) conditions.push(ilike(tendersTable.agencyName, `%${query.idare}%`));

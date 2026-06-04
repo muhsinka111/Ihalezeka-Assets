@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useListTenders } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgencyLogo } from "@/components/AgencyLogo";
 import { Link } from "wouter";
-import { IconSearch, IconFilter, IconMapPin, IconCalendar, IconBuilding } from "@tabler/icons-react";
+import { IconSearch, IconFilter, IconMapPin, IconCalendar, IconBuilding, IconRefresh } from "@tabler/icons-react";
 
-const ILLER = ["Ankara", "İstanbul", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Kayseri"];
+const ILLER = [
+  "Adana", "Adıyaman", "Afyonkarahisar", "Ağrı", "Aksaray", "Amasya", "Ankara", "Antalya",
+  "Ardahan", "Artvin", "Aydın", "Balıkesir", "Bartın", "Batman", "Bayburt", "Bilecik",
+  "Bingöl", "Bitlis", "Bolu", "Burdur", "Bursa", "Çanakkale", "Çankırı", "Çorum",
+  "Denizli", "Diyarbakır", "Düzce", "Edirne", "Elazığ", "Erzincan", "Erzurum", "Eskişehir",
+  "Gaziantep", "Giresun", "Gümüşhane", "Hakkari", "Hatay", "Iğdır", "Isparta", "İstanbul",
+  "İzmir", "Kahramanmaraş", "Karabük", "Karaman", "Kars", "Kastamonu", "Kayseri", "Kilis",
+  "Kırıkkale", "Kırklareli", "Kırşehir", "Kocaeli", "Konya", "Kütahya", "Malatya", "Manisa",
+  "Mardin", "Mersin", "Muğla", "Muş", "Nevşehir", "Niğde", "Ordu", "Osmaniye", "Rize",
+  "Sakarya", "Samsun", "Şanlıurfa", "Siirt", "Sinop", "Şırnak", "Sivas", "Tekirdağ",
+  "Tokat", "Trabzon", "Tunceli", "Uşak", "Van", "Yalova", "Yozgat", "Zonguldak",
+];
+
 const TYPES = ["Hizmet Alımı", "Yapım İşleri", "Mal Alımı", "Danışmanlık"];
 const METHODS = ["Açık İhale", "Belli İstekliler Arasında İhale", "Pazarlık Usulü"];
 
@@ -32,6 +44,35 @@ function SourceBadge({ source }: { source?: string | null }) {
   return null;
 }
 
+function useScraperStatus() {
+  const [lastRunAt, setLastRunAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    fetch(`${base}/api/admin/scraper/status`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.lastRunAt) setLastRunAt(data.lastRunAt);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { lastRunAt, loading };
+}
+
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 2) return "az önce";
+  if (mins < 60) return `${mins} dakika önce`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} saat önce`;
+  const days = Math.floor(hrs / 24);
+  return `${days} gün önce`;
+}
+
 export default function IhaleAramaPage() {
   const [q, setQ] = useState("");
   const [il, setIl] = useState<string | undefined>();
@@ -42,6 +83,7 @@ export default function IhaleAramaPage() {
 
   const { data, isLoading } = useListTenders(search as any);
   const tenders = data?.items ?? [];
+  const { lastRunAt, loading: statusLoading } = useScraperStatus();
 
   const handleSearch = () => {
     setSearch({
@@ -58,6 +100,16 @@ export default function IhaleAramaPage() {
       <div>
         <h1 className="text-2xl font-bold font-heading tracking-tight">İhale Arama</h1>
         <p className="text-muted-foreground text-sm">Tüm kamu ihalelerini filtreleyin ve keşfedin.</p>
+        <div className="flex items-center gap-1.5 mt-1">
+          <IconRefresh className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">
+            {statusLoading
+              ? "Güncelleme kontrol ediliyor…"
+              : lastRunAt
+                ? `Son güncelleme: ${formatRelativeTime(lastRunAt)}`
+                : "Henüz güncelleme yapılmadı"}
+          </span>
+        </div>
       </div>
 
       {/* Search Bar */}

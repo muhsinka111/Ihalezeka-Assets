@@ -66,7 +66,7 @@ export async function searchIlanAds(
 
   const body = {
     keys: {
-      ats: [3],
+      ats: [3, 4, 5],
       ppdmin: [formatTRDate(cutoff)],
     },
     skipCount,
