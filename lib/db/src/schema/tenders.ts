@@ -1,6 +1,17 @@
-import { pgTable, text, serial, timestamp, real, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, real, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+
+export interface AiAnalysis {
+  summary: string;
+  requiredTurnover: number | null;
+  experienceYears: number | null;
+  personnelCount: number | null;
+  technicalSpecs: string[];
+  scoringWeights: Record<string, number>;
+  qualificationCriteria: Array<{ criterion: string; threshold: string | null }>;
+  analyzedAt: string;
+}
 
 export const tendersTable = pgTable("tenders", {
   id: serial("id").primaryKey(),
@@ -24,6 +35,7 @@ export const tendersTable = pgTable("tenders", {
   procurementMethod: text("procurement_method"),
   documents: jsonb("documents").$type<Array<{ name: string; url: string; type: string }>>(),
   rawData: jsonb("raw_data"),
+  aiSummary: jsonb("ai_summary").$type<AiAnalysis>(),
   lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

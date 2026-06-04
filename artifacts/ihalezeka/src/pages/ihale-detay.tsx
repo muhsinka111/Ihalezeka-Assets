@@ -5,9 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgencyLogo } from "@/components/AgencyLogo";
+import { useState } from "react";
 import {
   IconArrowLeft, IconCheck, IconX, IconFileText, IconBolt,
-  IconClipboardList, IconDownload, IconExternalLink,
+  IconClipboardList, IconDownload, IconExternalLink, IconLoader2,
+  IconChartBar, IconUsers, IconCurrencyLira, IconCalendar,
 } from "@tabler/icons-react";
 
 function FitGauge({ score }: { score: number }) {
@@ -70,6 +72,171 @@ function SourceBadge({ source }: { source?: string | null }) {
   return null;
 }
 
+interface AiAnalysis {
+  summary: string;
+  requiredTurnover: number | null;
+  experienceYears: number | null;
+  personnelCount: number | null;
+  technicalSpecs: string[];
+  scoringWeights: Record<string, number>;
+  qualificationCriteria: Array<{ criterion: string; threshold: string | null }>;
+  analyzedAt: string;
+}
+
+function AiDocumentAnalysis({ tenderId, initial }: { tenderId: number; initial: AiAnalysis | null }) {
+  const [analysis, setAnalysis] = useState<AiAnalysis | null>(initial);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAnalysis() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tenders/${tenderId}/analyze`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Analiz başarısız");
+      setAnalysis(data.analysis);
+    } catch (e: any) {
+      setError(e.message ?? "Bir hata oluştu");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!analysis) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <IconBolt className="h-5 w-5 text-primary" />
+            Yapay Zeka Belge Analizi
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center gap-3 py-6">
+          <p className="text-sm text-muted-foreground text-center">
+            Belgeleri indirip yapay zeka ile analiz etmek için butona tıklayın.
+            Gerekli ciro, deneyim yılı, personel sayısı ve teknik şartname bilgileri çıkarılır.
+          </p>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button onClick={runAnalysis} disabled={loading} className="gap-2">
+            {loading ? (
+              <><IconLoader2 className="h-4 w-4 animate-spin" />Analiz Ediliyor...</>
+            ) : (
+              <><IconBolt className="h-4 w-4" />Belgeleri Analiz Et</>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const hasMetrics = analysis.requiredTurnover || analysis.experienceYears || analysis.personnelCount;
+  const hasWeights = Object.keys(analysis.scoringWeights ?? {}).length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between text-base">
+          <span className="flex items-center gap-2">
+            <IconBolt className="h-5 w-5 text-primary" />
+            Yapay Zeka Belge Analizi
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={runAnalysis}
+            disabled={loading}
+            className="text-xs gap-1 h-7"
+          >
+            {loading ? <IconLoader2 className="h-3 w-3 animate-spin" /> : <IconBolt className="h-3 w-3" />}
+            Yenile
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm leading-relaxed text-muted-foreground">{analysis.summary}</p>
+
+        {hasMetrics && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {analysis.requiredTurnover != null && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <IconCurrencyLira className="h-5 w-5 text-emerald-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Gerekli Ciro</p>
+                  <p className="text-sm font-semibold">
+                    ₺{analysis.requiredTurnover.toLocaleString("tr-TR")}
+                  </p>
+                </div>
+              </div>
+            )}
+            {analysis.experienceYears != null && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <IconCalendar className="h-5 w-5 text-blue-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Deneyim</p>
+                  <p className="text-sm font-semibold">{analysis.experienceYears} yıl</p>
+                </div>
+              </div>
+            )}
+            {analysis.personnelCount != null && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <IconUsers className="h-5 w-5 text-violet-500 shrink-0" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Min. Personel</p>
+                  <p className="text-sm font-semibold">{analysis.personnelCount} kişi</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {analysis.technicalSpecs?.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Teknik Gereksinimler
+            </p>
+            <ul className="space-y-1">
+              {analysis.technicalSpecs.map((spec, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <IconCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <span>{spec}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {hasWeights && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
+              <IconChartBar className="h-3.5 w-3.5" />
+              Değerlendirme Ağırlıkları
+            </p>
+            <div className="space-y-2">
+              {Object.entries(analysis.scoringWeights).map(([key, weight]) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="text-sm w-28 shrink-0">{key}</span>
+                  <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full"
+                      style={{ width: `${Math.min(100, weight)}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold w-10 text-right">{weight}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">
+          Analiz tarihi: {new Date(analysis.analyzedAt).toLocaleString("tr-TR")}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function IhaleDetayPage() {
   const { id } = useParams<{ id: string }>();
   const tenderId = parseInt(id ?? "0", 10);
@@ -105,6 +272,7 @@ export default function IhaleDetayPage() {
   const criteria = (match as any).criteriaCompliance ?? [];
   const tenderAny = tender as any;
   const documents: Array<{ name: string; url: string; type: string }> = tenderAny.documents ?? [];
+  const aiSummary: AiAnalysis | null = (match as any).aiSummary ?? null;
 
   return (
     <div className="space-y-6">
@@ -141,7 +309,7 @@ export default function IhaleDetayPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: AI summary + criteria + documents */}
         <div className="lg:col-span-2 space-y-6">
-          {/* AI Summary */}
+          {/* AI Summary (match reasoning) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -178,6 +346,9 @@ export default function IhaleDetayPage() {
             </CardContent>
           </Card>
 
+          {/* AI Document Analysis */}
+          <AiDocumentAnalysis tenderId={tenderId} initial={aiSummary} />
+
           {/* Criteria Compliance */}
           {criteria.length > 0 && (
             <Card>
@@ -191,8 +362,8 @@ export default function IhaleDetayPage() {
                 <ul className="space-y-3">
                   {criteria.map((c: any, i: number) => (
                     <li key={i} className="flex items-start gap-3">
-                      <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${c.compliant ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                        {c.compliant ? <IconCheck className="h-3 w-3" /> : <IconX className="h-3 w-3" />}
+                      <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${c.compliant === true ? 'bg-emerald-100 text-emerald-600' : c.compliant === false ? 'bg-rose-100 text-rose-600' : 'bg-muted text-muted-foreground'}`}>
+                        {c.compliant === true ? <IconCheck className="h-3 w-3" /> : c.compliant === false ? <IconX className="h-3 w-3" /> : "?"}
                       </div>
                       <div>
                         <p className="text-sm font-medium">{c.criterion}</p>

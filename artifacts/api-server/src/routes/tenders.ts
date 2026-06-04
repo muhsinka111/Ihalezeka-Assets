@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
 import { eq, ilike, and, gte, lte, type SQL, desc, count } from "drizzle-orm";
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
+import { analyzeDocuments } from "../services/document-analyzer.js";
 
 const router = Router();
 
@@ -45,6 +46,37 @@ router.get("/tenders/:id", async (req, res) => {
     res.json(tender);
   } catch {
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/tenders/:id/analyze", async (req, res) => {
+  try {
+    const { id } = GetTenderParams.parse(req.params);
+    const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
+    if (!tender) return res.status(404).json({ error: "Not found" });
+
+    const documents = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
+
+    const analysis = await analyzeDocuments({
+      tenderTitle: tender.title,
+      tenderType: tender.type ?? undefined,
+      tenderMethod: tender.method ?? undefined,
+      agencyName: tender.agencyName ?? undefined,
+      documents,
+    });
+
+    const existingRawData = (tender.rawData as Record<string, unknown>) ?? {};
+    const updatedRawData = { ...existingRawData, _aiAnalysis: analysis };
+
+    await db
+      .update(tendersTable)
+      .set({ aiSummary: analysis, rawData: updatedRawData, updatedAt: new Date() })
+      .where(eq(tendersTable.id, id));
+
+    res.json({ ok: true, analysis });
+  } catch (err) {
+    console.error("Tender analyze error:", err);
+    res.status(500).json({ error: "Analysis failed" });
   }
 });
 

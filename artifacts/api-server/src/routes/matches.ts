@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { matchesTable, tendersTable } from "@workspace/db";
+import { matchesTable, tendersTable, companyProfilesTable } from "@workspace/db";
 import { eq, and, gte, lte, desc, type SQL, count } from "drizzle-orm";
 import { ListMatchesQueryParams, GetMatchParams, UpdateMatchStatusParams, UpdateMatchStatusBody } from "@workspace/api-zod";
+import { computeCriteriaCompliance } from "../services/document-analyzer.js";
 
 const router = Router();
 const DEFAULT_BIZ = "demo-business";
@@ -70,12 +71,34 @@ router.get("/matches/:tenderId", async (req, res) => {
     if (!row) return res.status(404).json({ error: "Not found" });
 
     const match = formatMatch(row.matches, row.tenders);
-    const criteriaCompliance = (row.tenders.qualificationCriteria || []).map((c: string) => ({
-      criterion: c,
-      compliant: Math.random() > 0.3,
-      note: null,
-    }));
-    res.json({ ...match, criteriaCompliance });
+    const tenderAny = row.tenders as any;
+    const aiSummary = tenderAny.aiSummary ?? null;
+
+    const [profile] = await db
+      .select()
+      .from(companyProfilesTable)
+      .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
+      .limit(1);
+
+    let criteriaCompliance: Array<{ criterion: string; compliant: boolean; note: string | null }>;
+
+    if (aiSummary) {
+      criteriaCompliance = computeCriteriaCompliance(aiSummary, {
+        annualRevenue: profile?.annualRevenue ?? null,
+        experienceCeiling: profile?.experienceCeiling ?? null,
+        personnelCount: profile?.personnelCount ?? null,
+      });
+    } else if (row.tenders.qualificationCriteria?.length > 0) {
+      criteriaCompliance = (row.tenders.qualificationCriteria || []).map((c: string) => ({
+        criterion: c,
+        compliant: null as any,
+        note: "Belge analizi yapılmadı — kesin uyum bilinmiyor",
+      }));
+    } else {
+      criteriaCompliance = [];
+    }
+
+    res.json({ ...match, criteriaCompliance, aiSummary });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
