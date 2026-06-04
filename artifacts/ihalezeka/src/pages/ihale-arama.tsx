@@ -258,8 +258,8 @@ export default function IhaleAramaPage() {
             <div>
               <label className="block text-xs text-muted-foreground mb-1">İl</label>
               <Select value={draft.il ?? "all"} onValueChange={v => setDraft(d => ({ ...d, il: v === "all" ? undefined : v }))}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tüm İller" /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="h-8 text-xs w-full"><SelectValue placeholder="Tüm İller" /></SelectTrigger>
+                <SelectContent className="max-h-64 min-w-[220px]">
                   <SelectItem value="all">Tüm İller</SelectItem>
                   {ILLER.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
@@ -488,7 +488,7 @@ export default function IhaleAramaPage() {
         {/* Desktop Sidebar */}
         <div className={cn(
           "hidden md:block shrink-0 transition-all duration-200",
-          sidebarOpen ? "w-56" : "w-0 overflow-hidden"
+          sidebarOpen ? "w-64" : "w-0 overflow-hidden"
         )}>
           <Card>
             <CardContent className="pt-4 pb-4 px-4">
