@@ -18,24 +18,59 @@ export function isScraperRunning(): boolean {
   return _scraperRunning;
 }
 
-async function runAllScrapers(ekapDaysBack = 2, ilanHoursBack = 48, grantDaysBack = 30, intlDaysBack = 7): Promise<void> {
+interface ScraperConfig {
+  /** EKAP lookback in days (used to compute start/end date for EKAP API) */
+  ekapDaysBack: number;
+  /** ilan.gov.tr lookback in hours */
+  ilanHoursBack: number;
+  /** TED / World Bank lookback in days (international sources with date filters) */
+  intlDaysBack: number;
+  /**
+   * Grant/HTML scrapers (TÜBİTAK, KOSGEB, Kalkınma, EBRD, KİT) always scrape
+   * current page content and rely on IKN deduplication — no date-based filter.
+   * grantDaysBack is reserved for future use if APIs become available.
+   */
+  grantDaysBack: number;
+}
+
+const STARTUP_CONFIG: ScraperConfig = {
+  ekapDaysBack: 30,
+  ilanHoursBack: 30 * 24,
+  intlDaysBack: 30,
+  grantDaysBack: 30,
+};
+
+const SCHEDULED_CONFIG: ScraperConfig = {
+  ekapDaysBack: 2,
+  ilanHoursBack: 48,
+  intlDaysBack: 7,
+  grantDaysBack: 30,
+};
+
+async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
   _scraperRunning = true;
   try {
-    const { start, end } = formatEkapDate(ekapDaysBack);
+    const { start, end } = formatEkapDate(cfg.ekapDaysBack);
 
+    // Groups run concurrently; within each group, items are independent
     const results = await Promise.allSettled([
+      // Domestic procurement (daily cadence)
       runEkapScraper(start, end),
-      runIlanScraper(ilanHoursBack),
-      runTedScraper(intlDaysBack),
-      runWorldBankScraper(intlDaysBack),
-      runEbrdScraper(),
+      runIlanScraper(cfg.ilanHoursBack),
+      // KİT public enterprises (scrape current listings, dedup by IKN)
       runKitScraper(),
+      // International tenders with date-filter APIs
+      runTedScraper(cfg.intlDaysBack),
+      runWorldBankScraper(cfg.intlDaysBack),
+      // International HTML (no date filter — dedup handles staleness)
+      runEbrdScraper(),
+      // Grant programs (30-day cadence; current listings, dedup by IKN)
       runTubitakScraper(),
       runKosgbScraper(),
       runKalkinmaScraper(),
     ]);
 
-    const sourceNames = ["ekap", "ilan_gov", "ted", "worldbank", "ebrd", "kit", "tubitak", "kosgeb", "kalkinma_ajansi"];
+    const sourceNames = ["ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd", "tubitak", "kosgeb", "kalkinma_ajansi"];
     const allNewIds: number[] = [];
 
     results.forEach((r, i) => {
@@ -62,23 +97,23 @@ async function runAllScrapers(ekapDaysBack = 2, ilanHoursBack = 48, grantDaysBac
 }
 
 export function startScraperScheduler(): void {
-  // Fire immediately on startup with a wide lookback to populate the DB
+  // Startup run: extended lookback to populate DB from cold start
   setImmediate(() => {
-    logger.info("Startup: running initial scraper with extended lookback");
-    runAllScrapers(30, 30 * 24, 30, 30).catch((err) =>
+    logger.info(STARTUP_CONFIG, "Startup: running initial scraper with extended lookback");
+    runAllScrapers(STARTUP_CONFIG).catch((err) =>
       logger.error({ err }, "Startup scraper run failed")
     );
   });
 
-  // 06:00, 12:00, 18:00 Turkey time (UTC+3)
+  // 06:00, 12:00, 18:00 Turkey time (UTC+3 → 03:00, 09:00, 15:00 UTC)
   cron.schedule(
     "0 3,9,15 * * *",
     async () => {
-      logger.info("Cron: starting scheduled scraper run");
-      await runAllScrapers(2, 48, 30, 7);
+      logger.info(SCHEDULED_CONFIG, "Cron: starting scheduled scraper run");
+      await runAllScrapers(SCHEDULED_CONFIG);
     },
     { timezone: "UTC" },
   );
 
-  logger.info("Scraper scheduler started — EKAP, ilan.gov.tr, TED, World Bank, EBRD, KİT, TÜBİTAK, KOSGEB, Kalkınma Ajansları");
+  logger.info("Scraper scheduler started — EKAP, ilan.gov.tr, KİT, TED, World Bank, EBRD, TÜBİTAK, KOSGEB, Kalkınma Ajansları");
 }

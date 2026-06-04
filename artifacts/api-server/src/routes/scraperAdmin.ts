@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
-import { desc } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { scraperRunsTable } from "@workspace/db";
 import { runEkapScraper } from "../scrapers/ekap-scraper.js";
@@ -13,6 +13,8 @@ const router = Router();
 
 const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 
+const ALL_SOURCES = ["ekap", "ilan_gov", "ted", "worldbank", "ebrd", "kit", "tubitak", "kosgeb", "kalkinma_ajansi"] as const;
+
 function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
   if (!ADMIN_USER_ID) return false;
   const { userId } = getAuth(req);
@@ -21,31 +23,62 @@ function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
 
 router.get("/admin/scraper/status", async (_req, res) => {
   try {
-    const rows = await db
+    // Fetch latest run per source using DISTINCT ON (most efficient for this pattern)
+    const latestPerSource = await db.execute<{
+      id: string;
+      source: string;
+      started_at: Date;
+      completed_at: Date;
+      records_fetched: number;
+      records_inserted: number;
+      records_updated: number;
+      error_message: string | null;
+    }>(
+      sql`SELECT DISTINCT ON (source) id, source, started_at, completed_at,
+             records_fetched, records_inserted, records_updated, error_message
+          FROM scraper_runs
+          ORDER BY source, completed_at DESC`
+    );
+
+    const sourceMap = new Map(latestPerSource.rows.map(r => [r.source, r]));
+
+    const perSource = ALL_SOURCES.map(source => {
+      const r = sourceMap.get(source);
+      if (!r) return { source, lastRunAt: null, status: "never_run", recordsFetched: 0, recordsInserted: 0, errorMessage: null };
+      return {
+        source,
+        lastRunAt: r.completed_at,
+        status: r.error_message ? "error" : "ok",
+        recordsFetched: r.records_fetched,
+        recordsInserted: r.records_inserted,
+        errorMessage: r.error_message ?? null,
+      };
+    });
+
+    // Also fetch recent 20 runs (across all sources) for a timeline view
+    const recentRuns = await db
       .select()
       .from(scraperRunsTable)
       .orderBy(desc(scraperRunsTable.completedAt))
-      .limit(10);
+      .limit(20);
 
-    const lastSuccessful = rows.find((r) => !r.errorMessage);
-    const lastRunAt = lastSuccessful?.completedAt ?? rows[0]?.completedAt ?? null;
-    const totalInserted = rows.reduce((sum, r) => sum + r.recordsInserted, 0);
-    const totalFetched = rows.reduce((sum, r) => sum + r.recordsFetched, 0);
+    const lastSuccessful = recentRuns.find(r => !r.errorMessage);
+    const lastRunAt = lastSuccessful?.completedAt ?? recentRuns[0]?.completedAt ?? null;
 
     res.json({
       isRunning: isScraperRunning(),
       lastRunAt,
-      recentRuns: rows.slice(0, 5).map((r) => ({
+      perSource,
+      recentRuns: recentRuns.map(r => ({
         source: r.source,
         completedAt: r.completedAt,
         recordsFetched: r.recordsFetched,
         recordsInserted: r.recordsInserted,
         errorMessage: r.errorMessage,
       })),
-      totalInserted,
-      totalFetched,
     });
   } catch (err) {
+    logger.error({ err }, "Failed to fetch scraper status");
     res.status(500).json({ error: "Failed to fetch scraper status" });
   }
 });
