@@ -107,3 +107,21 @@ id = "mtBx3aH-FIyCF8uwEVtdD"
 uri = "file://attached_assets/logo_geo_v3.png"
 type = "image"
 title = "Option C — Sharp typographic wordmark"
+
+[[outputs]]
+id = "EW81pdLyLDbhyA5dcYCVI"
+uri = "file://.local/exports/ihale-zeka-logo-transparent.png"
+type = "image"
+title = "İhaleZeka Logo — Transparent PNG (best for marketing)"
+
+[[outputs]]
+id = "rinlPGbXGmJYydsWQrOra"
+uri = "file://.local/exports/ihale-zeka-logo-white.png"
+type = "image"
+title = "İhaleZeka Logo — PNG (white background)"
+
+[[outputs]]
+id = "HatfT9IxgiFVKcgWXf3AE"
+uri = "file://.local/exports/ihale-zeka-logo.svg"
+type = "image"
+title = "İhaleZeka Logo — SVG (vector, infinitely scalable)"

@@ -13,7 +13,17 @@ const router = Router();
 
 const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 
-const ALL_SOURCES = ["ekap", "ilan_gov", "ted", "worldbank", "ebrd", "kit", "tubitak", "kosgeb", "kalkinma_ajansi"] as const;
+const ALL_SOURCES = [
+  "ekap",
+  "ilan_gov",
+  "ted",
+  "worldbank",
+  "ebrd",
+  "kit",
+  "tubitak",
+  "kosgeb",
+  "kalkinma_ajansi",
+] as const;
 
 function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
   if (!ADMIN_USER_ID) return false;
@@ -37,14 +47,22 @@ router.get("/admin/scraper/status", async (_req, res) => {
       sql`SELECT DISTINCT ON (source) id, source, started_at, completed_at,
              records_fetched, records_inserted, records_updated, error_message
           FROM scraper_runs
-          ORDER BY source, completed_at DESC`
+          ORDER BY source, completed_at DESC`,
     );
 
-    const sourceMap = new Map(latestPerSource.rows.map(r => [r.source, r]));
+    const sourceMap = new Map(latestPerSource.rows.map((r) => [r.source, r]));
 
-    const perSource = ALL_SOURCES.map(source => {
+    const perSource = ALL_SOURCES.map((source) => {
       const r = sourceMap.get(source);
-      if (!r) return { source, lastRunAt: null, status: "never_run", recordsFetched: 0, recordsInserted: 0, errorMessage: null };
+      if (!r)
+        return {
+          source,
+          lastRunAt: null,
+          status: "never_run",
+          recordsFetched: 0,
+          recordsInserted: 0,
+          errorMessage: null,
+        };
       return {
         source,
         lastRunAt: r.completed_at,
@@ -62,14 +80,15 @@ router.get("/admin/scraper/status", async (_req, res) => {
       .orderBy(desc(scraperRunsTable.completedAt))
       .limit(20);
 
-    const lastSuccessful = recentRuns.find(r => !r.errorMessage);
-    const lastRunAt = lastSuccessful?.completedAt ?? recentRuns[0]?.completedAt ?? null;
+    const lastSuccessful = recentRuns.find((r) => !r.errorMessage);
+    const lastRunAt =
+      lastSuccessful?.completedAt ?? recentRuns[0]?.completedAt ?? null;
 
     res.json({
       isRunning: isScraperRunning(),
       lastRunAt,
       perSource,
-      recentRuns: recentRuns.map(r => ({
+      recentRuns: recentRuns.map((r) => ({
         source: r.source,
         completedAt: r.completedAt,
         recordsFetched: r.recordsFetched,
@@ -95,7 +114,7 @@ router.post("/admin/scraper/run", async (req, res) => {
       const result = await runEkapScraper();
       if (result.newTenderIds && result.newTenderIds.length > 0) {
         scoreAndNotify(result.newTenderIds).catch((err) =>
-          logger.error({ err }, "Notification dispatch failed")
+          logger.error({ err }, "Notification dispatch failed"),
         );
       }
       return res.json({ source: "ekap", result });
@@ -105,7 +124,7 @@ router.post("/admin/scraper/run", async (req, res) => {
       const result = await runIlanScraper();
       if (result.newTenderIds && result.newTenderIds.length > 0) {
         scoreAndNotify(result.newTenderIds).catch((err) =>
-          logger.error({ err }, "Notification dispatch failed")
+          logger.error({ err }, "Notification dispatch failed"),
         );
       }
       return res.json({ source: "ilan_gov", result });
@@ -125,7 +144,7 @@ router.post("/admin/scraper/run", async (req, res) => {
     }
     if (allNewIds.length > 0) {
       scoreAndNotify(allNewIds).catch((err) =>
-        logger.error({ err }, "Notification dispatch failed")
+        logger.error({ err }, "Notification dispatch failed"),
       );
     }
 
@@ -140,7 +159,9 @@ router.post("/admin/scraper/run", async (req, res) => {
           : { success: false, error: String(ilanResult.reason) },
     });
   } catch (err) {
-    return res.status(500).json({ error: "Scraper failed", detail: String(err) });
+    return res
+      .status(500)
+      .json({ error: "Scraper failed", detail: String(err) });
   }
 });
 
