@@ -1,11 +1,28 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { IconSend, IconRobot, IconUser, IconFileText, IconCopy, IconCheck, IconX } from "@tabler/icons-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  IconSend,
+  IconRobot,
+  IconUser,
+  IconFileText,
+  IconCopy,
+  IconCheck,
+  IconX,
+  IconChevronDown,
+} from "@tabler/icons-react";
 import { useAiChat } from "@/hooks/useAiChat";
+import { useGetDashboardTopMatches } from "@workspace/api-client-react";
 
 const INITIAL_PROPOSAL = `# Teklif Mektubu
 
@@ -39,16 +56,46 @@ export default function TeklifOlusturucuPage() {
   const [input, setInput] = useState("");
   const [proposal, setProposal] = useState(INITIAL_PROPOSAL);
   const [copied, setCopied] = useState(false);
+  const [selectedMatchId, setSelectedMatchId] = useState<string>("");
   const messagesEnd = useRef<HTMLDivElement>(null);
+
+  const { data: topMatchesRaw } = useGetDashboardTopMatches();
+  const topMatches = Array.isArray(topMatchesRaw) ? topMatchesRaw : [];
+
+  const selectedMatch = useMemo(
+    () => topMatches.find((m: any) => m.id === selectedMatchId) ?? (topMatches[0] as any ?? null),
+    [topMatches, selectedMatchId]
+  );
+
+  const aiContext = useMemo(() => {
+    if (!selectedMatch) return { mode: "proposal" as const };
+    return {
+      mode: "proposal" as const,
+      tender: {
+        title: selectedMatch.tender?.title ?? undefined,
+        agency: selectedMatch.tender?.agencyName ?? undefined,
+        estimatedValue: selectedMatch.tender?.estimatedValue ?? null,
+        deadline: selectedMatch.tender?.deadline ?? null,
+        aiSummary: selectedMatch.tender?.aiSummary ?? null,
+        type: selectedMatch.tender?.tenderType ?? null,
+      },
+    };
+  }, [selectedMatch]);
 
   const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
     "Merhaba! Teklif taslağınızı birlikte hazırlayalım. Teknik yaklaşım, referans projeler veya fiyat stratejisi hakkında sorularınızı yazabilirsiniz.",
-    { mode: "proposal" }
+    aiContext
   );
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (topMatches.length > 0 && !selectedMatchId) {
+      setSelectedMatchId((topMatches[0] as any).id);
+    }
+  }, [topMatches, selectedMatchId]);
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
@@ -72,13 +119,53 @@ export default function TeklifOlusturucuPage() {
         <Badge variant="outline" className="text-primary border-primary/30">BETA</Badge>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-220px)]">
+      {/* Tender selector */}
+      {topMatches.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-lg">
+          <IconChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-sm text-muted-foreground shrink-0">Aktif İhale:</span>
+          <Select value={selectedMatchId || (topMatches[0] as any)?.id} onValueChange={setSelectedMatchId}>
+            <SelectTrigger className="h-8 text-sm max-w-[480px]">
+              <SelectValue placeholder="İhale seçin…" />
+            </SelectTrigger>
+            <SelectContent>
+              {topMatches.map((m: any) => (
+                <SelectItem key={m.id} value={m.id}>
+                  <span className="font-medium">{m.tender?.title}</span>
+                  <span className="text-muted-foreground ml-2 text-xs">— {m.tender?.agencyName} · %{m.fitScore} uyum</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedMatch && (
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              {selectedMatch.tender?.estimatedValue && (
+                <Badge variant="secondary" className="text-xs">
+                  ₺{(selectedMatch.tender.estimatedValue / 1_000_000).toFixed(1)}M
+                </Badge>
+              )}
+              {selectedMatch.tender?.deadline && (
+                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                  Son: {new Date(selectedMatch.tender.deadline).toLocaleDateString("tr-TR")}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-280px)]">
         {/* Chat */}
         <Card className="flex flex-col overflow-hidden">
           <CardHeader className="pb-3 border-b">
             <CardTitle className="flex items-center gap-2 text-base">
               <IconRobot className="h-5 w-5 text-primary" />
               Yapay Zeka Asistanı
+              {selectedMatch && (
+                <span className="text-xs font-normal text-muted-foreground truncate max-w-[180px]">
+                  — {selectedMatch.tender?.title}
+                </span>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">

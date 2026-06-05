@@ -81,22 +81,27 @@ export function useAiChat(initialMessage: string, context?: AiChatContext) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6).trim();
             if (data === "[DONE]") break;
+
+            let parsed: { delta?: string; error?: string } | null = null;
             try {
-              const parsed = JSON.parse(data) as { delta?: string; error?: string };
-              if (parsed.error) throw new Error(parsed.error);
-              if (parsed.delta) {
-                accumulated += parsed.delta;
-                setMessages((prev) => {
-                  const next = [...prev];
-                  const last = next[next.length - 1];
-                  if (last?.streaming) {
-                    next[next.length - 1] = { ...last, content: accumulated };
-                  }
-                  return next;
-                });
-              }
+              parsed = JSON.parse(data) as { delta?: string; error?: string };
             } catch {
-              // ignore parse errors on individual SSE lines
+              continue;
+            }
+
+            if (parsed?.error) {
+              throw new Error(parsed.error);
+            }
+            if (parsed?.delta) {
+              accumulated += parsed.delta;
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.streaming) {
+                  next[next.length - 1] = { ...last, content: accumulated };
+                }
+                return next;
+              });
             }
           }
         }

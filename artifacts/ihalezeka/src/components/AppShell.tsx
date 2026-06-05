@@ -290,9 +290,19 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [input, setInput] = useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
+  const aiContext = React.useMemo(() => ({
+    mode: "general" as const,
+    topMatches: (Array.isArray(topMatches) ? topMatches : []).slice(0, 6).map((m: any) => ({
+      title: m.tender.title,
+      agency: m.tender.agencyName,
+      fitScore: m.fitScore,
+      deadline: m.tender.deadline ?? null,
+    })),
+  }), [topMatches]);
+
   const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
     "Merhaba! Size en uygun ihaleleri bulabilir, teklif stratejisi önerebilir veya sektör analizleri sunabilirim.",
-    { mode: "general" }
+    aiContext
   );
 
   const matches = Array.isArray(topMatches) ? topMatches : [];
