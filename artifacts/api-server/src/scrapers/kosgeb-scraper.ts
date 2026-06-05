@@ -7,21 +7,8 @@ import type { InsertTender } from "@workspace/db";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-/**
- * KOSGEB support programs to scrape. The main "tüm destekler" listing page
- * exposes a server-rendered list of support programs with titles and detail
- * links. We also scrape the hibe (grant) sub-category page for completeness.
- */
-const KOSGEB_TARGETS = [
-  {
-    label: "Tüm Destekler",
-    url: "https://www.kosgeb.gov.tr/site/tr/genel/destekler/0/tum-destekler",
-  },
-  {
-    label: "Hibe Destekler",
-    url: "https://www.kosgeb.gov.tr/site/tr/genel/detay/6440/hibe-destekler",
-  },
-];
+const BASE_URL = "https://www.kosgeb.gov.tr";
+const LIST_URL = `${BASE_URL}/site/tr/genel/destekler/0/tum-destekler`;
 
 function slugify(text: string): string {
   return `kosgeb-${text
@@ -33,10 +20,8 @@ function slugify(text: string): string {
     .slice(0, 80)}`;
 }
 
-async function scrapeKosgbTarget(
-  label: string,
-  url: string,
-): Promise<InsertTender[]> {
+async function scrapeKosgbPage(pageNum: number): Promise<InsertTender[]> {
+  const url = `${LIST_URL}?Page=${pageNum}`;
   let html: string;
   try {
     const res = await axios.get<string>(url, {
@@ -49,7 +34,7 @@ async function scrapeKosgbTarget(
     });
     html = res.data;
   } catch (err) {
-    logger.warn({ label, url, err }, "KOSGEB target unreachable, skipping");
+    logger.warn({ url, err }, "KOSGEB page unreachable, skipping");
     return [];
   }
 
@@ -57,84 +42,61 @@ async function scrapeKosgbTarget(
   const tenders: InsertTender[] = [];
   const seen = new Set<string>();
 
-  // KOSGEB uses a variety of page layouts; try multiple selector patterns so we
-  // catch both their legacy and current CMS structures.
-  const rowSelectors = [
-    ".destek-list li",
-    ".destek-item",
-    ".program-item",
-    ".liste li",
-    ".content-list li",
-    ".list-group-item",
-    "table.destek-table tbody tr",
-    "table tbody tr",
-    "article",
-    ".card",
-    ".panel",
-  ];
+  // KOSGEB's support programs are rendered in a grid of
+  // div.col-lg-6.col-md-6.col-sm-6.col-xs-12 cards.
+  // Each card has a .desc div containing the program title
+  // and an <a href="/site/tr/genel/destekdetay/…"> link.
+  $(".col-lg-6.col-md-6.col-sm-6.col-xs-12").each((_i, el) => {
+    const card = $(el);
+    const descEl = card.find(".desc").first();
+    const title = descEl.text().trim();
 
-  for (const sel of rowSelectors) {
-    $(sel).each((_i, el) => {
-      const row = $(el);
+    if (!title || title.length < 4) return;
 
-      const linkEl = row.find("a").first();
-      const title =
-        linkEl.text().trim() ||
-        row.find("h3, h4, h2, .title, strong").first().text().trim() ||
-        row.text().trim().split("\n")[0].trim();
+    // Skip navigation / boilerplate
+    const lower = title.toLocaleLowerCase("tr");
+    if (
+      lower.includes("ana sayfa") ||
+      lower.includes("hakkında") ||
+      lower.includes("iletişim") ||
+      lower.includes("gizlilik") ||
+      lower.includes("devamı için")
+    ) return;
 
-      if (!title || title.length < 6) return;
-      if (seen.has(title)) return;
+    if (seen.has(title)) return;
+    seen.add(title);
 
-      // Skip navigation/menu links that are not support programs.
-      const lowerTitle = title.toLocaleLowerCase("tr");
-      if (
-        lowerTitle.includes("ana sayfa") ||
-        lowerTitle.includes("hakkında") ||
-        lowerTitle.includes("iletişim") ||
-        lowerTitle.includes("gizlilik") ||
-        lowerTitle.includes("site haritası")
-      )
-        return;
+    // Find the detail link
+    const linkEl = card.find("a[href]").first();
+    let href = linkEl.attr("href") ?? "";
+    if (href && !href.startsWith("http")) {
+      href = `${BASE_URL}${href.startsWith("/") ? "" : "/"}${href}`;
+    }
+    const sourceUrl = href || url;
 
-      seen.add(title);
+    const ikn = slugify(title);
 
-      const href = linkEl.attr("href") ?? "";
-      let sourceUrl = href;
-      if (href && !href.startsWith("http")) {
-        sourceUrl = `https://www.kosgeb.gov.tr${href.startsWith("/") ? "" : "/"}${href}`;
-      }
-      if (!sourceUrl) sourceUrl = url;
-
-      const descEl = row.find("p, .description, .ozet").first();
-      const description = descEl.text().trim() || null;
-
-      const ikn = slugify(title);
-
-      tenders.push({
-        ikn,
-        title,
-        agencyName: "KOSGEB",
-        type: "KOSGEB Desteği",
-        method: "Hibe / Destek Programı",
-        estimatedValue: null,
-        deadline: null,
-        cpvCodes: [],
-        il: "",
-        status: "active",
-        category: "hibe",
-        description,
-        sourceSystem: "kosgeb",
-        sourceUrl,
-        procurementMethod: null,
-        documents: null,
-        rawData: { label, url: sourceUrl } as Record<string, unknown>,
-        lastFetchedAt: new Date(),
-      });
+    tenders.push({
+      ikn,
+      title,
+      agencyName: "KOSGEB",
+      type: "KOSGEB Desteği",
+      method: "Hibe / Destek Programı",
+      estimatedValue: null,
+      deadline: null,
+      cpvCodes: [],
+      il: "",
+      status: "active",
+      category: "hibe",
+      description: null,
+      sourceSystem: "kosgeb",
+      sourceUrl,
+      procurementMethod: null,
+      documents: null,
+      rawData: { pageNum, url: sourceUrl } as Record<string, unknown>,
+      lastFetchedAt: new Date(),
     });
-
-    if (tenders.length > 0) break;
-  }
+  });
 
   return tenders;
 }
@@ -148,26 +110,25 @@ export async function runKosgbScraper(): Promise<ScraperResult> {
     const allTenders: InsertTender[] = [];
     const seenIkn = new Set<string>();
 
-    for (const target of KOSGEB_TARGETS) {
-      try {
-        const tenders = await retry(
-          () => scrapeKosgbTarget(target.label, target.url),
-          2,
-          3000,
-        );
-        logger.info(
-          { label: target.label, count: tenders.length },
-          "KOSGEB target scraped",
-        );
-        for (const t of tenders) {
-          if (!seenIkn.has(t.ikn)) {
-            seenIkn.add(t.ikn);
-            allTenders.push(t);
-          }
-        }
-      } catch (err) {
-        logger.warn({ label: target.label, err }, "KOSGEB target scrape failed");
+    // Scrape first 10 pages (≈180 support programs) — avoids hammering the server
+    for (let page = 1; page <= 10; page++) {
+      const pageTenders = await retry(() => scrapeKosgbPage(page), 2, 2000);
+      logger.info({ page, count: pageTenders.length }, "KOSGEB page scraped");
+
+      if (pageTenders.length === 0) {
+        logger.info({ page }, "KOSGEB: empty page, stopping pagination");
+        break;
       }
+
+      for (const t of pageTenders) {
+        if (!seenIkn.has(t.ikn)) {
+          seenIkn.add(t.ikn);
+          allTenders.push(t);
+        }
+      }
+
+      // Polite delay between pages
+      await new Promise((r) => setTimeout(r, 500));
     }
 
     result.fetched = allTenders.length;
@@ -193,6 +154,5 @@ export async function runKosgbScraper(): Promise<ScraperResult> {
   }
 
   await finalizeScraperRun({ source: "kosgeb", startedAt, result });
-
   return result;
 }

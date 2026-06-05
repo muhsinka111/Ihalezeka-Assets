@@ -292,10 +292,25 @@ export default function IhaleAramaPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  // Pagination & active-filter state
+  const [page, setPage] = useState(1);
+  const [allItems, setAllItems] = useState<any[]>([]);
+  const [showExpired, setShowExpired] = useState(false);
+
+  // Resets pagination and accumulated items when filters or showExpired change.
+  // We use a version counter so the effect that clears items runs synchronously
+  // before the new data arrives.
+  const filterVersion = useRef(0);
+
   const [secTemel, setSecTemel] = useState(true);
   const [secButce, setSecButce] = useState(true);
   const [secTarih, setSecTarih] = useState(true);
   const [secKaynak, setSecKaynak] = useState(true);
+
+  // Default to showing only active/upcoming tenders (deadline >= today OR no deadline)
+  // unless the user explicitly opts into showing expired ones.
+  const todayStr = new Date().toISOString().split("T")[0];
+  const effectiveDeadlineFrom = applied.deadlineFrom ?? (showExpired ? undefined : todayStr);
 
   const apiParams: any = {
     q: applied.q,
@@ -306,27 +321,52 @@ export default function IhaleAramaPage() {
     minBedel: applied.minBedel,
     maxBedel: applied.maxBedel,
     durum: applied.durum,
-    deadlineFrom: applied.deadlineFrom,
+    deadlineFrom: effectiveDeadlineFrom,
     deadlineTo: applied.deadlineTo,
     source: applied.source,
     category: applied.category,
     sortBy: applied.sortBy,
     sortDir: applied.sortDir,
+    page,
+    limit: 50,
   };
   Object.keys(apiParams).forEach(k => apiParams[k] === undefined && delete apiParams[k]);
 
-  const { data, isLoading, refetch } = useListTenders(apiParams);
-  const tenders = data?.items ?? [];
+  const { data, isLoading, isFetching, refetch } = useListTenders(apiParams);
+  const total = data?.total ?? 0;
+
+  // Accumulate items across pages; replace when page resets to 1.
+  useEffect(() => {
+    if (!data?.items) return;
+    if (page === 1) {
+      setAllItems(data.items);
+    } else {
+      setAllItems(prev => [...prev, ...data.items]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const { lastRunAt, perSource, loading: statusLoading } = useScraperStatus(
     useCallback(() => { refetch(); }, [refetch])
   );
 
+  const resetPagination = useCallback(() => {
+    filterVersion.current += 1;
+    setPage(1);
+    setAllItems([]);
+  }, []);
+
   const applyFilters = useCallback((f: Filters) => {
     setApplied(f);
+    resetPagination();
     const qs = filtersToUrlParams(f);
     navigate(`/ihale-arama${qs ? `?${qs}` : ""}`);
-  }, [navigate]);
+  }, [navigate, resetPagination]);
+
+  const handleShowExpiredToggle = useCallback(() => {
+    setShowExpired(v => !v);
+    resetPagination();
+  }, [resetPagination]);
 
   const handleApply = () => applyFilters(draft);
 
@@ -346,6 +386,13 @@ export default function IhaleAramaPage() {
     applyFilters(next);
   };
 
+  const loadMore = () => {
+    setPage(p => p + 1);
+  };
+
+  const hasMore = allItems.length < total;
+  const isLoadingMore = isFetching && page > 1;
+
   const currentSort = applied.sortBy && applied.sortDir
     ? `${applied.sortBy}_${applied.sortDir}`
     : "deadline_asc";
@@ -356,6 +403,15 @@ export default function IhaleAramaPage() {
     setDraft(next);
     applyFilters(next);
   };
+
+  // Also reset page when URL-driven filter changes arrive from rawSearch
+  const prevRawSearch = useRef(rawSearch);
+  useEffect(() => {
+    if (rawSearch !== prevRawSearch.current) {
+      prevRawSearch.current = rawSearch;
+      resetPagination();
+    }
+  }, [rawSearch, resetPagination]);
 
   const setDeadlineQuick = (days: number) => {
     const from = new Date().toISOString().split("T")[0];
@@ -560,6 +616,25 @@ export default function IhaleAramaPage() {
 
       <Separator />
 
+      {/* Show expired toggle */}
+      <div className="flex items-center justify-between py-1">
+        <span className="text-xs text-muted-foreground">Süresi geçmiş ihaleler</span>
+        <button
+          onClick={handleShowExpiredToggle}
+          className={cn(
+            "relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full transition-colors",
+            showExpired ? "bg-primary" : "bg-muted-foreground/30"
+          )}
+        >
+          <span
+            className={cn(
+              "pointer-events-none inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform mt-[1px]",
+              showExpired ? "translate-x-[18px]" : "translate-x-[1px]"
+            )}
+          />
+        </button>
+      </div>
+
       <div className="flex flex-col gap-2 pt-1">
         <Button size="sm" onClick={handleApply} className="w-full gap-1.5">
           <IconFilter className="h-3.5 w-3.5" /> Filtrele
@@ -698,7 +773,10 @@ export default function IhaleAramaPage() {
               )}
               {!isLoading && (
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{data?.total ?? tenders.length}</span> ihale bulundu
+                  <span className="font-semibold text-foreground">{total.toLocaleString("tr-TR")}</span> ihale bulundu
+                  {!showExpired && !applied.deadlineFrom && (
+                    <span className="ml-1 text-xs text-muted-foreground">(aktif/yaklaşan)</span>
+                  )}
                 </p>
               )}
             </div>
@@ -720,7 +798,7 @@ export default function IhaleAramaPage() {
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
             </div>
-          ) : tenders.length === 0 ? (
+          ) : allItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
               <IconSearch className="h-10 w-10 text-muted-foreground/30" />
               <p className="text-muted-foreground font-medium">Arama kriterlerinize uygun ihale bulunamadı.</p>
@@ -730,13 +808,18 @@ export default function IhaleAramaPage() {
                   Filtreleri Temizle
                 </Button>
               )}
+              {!showExpired && (
+                <Button variant="outline" size="sm" onClick={handleShowExpiredToggle}>
+                  Süresi geçmiş ihaleler dahil et
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-2.5">
-              {tenders.map((tender: any) => {
+              {allItems.map((tender: any) => {
                 const hasDeadline = tender.deadline != null;
                 const daysLeft = hasDeadline ? Math.ceil((new Date(tender.deadline).getTime() - Date.now()) / 86400_000) : null;
-                const urgency = !hasDeadline ? "" : daysLeft! <= 0 ? "text-destructive font-semibold" : daysLeft! <= 3 ? "text-red-500 font-semibold" : daysLeft! <= 7 ? "text-amber-500 font-semibold" : "";
+                const urgency = !hasDeadline ? "" : daysLeft! < 0 ? "text-destructive font-semibold" : daysLeft! === 0 ? "text-amber-600 font-semibold" : daysLeft! <= 3 ? "text-red-500 font-semibold" : daysLeft! <= 7 ? "text-amber-500 font-semibold" : "";
                 return (
                   <Card key={tender.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-3.5 pb-3.5">
@@ -766,7 +849,7 @@ export default function IhaleAramaPage() {
                             </span>
                             <span className={cn("flex items-center gap-1 text-xs text-muted-foreground", urgency)}>
                               <IconClock className="h-3.5 w-3.5 shrink-0" />
-                              {!hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti"}
+                              {!hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : daysLeft! === 0 ? "Bugün son gün!" : "Süresi geçti"}
                             </span>
                             <span className={cn("flex items-center gap-0.5 text-xs", tender.estimatedValue != null ? "font-semibold text-foreground" : "text-muted-foreground")}>
                               <IconCurrencyLira className="h-3.5 w-3.5 shrink-0" />
@@ -779,6 +862,37 @@ export default function IhaleAramaPage() {
                   </Card>
                 );
               })}
+
+              {/* Load More button */}
+              {hasMore && (
+                <div className="pt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={loadMore}
+                    disabled={isLoadingMore}
+                    className="min-w-40 gap-2"
+                  >
+                    {isLoadingMore ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        Yükleniyor…
+                      </span>
+                    ) : (
+                      <>
+                        Daha Fazla Yükle
+                        <span className="text-xs text-muted-foreground">({allItems.length}/{total.toLocaleString("tr-TR")})</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* All loaded indicator */}
+              {!hasMore && allItems.length > 0 && total > 50 && (
+                <p className="text-center text-xs text-muted-foreground pt-4">
+                  Tüm {total.toLocaleString("tr-TR")} ihale gösterildi
+                </p>
+              )}
             </div>
           )}
         </div>

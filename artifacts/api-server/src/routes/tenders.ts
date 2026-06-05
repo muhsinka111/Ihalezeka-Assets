@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
-import { eq, ilike, and, gte, lte, type SQL, desc, asc, count } from "drizzle-orm";
+import { eq, ilike, and, gte, lte, or, isNull, sql, type SQL, desc, asc, count } from "drizzle-orm";
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
 import { analyzeDocuments } from "../services/document-analyzer.js";
 
@@ -22,7 +22,12 @@ router.get("/tenders", async (req, res) => {
     if (query.source) conditions.push(eq(tendersTable.sourceSystem, query.source));
     if (query.category) conditions.push(eq(tendersTable.category, query.category));
     if (query.durum) conditions.push(eq(tendersTable.status, query.durum));
-    if (query.deadlineFrom) conditions.push(gte(tendersTable.deadline, new Date(query.deadlineFrom)));
+    if (query.deadlineFrom) {
+      // Include tenders with deadline >= date AND tenders with no deadline set
+      conditions.push(
+        or(gte(tendersTable.deadline, new Date(query.deadlineFrom)), isNull(tendersTable.deadline))!
+      );
+    }
     if (query.deadlineTo) {
       const endOfDay = new Date(query.deadlineTo);
       endOfDay.setHours(23, 59, 59, 999);
@@ -34,12 +39,20 @@ router.get("/tenders", async (req, res) => {
     const limit = query.limit ?? 20;
     const offset = (page - 1) * limit;
 
-    const sortDir = query.sortDir === "desc" ? desc : asc;
+    const isDesc = query.sortDir === "desc";
     const sortCol =
       query.sortBy === "estimatedValue" ? tendersTable.estimatedValue :
       query.sortBy === "createdAt" ? tendersTable.createdAt :
       tendersTable.deadline;
-    const orderClause = sortDir(sortCol);
+
+    // For deadline sorts: use NULLS LAST on ASC so upcoming deadlines appear
+    // first and grant/programme records (no deadline) sink to the bottom.
+    // NULLS FIRST on DESC keeps the same sensible ordering.
+    const orderClause = query.sortBy === "deadline" || !query.sortBy
+      ? isDesc
+        ? sql`${sortCol} DESC NULLS FIRST`
+        : sql`${sortCol} ASC NULLS LAST`
+      : isDesc ? desc(sortCol) : asc(sortCol);
 
     const [items, totalResult] = await Promise.all([
       db.select().from(tendersTable).where(where).orderBy(orderClause).limit(limit).offset(offset),
