@@ -30,11 +30,25 @@ export function useAiChat(
     { role: "assistant", content: initialMessage },
   ]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const [streamDone, setStreamDone] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const doneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sendMessage = useCallback(
     async (userText: string) => {
       if (!userText.trim() || isStreaming) return;
+
+      if (doneTimerRef.current) clearTimeout(doneTimerRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setStreamDone(false);
+      setElapsedMs(0);
+      startTimeRef.current = Date.now();
+      intervalRef.current = setInterval(() => {
+        setElapsedMs(Date.now() - (startTimeRef.current ?? Date.now()));
+      }, 100);
 
       const userMsg: AiChatMessage = { role: "user", content: userText };
       setMessages((prev) => [...prev, userMsg]);
@@ -152,8 +166,18 @@ export function useAiChat(
           });
         }
       } finally {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+        setElapsedMs(Date.now() - (startTimeRef.current ?? Date.now()));
+        setStreamDone(true);
         setIsStreaming(false);
         abortRef.current = null;
+        doneTimerRef.current = setTimeout(() => {
+          setElapsedMs(null);
+          setStreamDone(false);
+        }, 3000);
       }
     },
     [messages, isStreaming, context, onProposalPatch]
@@ -163,5 +187,5 @@ export function useAiChat(
     abortRef.current?.abort();
   }, []);
 
-  return { messages, isStreaming, sendMessage, cancelStream };
+  return { messages, isStreaming, elapsedMs, streamDone, sendMessage, cancelStream };
 }

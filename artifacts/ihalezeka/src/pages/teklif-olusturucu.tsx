@@ -109,7 +109,7 @@ export default function TeklifOlusturucuPage() {
     }
   }, [previousProposal]);
 
-  const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
+  const { messages, isStreaming, elapsedMs, streamDone, sendMessage, cancelStream } = useAiChat(
     "Merhaba! Teklif taslağınızı birlikte hazırlayalım. \"Fiyat bölümünü güncelle\", \"giriş paragrafını yaz\" gibi komutlarla taslağı doğrudan düzenleyebilirsiniz.",
     aiContext,
     handleProposalPatch
@@ -198,6 +198,11 @@ export default function TeklifOlusturucuPage() {
               {selectedMatch && (
                 <span className="text-xs font-normal text-muted-foreground truncate max-w-[180px]">
                   — {selectedMatch.tender?.title}
+                </span>
+              )}
+              {elapsedMs !== null && (
+                <span className={`ml-auto text-[11px] text-muted-foreground transition-opacity duration-500 ${streamDone ? "opacity-60" : "opacity-100"}`}>
+                  {isStreaming ? `yanıtlanıyor… ${(elapsedMs / 1000).toFixed(1)}s` : `${(elapsedMs / 1000).toFixed(1)}s`}
                 </span>
               )}
             </CardTitle>
