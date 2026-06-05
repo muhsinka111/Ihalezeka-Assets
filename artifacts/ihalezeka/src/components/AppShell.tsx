@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { AgencyLogo } from "@/components/AgencyLogo";
 import { NotificationPanel, useNotifications } from "@/components/NotificationPanel";
 import { NotificationPrefsModal } from "@/components/NotificationPrefsModal";
-import { useGetDashboardTopMatches } from "@workspace/api-client-react";
-import { useAiChat } from "@/hooks/useAiChat";
+import { useGetDashboardTopMatches, useCreatePipelineItem } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAiChat, type AiTenderCard } from "@/hooks/useAiChat";
 import {
   IconLayoutDashboard,
   IconStarFilled,
@@ -38,6 +39,10 @@ import {
   IconBolt,
   IconSparkles,
   IconSpeakerphone,
+  IconCircleCheck,
+  IconCalendar,
+  IconMapPin,
+  IconCurrencyLira,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -284,11 +289,93 @@ export function AppShell({ children }: AppShellProps) {
   );
 }
 
+// ── Agent result card (rendered inside chat) ──────────────────────
+function AiResultCard({
+  card,
+  added,
+  pending,
+  onAdd,
+  onNavigate,
+}: {
+  card: AiTenderCard;
+  added: boolean;
+  pending: boolean;
+  onAdd: () => void;
+  onNavigate: () => void;
+}) {
+  const deadline = card.deadline ? new Date(card.deadline) : null;
+  const daysLeft = deadline ? Math.ceil((deadline.getTime() - Date.now()) / 86400_000) : null;
+  return (
+    <div className="p-3 bg-background rounded-lg border border-border hover:border-primary/40 transition-colors">
+      <div className="flex items-start gap-2.5 mb-2">
+        <AgencyLogo name={card.agency} logoUrl={card.agencyLogoUrl ?? undefined} className="h-7 w-7 rounded shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs font-semibold line-clamp-2 text-foreground">{card.title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{card.agency}</p>
+        </div>
+        {typeof card.fitScore === "number" && (
+          <span className="ml-auto shrink-0 text-[11px] px-2 py-0.5 rounded-full font-semibold bg-primary/10 text-primary">
+            %{card.fitScore}
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground mb-2">
+        {card.il && (
+          <span className="flex items-center gap-0.5"><IconMapPin className="h-3 w-3" />{card.il}</span>
+        )}
+        {deadline && (
+          <span className={cn("flex items-center gap-0.5", daysLeft != null && daysLeft <= 7 && daysLeft >= 0 && "text-amber-600 font-medium")}>
+            <IconCalendar className="h-3 w-3" />
+            {daysLeft != null && daysLeft > 0 ? `${daysLeft} gün` : daysLeft === 0 ? "Bugün son gün" : "Süresi geçti"}
+          </span>
+        )}
+        {card.estimatedValue != null && (
+          <span className="flex items-center gap-0.5 font-semibold text-foreground">
+            <IconCurrencyLira className="h-3 w-3" />{card.estimatedValue.toLocaleString("tr-TR")}
+          </span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <Link href={`/ihale/${card.id}`} onClick={onNavigate}>
+          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2">Detay</Button>
+        </Link>
+        <Button
+          size="sm"
+          className="h-6 text-[11px] px-2"
+          disabled={added || pending}
+          onClick={onAdd}
+        >
+          {added ? "Eklendi ✓" : "Pipeline'a Ekle"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── AI Sliding Panel ──────────────────────────────────────────────
 function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: topMatches } = useGetDashboardTopMatches();
   const [input, setInput] = useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const createPipeline = useCreatePipelineItem();
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+
+  const addToPipeline = (tenderId: number) => {
+    if (addedIds.has(tenderId) || createPipeline.isPending) return;
+    createPipeline.mutate(
+      { data: { tenderId, stage: "discovery" } as any },
+      {
+        onSuccess: () => {
+          setAddedIds((prev) => new Set(prev).add(tenderId));
+          queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/pipeline-summary"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dashboard/win-predictions"] });
+        },
+      }
+    );
+  };
 
   const aiContext = React.useMemo(() => ({
     mode: "general" as const,
@@ -300,9 +387,23 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
     })),
   }), [topMatches]);
 
+  const onAgentAction = React.useCallback(
+    (action: { type: string; ok?: boolean }) => {
+      if (action.type === "pipeline_added" && action.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/pipeline-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/win-predictions"] });
+      }
+    },
+    [queryClient]
+  );
+
   const { messages, isStreaming, elapsedMs, streamDone, sendMessage, cancelStream } = useAiChat(
     "Merhaba! Size en uygun ihaleleri bulabilir, teklif stratejisi önerebilir veya sektör analizleri sunabilirim.",
-    aiContext
+    aiContext,
+    undefined,
+    onAgentAction
   );
 
   const matches = Array.isArray(topMatches) ? topMatches : [];
@@ -387,7 +488,14 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                         <Link href={`/ihale/${m.tender.id}`} onClick={onClose}>
                           <Button size="sm" variant="outline" className="h-6 text-[11px] px-2">Detay</Button>
                         </Link>
-                        <Button size="sm" className="h-6 text-[11px] px-2">Pipeline'a Ekle</Button>
+                        <Button
+                          size="sm"
+                          className="h-6 text-[11px] px-2"
+                          disabled={addedIds.has(m.tender.id) || createPipeline.isPending}
+                          onClick={() => addToPipeline(m.tender.id)}
+                        >
+                          {addedIds.has(m.tender.id) ? "Eklendi ✓" : "Pipeline'a Ekle"}
+                        </Button>
                       </div>
                     </div>
                   );
@@ -404,15 +512,39 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                   msg.role === "user" ? "bg-primary text-white" : "bg-accent text-accent-foreground")}>
                   {msg.role === "user" ? <IconUser className="h-3.5 w-3.5" /> : <IconRobot className="h-3.5 w-3.5" />}
                 </div>
-                <div className={cn("max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap",
-                  msg.role === "user" ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
-                  {msg.content}
-                  {msg.streaming && (
-                    <span className="inline-flex gap-0.5 ml-1 align-middle">
-                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </span>
+                <div className={cn("min-w-0 flex flex-col gap-2", msg.role === "user" ? "items-end max-w-[85%]" : "max-w-[88%]")}>
+                  {(msg.content || msg.streaming) && (
+                    <div className={cn("px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap",
+                      msg.role === "user" ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
+                      {msg.content}
+                      {msg.streaming && (
+                        <span className="inline-flex gap-0.5 ml-1 align-middle">
+                          <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {msg.notice && (
+                    <div className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-lg px-2.5 py-1.5">
+                      <IconCircleCheck className="h-3.5 w-3.5 shrink-0" />
+                      {msg.notice}
+                    </div>
+                  )}
+                  {msg.cards && msg.cards.length > 0 && (
+                    <div className="space-y-2 w-full">
+                      {msg.cards.map((c) => (
+                        <AiResultCard
+                          key={c.id}
+                          card={c}
+                          added={addedIds.has(c.id)}
+                          pending={createPipeline.isPending}
+                          onAdd={() => addToPipeline(c.id)}
+                          onNavigate={onClose}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

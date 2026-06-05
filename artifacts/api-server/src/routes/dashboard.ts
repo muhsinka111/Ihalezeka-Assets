@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable, matchesTable, pipelineItemsTable } from "@workspace/db";
-import { eq, desc, count, sql } from "drizzle-orm";
+import { eq, desc, count, sql, gte, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -39,7 +39,7 @@ router.get("/dashboard/stats", async (req, res) => {
     const wonItems = await db
       .select({ count: count() })
       .from(pipelineItemsTable)
-      .where(eq(pipelineItemsTable.stage, "won"));
+      .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, "won")));
 
     const totalApplied = await db
       .select({ count: count() })
@@ -50,12 +50,19 @@ router.get("/dashboard/stats", async (req, res) => {
       ? (wonItems[0].count / totalApplied[0].count) * 100
       : 0;
 
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const [newTodayRes] = await db
+      .select({ count: count() })
+      .from(tendersTable)
+      .where(gte(tendersTable.createdAt, startOfToday));
+
     res.json({
       activeMatches: activeMatchesRes.count,
       pipelineCount: pipelineRes.count,
       totalValue,
       winRate: Math.round(winRate * 10) / 10,
-      newTendersToday: Math.floor(Math.random() * 8) + 3,
+      newTendersToday: newTodayRes.count,
       avgFitScore: Math.round(avgFitScore),
     });
   } catch (err) {
@@ -91,12 +98,30 @@ router.get("/dashboard/top-matches", async (req, res) => {
 });
 
 router.get("/dashboard/money-flow-sparkline", async (req, res) => {
-  const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-  const data = months.map((month) => ({
-    month,
-    amount: Math.floor(Math.random() * 5_000_000) + 1_000_000,
-  }));
-  res.json(data);
+  const monthNames = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  try {
+    // Sum estimated value of tenders grouped by deadline month for the last 7 months.
+    const rows = await db
+      .select({
+        ym: sql<string>`to_char(${tendersTable.deadline}, 'YYYY-MM')`,
+        amount: sql<number>`coalesce(sum(${tendersTable.estimatedValue}), 0)`,
+      })
+      .from(tendersTable)
+      .where(sql`${tendersTable.deadline} is not null`)
+      .groupBy(sql`to_char(${tendersTable.deadline}, 'YYYY-MM')`);
+
+    const byKey = new Map(rows.map((r) => [r.ym, Number(r.amount)]));
+    const now = new Date();
+    const data = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      data.push({ month: monthNames[d.getMonth()], amount: byKey.get(key) ?? 0 });
+    }
+    res.json(data);
+  } catch {
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.get("/dashboard/pipeline-summary", async (req, res) => {
@@ -107,12 +132,12 @@ router.get("/dashboard/pipeline-summary", async (req, res) => {
         const [{ count: cnt }] = await db
           .select({ count: count() })
           .from(pipelineItemsTable)
-          .where(eq(pipelineItemsTable.stage, stage));
+          .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, stage)));
         const items = await db
           .select({ tender: tendersTable })
           .from(pipelineItemsTable)
           .innerJoin(tendersTable, eq(pipelineItemsTable.tenderId, tendersTable.id))
-          .where(eq(pipelineItemsTable.stage, stage));
+          .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, stage)));
         const totalValue = items.reduce((s, i) => s + (i.tender.estimatedValue || 0), 0);
         return { stage, count: Number(cnt), totalValue };
       })
@@ -123,23 +148,53 @@ router.get("/dashboard/pipeline-summary", async (req, res) => {
   }
 });
 
+const STAGE_WEIGHT: Record<string, number> = {
+  discovery: 0,
+  preparation: 8,
+  applied: 15,
+  evaluation: 25,
+  won: 100,
+  lost: 0,
+};
+
 router.get("/dashboard/win-predictions", async (req, res) => {
   try {
     const rows = await db
-      .select()
+      .select({
+        tenderId: tendersTable.id,
+        tenderTitle: tendersTable.title,
+        agencyName: tendersTable.agencyName,
+        stage: pipelineItemsTable.stage,
+        fitScore: matchesTable.fitScore,
+      })
       .from(pipelineItemsTable)
       .innerJoin(tendersTable, eq(pipelineItemsTable.tenderId, tendersTable.id))
+      .leftJoin(
+        matchesTable,
+        and(
+          eq(matchesTable.tenderId, tendersTable.id),
+          eq(matchesTable.businessId, DEFAULT_BIZ)
+        )
+      )
       .where(eq(pipelineItemsTable.businessId, DEFAULT_BIZ))
-      .limit(5);
+      .limit(8);
 
-    const result = rows.map((r) => ({
-      tenderId: r.tenders.id,
-      tenderTitle: r.tenders.title,
-      agencyName: r.tenders.agencyName,
-      probability: Math.floor(Math.random() * 50) + 40,
-    }));
+    const result = rows.map((r) => {
+      const stageBoost = STAGE_WEIGHT[r.stage] ?? 0;
+      // Base probability on AI fit score, nudged by how far along the pipeline stage is.
+      const base = r.fitScore ?? 50;
+      const probability =
+        r.stage === "won" ? 100 : r.stage === "lost" ? 0 : Math.min(95, Math.round(base * 0.7 + stageBoost));
+      return {
+        tenderId: r.tenderId,
+        tenderTitle: r.tenderTitle,
+        agencyName: r.agencyName,
+        probability,
+      };
+    });
 
-    res.json(result);
+    result.sort((a, b) => b.probability - a.probability);
+    res.json(result.slice(0, 5));
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }

@@ -2,10 +2,24 @@ import { useState, useCallback, useRef } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+export interface AiTenderCard {
+  id: number;
+  title: string;
+  agency: string;
+  agencyLogoUrl?: string | null;
+  type?: string | null;
+  il?: string | null;
+  estimatedValue?: number | null;
+  deadline?: string | null;
+  fitScore?: number;
+}
+
 export interface AiChatMessage {
   role: "user" | "assistant";
   content: string;
   streaming?: boolean;
+  cards?: AiTenderCard[];
+  notice?: string;
 }
 
 export interface AiChatContext {
@@ -24,7 +38,8 @@ export interface AiChatContext {
 export function useAiChat(
   initialMessage: string,
   context?: AiChatContext,
-  onProposalPatch?: (newDraft: string) => void
+  onProposalPatch?: (newDraft: string) => void,
+  onAction?: (action: { type: string; ok?: boolean; message?: string }) => void
 ) {
   const [messages, setMessages] = useState<AiChatMessage[]>([
     { role: "assistant", content: initialMessage },
@@ -101,9 +116,17 @@ export function useAiChat(
             const data = line.slice(6).trim();
             if (data === "[DONE]") break;
 
-            let parsed: { delta?: string; error?: string; proposalPatch?: string } | null = null;
+            let parsed:
+              | {
+                  delta?: string;
+                  error?: string;
+                  proposalPatch?: string;
+                  tenders?: AiTenderCard[];
+                  action?: { type: string; ok?: boolean; message?: string };
+                }
+              | null = null;
             try {
-              parsed = JSON.parse(data) as { delta?: string; error?: string; proposalPatch?: string };
+              parsed = JSON.parse(data);
             } catch {
               continue;
             }
@@ -113,6 +136,34 @@ export function useAiChat(
             }
             if (parsed?.proposalPatch && onProposalPatch) {
               onProposalPatch(parsed.proposalPatch);
+            }
+            if (parsed?.tenders && parsed.tenders.length > 0) {
+              const cards = parsed.tenders;
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.streaming) {
+                  const existing = last.cards ?? [];
+                  const seen = new Set(existing.map((c) => c.id));
+                  const merged = [...existing, ...cards.filter((c) => !seen.has(c.id))];
+                  next[next.length - 1] = { ...last, cards: merged };
+                }
+                return next;
+              });
+            }
+            if (parsed?.action) {
+              if (onAction) onAction(parsed.action);
+              if (parsed.action.message) {
+                const notice = parsed.action.message;
+                setMessages((prev) => {
+                  const next = [...prev];
+                  const last = next[next.length - 1];
+                  if (last?.streaming) {
+                    next[next.length - 1] = { ...last, notice };
+                  }
+                  return next;
+                });
+              }
             }
             if (parsed?.delta) {
               accumulated += parsed.delta;
@@ -134,7 +185,9 @@ export function useAiChat(
           if (last?.streaming) {
             next[next.length - 1] = {
               role: "assistant",
-              content: accumulated || "Yanıt alınamadı.",
+              content: accumulated || (last.cards?.length ? "" : "Yanıt alınamadı."),
+              cards: last.cards,
+              notice: last.notice,
             };
           }
           return next;
@@ -180,7 +233,7 @@ export function useAiChat(
         }, 3000);
       }
     },
-    [messages, isStreaming, context, onProposalPatch]
+    [messages, isStreaming, context, onProposalPatch, onAction]
   );
 
   const cancelStream = useCallback(() => {

@@ -1,130 +1,190 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useMemo } from "react";
+import { Link, useLocation } from "wouter";
 import { NewMatchesBanner } from "@/components/NewMatchesBanner";
+import { AgencyLogo } from "@/components/AgencyLogo";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
+  AreaChart, Area, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useAiChat } from "@/hooks/useAiChat";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useGetDashboardStats,
+  useGetDashboardTopMatches,
+  useGetDashboardMoneyFlowSparkline,
+  useGetDashboardWinPredictions,
+  useListPipelineItems,
+  useListTenders,
+} from "@workspace/api-client-react";
+import { useState } from "react";
 import {
   IconTrendingUp, IconTrendingDown, IconBriefcase, IconTrophy,
   IconClock, IconTarget, IconRobot, IconSearch, IconDownload,
   IconChevronRight, IconBuilding, IconCalendar,
-  IconCircleCheck, IconBolt, IconChartBar,
-  IconCash, IconChartAreaLine, IconFileText, IconFilter,
+  IconCircleCheck, IconBolt, IconFileText, IconFilter,
   IconStarFilled, IconFlame,
 } from "@tabler/icons-react";
 
-// ── Demo Data ──────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────
+function fmtTL(n: number | null | undefined): string {
+  if (n == null) return "—";
+  if (n >= 1_000_000_000) return `₺${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `₺${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `₺${(n / 1_000).toFixed(0)}K`;
+  return `₺${n.toLocaleString("tr-TR")}`;
+}
 
-const KPI_CARDS = [
-  { label: "Eşleşen Fırsatlar", value: "128", change: "+18 bu hafta", trend: "up", icon: IconBriefcase },
-  { label: "Başvuruda Bulunduğum", value: "24", change: "+12 bu hafta", trend: "up", icon: IconFileText },
-  { label: "Kazanılan Sözleşmeler", value: "₺28.7M", change: "+%37 bu ay", trend: "up", icon: IconTrophy },
-  { label: "Kazanma Oranı", value: "%37", change: "+%8 bu ay", trend: "up", icon: IconTarget },
-  { label: "Takipteki İhaleler", value: "56", change: "+%8 bu hafta", trend: "up", icon: IconChartAreaLine },
-  { label: "Yaklaşan Son Teslim", value: "7", change: "3'ü bugün sona eriyor", trend: "down", icon: IconClock },
-  { label: "Ort. Uyum Skoru", value: "%85", change: "+%3 bu ay", trend: "up", icon: IconStarFilled },
-];
+function daysUntil(deadline: Date | string | null | undefined): number | null {
+  if (!deadline) return null;
+  const d = new Date(deadline);
+  if (isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86_400_000);
+}
 
-const TOP_TENDERS = [
-  { id: 1, match: 95, title: "Okul Binası Yapım İşi", no: "2024/567890", agency: "İstanbul İl Milli Eğitim Müdürlüğü", budget: "₺45.000.000", deadline: "20 Mayıs 2024", daysLeft: 8, category: "Yapım" },
-  { id: 2, match: 80, title: "Tıbbi Cihaz Alımı", no: "2024/567891", agency: "Ankara Şehir Hastanesi", budget: "₺12.500.000", deadline: "25 Mayıs 2024", daysLeft: 14, category: "Mal Alımı" },
-  { id: 3, match: 75, title: "Yol Yapım ve Onarım İşi", no: "2024/567892", agency: "Karayolları 1. Bölge Müd.", budget: "₺28.750.000", deadline: "28 Mayıs 2024", daysLeft: 17, category: "Yapım" },
-  { id: 4, match: 60, title: "E-posta Tasarıcı Yazılım", no: "2024/567893", agency: "Karayolları 1. Bölge Müd.", budget: "₺3.200.000", deadline: "2 Haziran 2024", daysLeft: 22, category: "Hizmet" },
-  { id: 5, match: 70, title: "Yazılım Lisans Alımı", no: "2024/567894", agency: "TÜBİTAK BİLGEM", budget: "₺3.200.000", deadline: "2 Haziran 2024", daysLeft: 22, category: "Mal Alımı" },
-];
+function fmtDate(deadline: Date | string | null | undefined): string {
+  if (!deadline) return "—";
+  const d = new Date(deadline);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+}
 
-const CASH_FLOW_DATA = [
-  { ay: "Oca", gelir: 120, gider: 85 },
-  { ay: "Şub", gelir: 145, gider: 92 },
-  { ay: "Mar", gelir: 168, gider: 110 },
-  { ay: "Nis", gelir: 142, gider: 95 },
-  { ay: "May", gelir: 195, gider: 125 },
-  { ay: "Haz", gelir: 220, gider: 140 },
-  { ay: "Tem", gelir: 185, gider: 118 },
-];
+function deadlineBadgeCls(days: number | null): string {
+  if (days == null) return "bg-muted text-muted-foreground";
+  if (days <= 9) return "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300";
+  if (days <= 15) return "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300";
+  return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300";
+}
 
-const SECTOR_PIE = [
-  { name: "Yapım İşleri", value: 40, color: "#6366f1" },
-  { name: "Mal Alımı", value: 25, color: "#8b5cf6" },
-  { name: "Hizmet Alımı", value: 20, color: "#a78bfa" },
-  { name: "Danışmanlık", value: 10, color: "#c4b5fd" },
-  { name: "Diğer", value: 5, color: "#e0e7ff" },
-];
+const STAGE_LABELS: Record<string, string> = {
+  discovery: "Fırsat Keşfi",
+  preparation: "Teklif Hazırlığı",
+  applied: "Başvuruldu",
+  evaluation: "Değerlendirme",
+  won: "Kazanıldı",
+  lost: "Kaybedildi",
+};
+const KANBAN_STAGES = ["discovery", "preparation", "applied", "evaluation"] as const;
 
-const KANBAN_COLS = [
-  {
-    title: "Fırsat Keşfi", count: 12,
-    cards: [
-      { title: "Lojistik Hizmet Alımı", budget: "₺2.500.000", org: "İstanbul Üniversitesi" },
-      { title: "Güvenlik Hizmet Alımı", budget: "₺1.300.000", org: "Ankara Adliyesi" },
-    ],
-  },
-  {
-    title: "Teklif Hazırlığı", count: 8,
-    cards: [
-      { title: "Yazılım Geliştirme İşi", budget: "₺5.750.000", org: "TÜBİTAK BİLGEM" },
-      { title: "Laboratuvar Cihazları Alımı", budget: "₺3.400.000", org: "Ege Üniversitesi" },
-    ],
-  },
-  {
-    title: "Okul Onarım", count: 4,
-    cards: [
-      { title: "Okul Onarım İşi", budget: "₺3.800.000", org: "İstanbul İl Milli Eğitim" },
-      { title: "Malzeme Alımı", budget: "₺350.000", org: "MEB İkmal D.şk." },
-    ],
-  },
-  {
-    title: "Değerlendirme", count: 3,
-    cards: [
-      { title: "Hastane Yapım İşi", budget: "₺75.000.000", org: "Sağlık Bakanlığı" },
-      { title: "Akıllı Tahta Alımı", budget: "₺1.150.000", org: "MEB Eğitim Bakanlığı" },
-    ],
-  },
-];
-
-const WIN_PREDICTION = [
-  { name: "Okul Binası Yapım İşi", pct: 78, label: "Yüksek" },
-  { name: "Tıbbi Cihaz Alımı", pct: 65, label: "Orta" },
-  { name: "Yol Yapım ve Onarım İşi", pct: 52, label: "Orta" },
-  { name: "Rakip Analizi Yazılım", pct: 40, label: "Düşük" },
-  { name: "Yazılım Lisans Alımı", pct: 40, label: "Düşük" },
-];
-
-const SECTOR_MAP = [
-  { region: "Marmara", city: "İstanbul, Bursa", count: 42, pct: 100 },
-  { region: "İç Anadolu", city: "Ankara, Konya", count: 28, pct: 67 },
-  { region: "Ege", city: "İzmir, Manisa", count: 18, pct: 43 },
-  { region: "Akdeniz", city: "Antalya, Adana", count: 15, pct: 36 },
-  { region: "Karadeniz", city: "Trabzon, Samsun", count: 12, pct: 29 },
-  { region: "Güneydoğu Anadolu", city: "Gaziantep, Urfa", count: 9, pct: 21 },
-  { region: "Doğu Anadolu", city: "Erzurum, Van", count: 5, pct: 12 },
-];
-
-const DEADLINES = [
-  { title: "Okul Binası Yapım İşi", agency: "İstanbul İl Milli Eğitim Müd.", days: 9, cls: "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" },
-  { title: "Tıbbi Cihaz Alımı", agency: "Ankara Şehir Hastanesi", days: 14, cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
-  { title: "Yol Yapım ve Onarım İşi", agency: "Karayolları 1. Bölge Müd.", days: 17, cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
-];
+const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#e0e7ff"];
 
 // ── Dashboard Component ────────────────────────────────────────────
 export default function DashboardPage() {
+  const [, navigate] = useLocation();
+
+  const { data: stats } = useGetDashboardStats();
+  const { data: topMatches } = useGetDashboardTopMatches();
+  const { data: moneyFlow } = useGetDashboardMoneyFlowSparkline();
+  const { data: winPredictions } = useGetDashboardWinPredictions();
+  const { data: pipelineItems } = useListPipelineItems();
+  const { data: tendersData } = useListTenders({ limit: 100 });
+
+  // ── KPI strip from real stats ──
+  const kpiCards = useMemo(() => {
+    const s = stats;
+    return [
+      { label: "Eşleşen Fırsatlar", value: s ? String(s.activeMatches) : "—", icon: IconBriefcase, trend: "up" as const },
+      { label: "Takipteki İhaleler", value: s ? String(s.pipelineCount) : "—", icon: IconBriefcase, trend: "up" as const },
+      { label: "Pipeline Değeri", value: s ? fmtTL(s.totalValue) : "—", icon: IconTrophy, trend: "up" as const },
+      { label: "Kazanma Oranı", value: s ? `%${s.winRate}` : "—", icon: IconTarget, trend: "up" as const },
+      { label: "Bugün Eklenen", value: s ? String(s.newTendersToday) : "—", icon: IconFlame, trend: "up" as const },
+      { label: "Ort. Uyum Skoru", value: s ? `%${s.avgFitScore}` : "—", icon: IconStarFilled, trend: "up" as const },
+    ];
+  }, [stats]);
+
+  // ── Money flow chart data ──
+  const cashFlow = moneyFlow ?? [];
+  const totalVolume = useMemo(
+    () => cashFlow.reduce((acc, m) => acc + (m.amount ?? 0), 0),
+    [cashFlow]
+  );
+
+  // ── Sector pie (by tender type) ──
+  const sectorPie = useMemo(() => {
+    const items = tendersData?.items ?? [];
+    if (items.length === 0) return [];
+    const byType = new Map<string, number>();
+    for (const t of items) {
+      const key = t.type || "Diğer";
+      byType.set(key, (byType.get(key) ?? 0) + 1);
+    }
+    const sorted = [...byType.entries()].sort((a, b) => b[1] - a[1]);
+    const top = sorted.slice(0, 5);
+    const total = items.length;
+    return top.map(([name, count], i) => ({
+      name,
+      value: Math.round((count / total) * 100),
+      color: PIE_COLORS[i % PIE_COLORS.length],
+    }));
+  }, [tendersData]);
+
+  // ── Sector map (by province) ──
+  const sectorMap = useMemo(() => {
+    const items = tendersData?.items ?? [];
+    if (items.length === 0) return [];
+    const byIl = new Map<string, number>();
+    for (const t of items) {
+      const key = t.il || "Bilinmiyor";
+      byIl.set(key, (byIl.get(key) ?? 0) + 1);
+    }
+    const sorted = [...byIl.entries()].sort((a, b) => b[1] - a[1]).slice(0, 7);
+    const max = sorted[0]?.[1] ?? 1;
+    return sorted.map(([region, count]) => ({
+      region,
+      count,
+      pct: Math.round((count / max) * 100),
+    }));
+  }, [tendersData]);
+
+  // ── Kanban from pipeline items ──
+  const kanbanCols = useMemo(() => {
+    const items = pipelineItems ?? [];
+    return KANBAN_STAGES.map((stage) => {
+      const cards = items.filter((i) => i.stage === stage);
+      return {
+        stage,
+        title: STAGE_LABELS[stage],
+        count: cards.length,
+        cards: cards.slice(0, 3),
+      };
+    });
+  }, [pipelineItems]);
+
+  // ── Upcoming deadlines from top matches ──
+  const deadlines = useMemo(() => {
+    const items = (topMatches ?? [])
+      .map((m) => ({ tender: m.tender, days: daysUntil(m.tender.deadline) }))
+      .filter((d) => d.days != null && d.days >= 0)
+      .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
+      .slice(0, 3);
+    return items;
+  }, [topMatches]);
+
+  // ── Mini AI chat (real) ──
+  const queryClient = useQueryClient();
   const [aiMsg, setAiMsg] = useState("");
-  const [aiThread, setAiThread] = useState([
-    { role: "assistant", text: "Size nasıl yardımcı olabilirim? Doğal dilde yazın veya bir seçenek belirtin." },
-  ]);
+  const { messages, isStreaming, sendMessage } = useAiChat(
+    "Size nasıl yardımcı olabilirim? Doğal dilde yazın (örn. \"yazılım ihalesi ara\").",
+    undefined,
+    undefined,
+    (action) => {
+      if (action.type === "pipeline_added" && action.ok) {
+        queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/pipeline-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/win-predictions"] });
+      }
+    }
+  );
+  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
 
   const sendAi = () => {
-    if (!aiMsg.trim()) return;
-    const user = aiMsg;
-    setAiThread((t) => [...t, { role: "user", text: user }]);
+    if (!aiMsg.trim() || isStreaming) return;
+    const text = aiMsg;
     setAiMsg("");
-    setTimeout(() => {
-      setAiThread((t) => [...t, { role: "assistant", text: "Analiz ediyorum — sonuçlarınızı birkaç saniye içinde göreceksiniz. Daha fazla detay vermek ister misiniz?" }]);
-    }, 800);
+    sendMessage(text);
   };
 
   return (
@@ -142,11 +202,11 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Bugün sizin için derlediğimiz özet bilgiler</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 h-9">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => navigate("/firsatlarim")}>
             <IconFlame className="h-4 w-4 text-orange-500" />
             Hızlı Eylemler
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 h-9">
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => navigate("/para-akisi")}>
             <IconDownload className="h-4 w-4" />
             Rapor Dışa Aktar
           </Button>
@@ -154,8 +214,8 @@ export default function DashboardPage() {
       </div>
 
       {/* ── KPI Strip ──────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-7 gap-3">
-        {KPI_CARDS.map((k) => {
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {kpiCards.map((k) => {
           const Icon = k.icon;
           return (
             <div key={k.label} className="rounded-xl border border-border bg-card p-3 shadow-sm">
@@ -169,9 +229,6 @@ export default function DashboardPage() {
               </div>
               <div className="text-[22px] font-bold font-heading text-foreground leading-none">{k.value}</div>
               <div className="text-[11px] text-muted-foreground mt-1 font-medium leading-tight">{k.label}</div>
-              <div className={cn("text-[10px] mt-1.5 font-semibold",
-                k.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
-              )}>{k.change}</div>
             </div>
           );
         })}
@@ -196,38 +253,45 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="divide-y divide-border/50 flex-1">
-            {TOP_TENDERS.map((t) => (
-              <div key={t.id} className="px-4 py-3 hover:bg-muted/30 transition-colors group cursor-pointer">
-                <div className="flex items-start gap-3">
-                  <div className="h-11 w-11 rounded-xl flex flex-col items-center justify-center shrink-0 border border-border bg-muted/50 text-xs font-bold">
-                    <span className="text-[9px] font-medium text-muted-foreground">uyum</span>
-                    <span className="text-sm font-bold leading-none text-foreground">%{t.match}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-0.5">
-                      <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{t.title}</p>
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-[18px] shrink-0 border-primary/40 text-primary bg-primary/5">
-                        Eşleşme
-                      </Badge>
+            {(topMatches ?? []).slice(0, 5).map((m) => {
+              const t = m.tender;
+              const days = daysUntil(t.deadline);
+              return (
+                <Link key={m.id} href={`/ihale/${t.id}`}>
+                  <div className="px-4 py-3 hover:bg-muted/30 transition-colors group cursor-pointer">
+                    <div className="flex items-start gap-3">
+                      <div className="h-11 w-11 rounded-xl flex flex-col items-center justify-center shrink-0 border border-border bg-muted/50 text-xs font-bold">
+                        <span className="text-[9px] font-medium text-muted-foreground">uyum</span>
+                        <span className="text-sm font-bold leading-none text-foreground">%{m.fitScore}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-0.5">
+                          <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-1">{t.title}</p>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-[18px] shrink-0 border-primary/40 text-primary bg-primary/5">
+                            Eşleşme
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">{t.agencyName}</p>
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold text-foreground">{fmtTL(t.estimatedValue)}</span>
+                          <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
+                            <IconCalendar className="h-3 w-3" /> Son: {fmtDate(t.deadline)}
+                          </span>
+                          {days != null && (
+                            <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold", deadlineBadgeCls(days))}>
+                              {days > 0 ? `${days} gün kaldı` : days === 0 ? "Bugün son gün!" : "Süresi geçti"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate">{t.agency}</p>
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span className="text-[11px] font-bold text-foreground">{t.budget}</span>
-                      <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-                        <IconCalendar className="h-3 w-3" /> Son: {t.deadline}
-                      </span>
-                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                        t.daysLeft <= 9 ? "bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
-                        : t.daysLeft <= 15 ? "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
-                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
-                      )}>
-                        {t.daysLeft} gün kaldı
-                      </span>
-                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
+            {(topMatches ?? []).length === 0 && (
+              <div className="px-4 py-10 text-center text-xs text-muted-foreground">Henüz eşleşme yok.</div>
+            )}
           </div>
         </div>
 
@@ -239,7 +303,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               <div>
                 <h2 className="font-heading font-semibold text-sm text-foreground">Para Akışı Analizi</h2>
-                <p className="text-[11px] text-muted-foreground mt-0.5">₺156.8M · Bu Aylık Toplam Hacim</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{fmtTL(totalVolume)} · Son 7 Ay Toplam Hacim</p>
               </div>
               <Link href="/para-akisi">
                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
@@ -249,58 +313,53 @@ export default function DashboardPage() {
             </div>
             <div className="px-4 pt-3 pb-1">
               <div className="flex gap-4 mb-2">
-                {[{ label: "Gelir", color: "#6366f1" }, { label: "Gider", color: "#a78bfa" }].map(({ label, color }) => (
-                  <div key={label} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="text-[11px] text-muted-foreground">{label}</span>
-                  </div>
-                ))}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#6366f1" }} />
+                  <span className="text-[11px] text-muted-foreground">İhale Hacmi</span>
+                </div>
               </div>
               <ResponsiveContainer width="100%" height={110}>
-                <AreaChart data={CASH_FLOW_DATA} margin={{ top: 0, right: 0, left: -22, bottom: 0 }}>
+                <AreaChart data={cashFlow} margin={{ top: 0, right: 0, left: -22, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="gGelir" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="gHacim" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
                     </linearGradient>
-                    <linearGradient id="gGider" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.02} />
-                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} vertical={false} />
-                  <XAxis dataKey="ay" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtTL(v).replace("₺", "")} />
                   <Tooltip
                     contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
-                    formatter={(v: number) => [`₺${v}K`, ""]}
+                    formatter={(v: number) => [fmtTL(v), "Hacim"]}
                   />
-                  <Area type="monotone" dataKey="gelir" stroke="#6366f1" strokeWidth={2} fill="url(#gGelir)" dot={false} />
-                  <Area type="monotone" dataKey="gider" stroke="#a78bfa" strokeWidth={2} fill="url(#gGider)" dot={false} />
+                  <Area type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} fill="url(#gHacim)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
             {/* Mini donut + sector breakdown */}
-            <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
-              <div className="shrink-0" style={{ width: 72, height: 72 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={SECTOR_PIE} cx="50%" cy="50%" innerRadius={20} outerRadius={33} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
-                      {SECTOR_PIE.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
+            {sectorPie.length > 0 && (
+              <div className="flex items-center gap-3 px-4 py-3 border-t border-border/50">
+                <div className="shrink-0" style={{ width: 72, height: 72 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={sectorPie} cx="50%" cy="50%" innerRadius={20} outerRadius={33} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
+                        {sectorPie.map((e, i) => <Cell key={i} fill={e.color} />)}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-1 min-w-0">
+                  {sectorPie.map((s) => (
+                    <div key={s.name} className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="text-[10px] text-muted-foreground flex-1 truncate capitalize">{s.name}</span>
+                      <span className="text-[10px] font-bold text-foreground">%{s.value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex-1 space-y-1 min-w-0">
-                {SECTOR_PIE.map((s) => (
-                  <div key={s.name} className="flex items-center gap-1.5 min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-[10px] text-muted-foreground flex-1 truncate">{s.name}</span>
-                    <span className="text-[10px] font-bold text-foreground">%{s.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
           </div>
 
           {/* AI Asistanım mini */}
@@ -325,13 +384,21 @@ export default function DashboardPage() {
                   <IconRobot className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <div className="bg-muted/50 border border-border/50 rounded-xl rounded-tl-none px-3 py-2 text-xs text-foreground leading-relaxed">
-                  {aiThread[aiThread.length - 1]?.text}
+                  {lastAssistant?.content || "Analiz ediyorum…"}
+                  {isStreaming && (
+                    <span className="inline-flex gap-0.5 ml-1 align-middle">
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {["Rakip analizi yap", "İhale skoru sorgula", "Şartname özetle"].map((q) => (
-                  <button key={q} onClick={() => setAiMsg(q)}
-                    className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-background text-foreground hover:bg-muted transition-colors font-medium">
+                {["Yazılım ihalesi ara", "Yaklaşan son tarihler", "En uygun fırsatlar"].map((q) => (
+                  <button key={q} onClick={() => { setAiMsg(""); sendMessage(q); }}
+                    disabled={isStreaming}
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-background text-foreground hover:bg-muted transition-colors font-medium disabled:opacity-50">
                     {q}
                   </button>
                 ))}
@@ -344,8 +411,8 @@ export default function DashboardPage() {
                   onChange={(e) => setAiMsg(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendAi()}
                 />
-                <button onClick={sendAi}
-                  className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground hover:opacity-90 transition-opacity shrink-0">
+                <button onClick={sendAi} disabled={isStreaming}
+                  className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground hover:opacity-90 transition-opacity shrink-0 disabled:opacity-50">
                   <IconChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -364,14 +431,18 @@ export default function DashboardPage() {
             <div className="p-3 space-y-2">
               <div className="relative">
                 <IconSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="İhale Ara" />
+                <input
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="İhale Ara"
+                  onKeyDown={(e) => { if (e.key === "Enter") navigate("/firsatlarim"); }}
+                />
               </div>
               {[
-                { icon: IconBolt, label: "Benim Adıma Başvur", badge: "YENİ", badgeCls: "bg-emerald-500 text-white" },
-                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "" },
-                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "" },
+                { icon: IconBolt, label: "Benim Adıma Başvur", badge: "YENİ", badgeCls: "bg-emerald-500 text-white", to: "/basvuru-sihirbazi" },
+                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "", to: "/boru-hatti" },
+                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "", to: "/profil" },
               ].map((action) => (
-                <button key={action.label}
+                <button key={action.label} onClick={() => navigate(action.to)}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group">
                   <div className="flex items-center gap-2">
                     <div className="h-7 w-7 rounded-md flex items-center justify-center shrink-0 bg-muted">
@@ -394,23 +465,30 @@ export default function DashboardPage() {
           <div className="rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               <h2 className="font-heading font-semibold text-sm text-foreground">Yaklaşan Son Teslim</h2>
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
-                Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
-              </Button>
+              <Link href="/firsatlarim">
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
+                  Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
             </div>
             <div className="p-4 space-y-3">
-              {DEADLINES.map((d, i) => (
-                <div key={i} className="flex items-start gap-2.5">
-                  <div className={cn("h-9 w-9 rounded-lg flex flex-col items-center justify-center shrink-0", d.cls)}>
-                    <span className="text-xs font-bold leading-none">{d.days}</span>
-                    <span className="text-[9px] font-medium opacity-70">gün</span>
+              {deadlines.map((d) => (
+                <Link key={d.tender.id} href={`/ihale/${d.tender.id}`}>
+                  <div className="flex items-start gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className={cn("h-9 w-9 rounded-lg flex flex-col items-center justify-center shrink-0", deadlineBadgeCls(d.days))}>
+                      <span className="text-xs font-bold leading-none">{d.days}</span>
+                      <span className="text-[9px] font-medium opacity-70">gün</span>
+                    </div>
+                    <div className="min-w-0 pt-0.5">
+                      <p className="text-xs font-semibold text-foreground line-clamp-1">{d.tender.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{d.tender.agencyName}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 pt-0.5">
-                    <p className="text-xs font-semibold text-foreground line-clamp-1">{d.title}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{d.agency}</p>
-                  </div>
-                </div>
+                </Link>
               ))}
+              {deadlines.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">Yaklaşan son tarih yok.</p>
+              )}
             </div>
           </div>
 
@@ -437,7 +515,8 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
-            <button className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs py-2 rounded-lg transition-colors">
+            <button onClick={() => navigate("/basvuru-sihirbazi")}
+              className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs py-2 rounded-lg transition-colors">
               Hemen Dene
             </button>
           </div>
@@ -459,23 +538,28 @@ export default function DashboardPage() {
           </div>
           <div className="p-4 overflow-x-auto">
             <div className="flex gap-3 min-w-max">
-              {KANBAN_COLS.map((col) => (
-                <div key={col.title} className="w-[185px] shrink-0">
+              {kanbanCols.map((col) => (
+                <div key={col.stage} className="w-[185px] shrink-0">
                   <div className="flex items-center justify-between mb-2.5 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50">
                     <span className="text-[11px] font-bold text-foreground">{col.title}</span>
                     <span className="text-[11px] font-bold ml-2 px-1.5 py-0.5 rounded-full bg-background border border-border/50 text-muted-foreground">{col.count}</span>
                   </div>
                   <div className="space-y-2">
-                    {col.cards.map((card, ci) => (
-                      <div key={ci} className="p-2.5 rounded-lg border border-border/50 bg-background hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group">
-                        <p className="text-[11px] font-semibold text-foreground line-clamp-2 mb-1.5 group-hover:text-primary transition-colors">{card.title}</p>
-                        <div className="flex items-center gap-1.5">
-                          <IconBuilding className="h-3 w-3 text-muted-foreground shrink-0" />
-                          <p className="text-[10px] text-muted-foreground truncate">{card.org}</p>
+                    {col.cards.map((card) => (
+                      <Link key={card.id} href={`/ihale/${card.tender.id}`}>
+                        <div className="p-2.5 rounded-lg border border-border/50 bg-background hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer group">
+                          <p className="text-[11px] font-semibold text-foreground line-clamp-2 mb-1.5 group-hover:text-primary transition-colors">{card.tender.title}</p>
+                          <div className="flex items-center gap-1.5">
+                            <IconBuilding className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <p className="text-[10px] text-muted-foreground truncate">{card.tender.agencyName}</p>
+                          </div>
+                          <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">{fmtTL(card.tender.estimatedValue)}</p>
                         </div>
-                        <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">{card.budget}</p>
-                      </div>
+                      </Link>
                     ))}
+                    {col.cards.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground text-center py-3">Boş</p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -490,26 +574,36 @@ export default function DashboardPage() {
               <h2 className="font-heading font-semibold text-sm text-foreground">Kazanma Tahmini</h2>
               <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-primary text-primary-foreground border-0">AI</Badge>
             </div>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
-              Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
-            </Button>
+            <Link href="/boru-hatti">
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
+                Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
           </div>
           <div className="p-4 space-y-3.5">
-            {WIN_PREDICTION.map((item) => (
-              <div key={item.name}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-medium text-foreground line-clamp-1 flex-1 mr-2">{item.name}</p>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs font-bold text-foreground">%{item.pct}</span>
-                    <span className="text-[10px] text-muted-foreground">{item.label}</span>
+            {(winPredictions ?? []).map((item) => {
+              const label = item.probability >= 70 ? "Yüksek" : item.probability >= 50 ? "Orta" : "Düşük";
+              return (
+                <Link key={item.tenderId} href={`/ihale/${item.tenderId}`}>
+                  <div className="cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-medium text-foreground line-clamp-1 flex-1 mr-2">{item.tenderTitle}</p>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs font-bold text-foreground">%{item.probability}</span>
+                        <span className="text-[10px] text-muted-foreground">{label}</span>
+                      </div>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${item.probability}%` }} />
+                    </div>
                   </div>
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all duration-500"
-                    style={{ width: `${item.pct}%` }} />
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
+            {(winPredictions ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-6">Pipeline'a ihale ekleyince tahminler burada görünür.</p>
+            )}
           </div>
         </div>
 
@@ -517,12 +611,14 @@ export default function DashboardPage() {
         <div className="col-span-12 xl:col-span-3 rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <h2 className="font-heading font-semibold text-sm text-foreground">Sektörel Fırsat Haritası</h2>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
-              Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
-            </Button>
+            <Link href="/firsatlarim">
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
+                Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
           </div>
           <div className="p-4 space-y-2.5">
-            {SECTOR_MAP.map((r) => (
+            {sectorMap.map((r) => (
               <div key={r.region} className="flex items-center gap-2.5">
                 <div className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
                   style={{
@@ -534,7 +630,6 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[11px] font-semibold text-foreground">{r.region}</span>
-                    <span className="text-[10px] text-muted-foreground">{r.city}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-500 transition-all"
@@ -543,12 +638,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            <div className="flex items-center justify-between pt-1 text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <div className="w-14 h-1.5 rounded-full bg-gradient-to-r from-indigo-100 to-indigo-600" />
-              </div>
-              <span>Düşük → Yüksek</span>
-            </div>
+            {sectorMap.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-6">Veri yok.</p>
+            )}
           </div>
         </div>
       </div>
