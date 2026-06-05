@@ -503,24 +503,6 @@ export default function IhaleAramaPage() {
         </div>
       </div>
 
-      {/* Scraper Running Banner */}
-      {isRunning && (
-        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          <div className="flex-1 min-w-0">
-            <p className="font-medium">İhaleler yükleniyor, lütfen bekleyin…</p>
-            <p className="text-xs text-blue-600 mt-0.5">Veriler toplanıyor. Tamamlanınca sonuçlar otomatik görünecek.</p>
-            <div className="mt-2 h-1.5 w-full rounded-full bg-blue-200 overflow-hidden relative">
-              <div
-                className="absolute h-full rounded-full bg-blue-500"
-                style={{
-                  width: "40%",
-                  animation: "scraper-slide 1.8s ease-in-out infinite",
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Search Bar */}
       <div className="flex gap-2">
