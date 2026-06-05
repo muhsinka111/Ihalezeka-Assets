@@ -116,6 +116,6 @@ export function startScraperScheduler(): void {
   );
 
   logger.info(
-    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT, World Bank, EBRD; conditional: TED (requires TED_API_KEY); disabled (no stable source): TÜBİTAK, KOSGEB, Kalkınma Ajansları",
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT, World Bank, EBRD, TÜBİTAK, KOSGEB; conditional: TED (requires TED_API_KEY); disabled (no stable source): Kalkınma Ajansları",
   );
 }
