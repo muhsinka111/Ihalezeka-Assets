@@ -18,6 +18,7 @@ export const companyProfilesTable = pgTable("company_profiles", {
   preferredProvinces: text("preferred_provinces").array().notNull().default([]),
   excludedProvinces: text("excluded_provinces").array().notNull().default([]),
   discountStrategy: text("discount_strategy"),
+  aiBrief: text("ai_brief"),
   automationEnabled: boolean("automation_enabled").notNull().default(false),
   completionStep: integer("completion_step").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

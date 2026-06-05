@@ -20,6 +20,11 @@ export interface CompanyProfileInput {
   preferredProvinces?: string[];
   excludedProvinces?: string[];
   discountStrategy?: string;
+  /**
+     * User-written company brief injected into AI prompts
+     * @maxLength 500
+     */
+  aiBrief?: string;
   automationEnabled?: boolean;
   completionStep?: number;
 }

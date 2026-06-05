@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconCheck, IconArrowRight, IconArrowLeft, IconBuilding, IconChartBar, IconCoin, IconUsers, IconBolt, IconLock } from "@tabler/icons-react";
+import { Textarea } from "@/components/ui/textarea";
+import { IconCheck, IconArrowRight, IconArrowLeft, IconBuilding, IconChartBar, IconCoin, IconUsers, IconBolt, IconLock, IconBrain } from "@tabler/icons-react";
 
 const STEPS = [
   { id: 1, label: "Firma Kimliği", icon: IconBuilding },
@@ -16,6 +17,7 @@ const STEPS = [
   { id: 4, label: "Deneyim & Personel", icon: IconUsers },
   { id: 5, label: "Teklif Stratejisi", icon: IconBolt },
   { id: 6, label: "Otomasyon Yetkisi", icon: IconLock },
+  { id: 7, label: "AI Bağlamı", icon: IconBrain },
 ];
 
 export default function BasvuruSihirbazPage() {
@@ -32,7 +34,7 @@ export default function BasvuruSihirbazPage() {
     setSaving(true);
     await mutation.mutateAsync({ data: { ...data, completionStep: step } });
     setSaving(false);
-    if (step < 6) setStep(step + 1);
+    if (step < 7) setStep(step + 1);
   };
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-48 w-full" /></div>;
@@ -175,7 +177,30 @@ export default function BasvuruSihirbazPage() {
                     </div>
                     <Switch checked={false} disabled />
                   </div>
-                  {step === 6 && data.completionStep >= 5 && (
+                </div>
+              )}
+
+              {step === 7 && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <strong>Bu bilgi neden önemli?</strong> Yazdığınız özet, yapay zeka asistanımızın her sohbette firmanızı tanımasını sağlar. Sektörünüzü, güçlü yönlerinizi ve geçmiş deneyimlerinizi ekleyin.
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="aiBrief">Firma Özeti (en fazla 500 karakter)</Label>
+                    <Textarea
+                      id="aiBrief"
+                      rows={6}
+                      maxLength={500}
+                      placeholder="Örn: İnşaat sektöründe 15 yıllık deneyimimiz var. Kamuya ait altyapı projeleri, yol yapımı ve okul inşaatlarında referanslarımız bulunmaktadır. ISO 9001 ve ISO 14001 belgelerimiz mevcut. Özellikle Marmara ve İç Anadolu bölgelerinde aktifiz."
+                      defaultValue={data.aiBrief ?? ""}
+                      onChange={(e) => set("aiBrief", e.target.value)}
+                      className="resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground text-right">
+                      {(form.aiBrief ?? data.aiBrief ?? "").length} / 500
+                    </p>
+                  </div>
+                  {data.completionStep >= 6 && (
                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
                       <IconCheck className="h-5 w-5 text-emerald-600 shrink-0" />
                       <p className="text-sm text-emerald-700 font-medium">Profiliniz tamamlandı! Eşleşme sistemi aktif.</p>
@@ -191,8 +216,8 @@ export default function BasvuruSihirbazPage() {
               <IconArrowLeft className="h-4 w-4" /> Önceki
             </Button>
             <Button onClick={save} disabled={saving} className="gap-2">
-              {saving ? "Kaydediliyor…" : step === 6 ? "Tamamla" : "Kaydet ve Devam Et"}
-              {step < 6 && <IconArrowRight className="h-4 w-4" />}
+              {saving ? "Kaydediliyor…" : step === 7 ? "Tamamla" : "Kaydet ve Devam Et"}
+              {step < 7 && <IconArrowRight className="h-4 w-4" />}
             </Button>
           </div>
         </div>

@@ -1125,13 +1125,17 @@ components:
             type: string
         discountStrategy:
           type: ["string", "null"]
+        aiBrief:
+          type: ["string", "null"]
+          maxLength: 500
+          description: "User-written company brief injected into AI prompts"
         automationEnabled:
           type: boolean
           default: false
         completionStep:
           type: integer
           minimum: 0
-          maximum: 6
+          maximum: 7
 
     CompanyProfileInput:
       type: object
@@ -1173,6 +1177,10 @@ components:
             type: string
         discountStrategy:
           type: string
+        aiBrief:
+          type: string
+          maxLength: 500
+          description: "User-written company brief injected into AI prompts"
         automationEnabled:
           type: boolean
         completionStep:

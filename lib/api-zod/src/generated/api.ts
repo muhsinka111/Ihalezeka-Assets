@@ -551,9 +551,11 @@ export const DeletePipelineItemParams = zod.object({
 /**
  * @summary Get the current business company profile
  */
+export const getCompanyProfileResponseAiBriefMax = 500;
+
 export const getCompanyProfileResponseAutomationEnabledDefault = false;
 export const getCompanyProfileResponseCompletionStepMin = 0;
-export const getCompanyProfileResponseCompletionStepMax = 6;
+export const getCompanyProfileResponseCompletionStepMax = 7;
 
 
 
@@ -573,6 +575,7 @@ export const GetCompanyProfileResponse = zod.object({
   "preferredProvinces": zod.array(zod.string()).optional(),
   "excludedProvinces": zod.array(zod.string()).optional(),
   "discountStrategy": zod.string().nullish(),
+  "aiBrief": zod.string().max(getCompanyProfileResponseAiBriefMax).nullish().describe('User-written company brief injected into AI prompts'),
   "automationEnabled": zod.boolean().default(getCompanyProfileResponseAutomationEnabledDefault),
   "completionStep": zod.number().min(getCompanyProfileResponseCompletionStepMin).max(getCompanyProfileResponseCompletionStepMax).optional()
 })
@@ -581,6 +584,10 @@ export const GetCompanyProfileResponse = zod.object({
 /**
  * @summary Create or update company profile (wizard save)
  */
+export const upsertCompanyProfileBodyAiBriefMax = 500;
+
+
+
 export const UpsertCompanyProfileBody = zod.object({
   "companyName": zod.string(),
   "taxNumber": zod.string(),
@@ -595,13 +602,16 @@ export const UpsertCompanyProfileBody = zod.object({
   "preferredProvinces": zod.array(zod.string()).optional(),
   "excludedProvinces": zod.array(zod.string()).optional(),
   "discountStrategy": zod.string().optional(),
+  "aiBrief": zod.string().max(upsertCompanyProfileBodyAiBriefMax).optional().describe('User-written company brief injected into AI prompts'),
   "automationEnabled": zod.boolean().optional(),
   "completionStep": zod.number().optional()
 })
 
+export const upsertCompanyProfileResponseAiBriefMax = 500;
+
 export const upsertCompanyProfileResponseAutomationEnabledDefault = false;
 export const upsertCompanyProfileResponseCompletionStepMin = 0;
-export const upsertCompanyProfileResponseCompletionStepMax = 6;
+export const upsertCompanyProfileResponseCompletionStepMax = 7;
 
 
 
@@ -621,6 +631,7 @@ export const UpsertCompanyProfileResponse = zod.object({
   "preferredProvinces": zod.array(zod.string()).optional(),
   "excludedProvinces": zod.array(zod.string()).optional(),
   "discountStrategy": zod.string().nullish(),
+  "aiBrief": zod.string().max(upsertCompanyProfileResponseAiBriefMax).nullish().describe('User-written company brief injected into AI prompts'),
   "automationEnabled": zod.boolean().default(upsertCompanyProfileResponseAutomationEnabledDefault),
   "completionStep": zod.number().min(upsertCompanyProfileResponseCompletionStepMin).max(upsertCompanyProfileResponseCompletionStepMax).optional()
 })

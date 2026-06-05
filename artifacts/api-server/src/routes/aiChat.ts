@@ -34,6 +34,7 @@ interface ChatContext {
   tender?: TenderContext;
   topMatches?: TopMatch[];
   companyName?: string;
+  aiBrief?: string | null;
   currentDraft?: string;
 }
 
@@ -75,7 +76,11 @@ Görevin kullanıcıya ihaleler, başvuru süreçleri, teklifler ve stratejiler 
       ? `\nŞirket: ${context.companyName}`
       : "";
 
-    return `${base}${companySummary}${matchesSummary}
+    const briefSummary = context.aiBrief
+      ? `\n\nFirma Hakkında (kullanıcı tarafından yazılmış):\n${context.aiBrief}`
+      : "";
+
+    return `${base}${companySummary}${briefSummary}${matchesSummary}
 
 Kullanıcı kendi ihaleleri, fırsatları veya platformdaki veriler hakkında soru soruyorsa yukarıdaki bilgileri kullan. Eğer bilgin yoksa bunu açıkça belirt.`;
   }
@@ -86,7 +91,11 @@ Kullanıcı kendi ihaleleri, fırsatları veya platformdaki veriler hakkında so
       ? `\n\nAktif İhale:\n- Başlık: ${t.title ?? "Belirtilmemiş"}\n- Kurum: ${t.agency ?? "Belirtilmemiş"}\n- Tür: ${t.type ?? "Belirtilmemiş"}\n- Tahmini Bedel: ${t.estimatedValue ? t.estimatedValue.toLocaleString("tr-TR") + " TL" : "Belirtilmemiş"}\n- Son Tarih: ${t.deadline ? new Date(t.deadline).toLocaleDateString("tr-TR") : "Belirtilmemiş"}${t.aiSummary ? `\n- Belge Özeti: ${t.aiSummary}` : ""}`
       : "";
 
-    return `${base}
+    const briefSummary = context.aiBrief
+      ? `\n\nFirma Hakkında:\n${context.aiBrief}`
+      : "";
+
+    return `${base}${briefSummary}
 
 Kullanıcı şu anda bir ihale için teklif mektubu hazırlıyor. Teknik yaklaşım, fiyatlandırma stratejisi, referans projeler ve şartname gereksinimleri konularında yardım et. Önerilerini doğrudan teklif metnine dahil edilebilecek şekilde yaz.${tenderInfo}`;
   }
@@ -122,32 +131,46 @@ router.post("/ai/chat", async (req, res) => {
 
     const chatContext: ChatContext = context ?? { mode: "general" };
 
-    if (chatContext.mode === "general" && !chatContext.topMatches) {
+    // Always fetch company profile so aiBrief is injected in every mode.
+    // Top-match lookup is only needed for general mode.
+    if (!chatContext.aiBrief) {
       try {
-        const [rows, profileRows] = await Promise.all([
-          db
-            .select()
-            .from(matchesTable)
-            .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
-            .where(eq(matchesTable.businessId, DEFAULT_BIZ))
-            .orderBy(desc(matchesTable.fitScore))
-            .limit(6),
-          db
-            .select()
-            .from(companyProfilesTable)
-            .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
-            .limit(1),
-        ]);
+        const profileFetch = db
+          .select()
+          .from(companyProfilesTable)
+          .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
+          .limit(1);
 
-        chatContext.topMatches = rows.map((r) => ({
-          title: r.tenders.title,
-          agency: r.tenders.agencyName,
-          fitScore: r.matches.fitScore,
-          deadline: r.tenders.deadline?.toISOString() ?? null,
-        }));
+        if (chatContext.mode === "general" && !chatContext.topMatches) {
+          const [rows, profileRows] = await Promise.all([
+            db
+              .select()
+              .from(matchesTable)
+              .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
+              .where(eq(matchesTable.businessId, DEFAULT_BIZ))
+              .orderBy(desc(matchesTable.fitScore))
+              .limit(6),
+            profileFetch,
+          ]);
 
-        if (profileRows[0]) {
-          chatContext.companyName = profileRows[0].companyName;
+          chatContext.topMatches = rows.map((r) => ({
+            title: r.tenders.title,
+            agency: r.tenders.agencyName,
+            fitScore: r.matches.fitScore,
+            deadline: r.tenders.deadline?.toISOString() ?? null,
+          }));
+
+          if (profileRows[0]) {
+            chatContext.companyName = profileRows[0].companyName;
+            if (profileRows[0].aiBrief) {
+              chatContext.aiBrief = profileRows[0].aiBrief;
+            }
+          }
+        } else {
+          const profileRows = await profileFetch;
+          if (profileRows[0]?.aiBrief) {
+            chatContext.aiBrief = profileRows[0].aiBrief;
+          }
         }
       } catch (err) {
         logger.warn({ err }, "Failed to fetch context for AI chat — continuing without it");

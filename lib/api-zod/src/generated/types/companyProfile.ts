@@ -28,10 +28,16 @@ export interface CompanyProfile {
   excludedProvinces?: string[];
   /** @nullable */
   discountStrategy?: string | null;
+  /**
+     * User-written company brief injected into AI prompts
+     * @maxLength 500
+     * @nullable
+     */
+  aiBrief?: string | null;
   automationEnabled?: boolean;
   /**
      * @minimum 0
-     * @maximum 6
+     * @maximum 7
      */
   completionStep?: number;
 }
