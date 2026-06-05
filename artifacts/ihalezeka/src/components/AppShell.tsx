@@ -11,6 +11,7 @@ import { AgencyLogo } from "@/components/AgencyLogo";
 import { NotificationPanel, useNotifications } from "@/components/NotificationPanel";
 import { NotificationPrefsModal } from "@/components/NotificationPrefsModal";
 import { useGetDashboardTopMatches } from "@workspace/api-client-react";
+import { useAiChat } from "@/hooks/useAiChat";
 import {
   IconLayoutDashboard,
   IconStarFilled,
@@ -286,9 +287,19 @@ export function AppShell({ children }: AppShellProps) {
 // ── AI Sliding Panel ──────────────────────────────────────────────
 function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: topMatches } = useGetDashboardTopMatches();
-  const [message, setMessage] = useState("");
+  const [input, setInput] = useState("");
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
+    "Merhaba! Size en uygun ihaleleri bulabilir, teklif stratejisi önerebilir veya sektör analizleri sunabilirim.",
+    { mode: "general" }
+  );
 
   const matches = Array.isArray(topMatches) ? topMatches : [];
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   function fitChip(score: number) {
     if (score >= 70) return "bg-emerald-100 text-emerald-700";
@@ -304,18 +315,10 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
     }
   }
 
-  type ChatMessage = { role: "assistant" | "user"; text: string };
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", text: "Merhaba! Size en uygun ihaleleri bulabilir, teklif stratejisi önerebilir veya sektör analizleri sunabilirim." }
-  ]);
-
-  const send = () => {
-    if (!message.trim()) return;
-    setMessages(m => [...m, { role: "user", text: message }]);
-    setTimeout(() => {
-      setMessages(m => [...m, { role: "assistant", text: "Anladım. Bu konuyu analiz ediyorum — sonuçlarınızı birkaç saniye içinde göreceksiniz. Daha spesifik bir ihale veya kategori belirtmek ister misiniz?" }]);
-    }, 900);
-    setMessage("");
+  const handleSend = () => {
+    if (!input.trim() || isStreaming) return;
+    sendMessage(input);
+    setInput("");
   };
 
   return (
@@ -383,12 +386,20 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                   msg.role === "user" ? "bg-primary text-white" : "bg-accent text-accent-foreground")}>
                   {msg.role === "user" ? <IconUser className="h-3.5 w-3.5" /> : <IconRobot className="h-3.5 w-3.5" />}
                 </div>
-                <div className={cn("max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed",
+                <div className={cn("max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap",
                   msg.role === "user" ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
-                  {msg.text}
+                  {msg.content}
+                  {msg.streaming && (
+                    <span className="inline-flex gap-0.5 ml-1 align-middle">
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1 h-1 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
@@ -396,14 +407,21 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="p-4 border-t border-border flex gap-2">
           <Input
             placeholder="Bir şey sorun…"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !isStreaming && handleSend()}
             className="text-sm"
+            disabled={isStreaming}
           />
-          <Button size="icon" onClick={send} disabled={!message.trim()}>
-            <IconSend className="h-4 w-4" />
-          </Button>
+          {isStreaming ? (
+            <Button size="icon" variant="outline" onClick={cancelStream} title="Durdur">
+              <IconX className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+              <IconSend className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </>

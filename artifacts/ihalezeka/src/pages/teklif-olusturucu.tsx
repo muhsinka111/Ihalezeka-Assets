@@ -4,12 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { IconSend, IconRobot, IconUser, IconFileText, IconCopy, IconCheck } from "@tabler/icons-react";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
+import { IconSend, IconRobot, IconUser, IconFileText, IconCopy, IconCheck, IconX } from "@tabler/icons-react";
+import { useAiChat } from "@/hooks/useAiChat";
 
 const INITIAL_PROPOSAL = `# Teklif Mektubu
 
@@ -39,33 +35,24 @@ Teklifimiz sözleşme süresince sabit birim fiyat esasına dayanmaktadır. Deta
 Saygılarımızla,
 **Teknova Bilişim A.Ş.**`;
 
-const MOCK_RESPONSES: Record<string, string> = {
-  default: "Teklif taslağı güncellendi. Hangi bölümü daha ayrıntılı ele almamı istersiniz? Firma tanıtımı, teknik yaklaşım veya fiyatlandırma stratejisi hakkında yardımcı olabilirim.",
-  teknik: "Teknik yaklaşım bölümüne daha spesifik metodoloji ekledim. Proje aşamalarını milestone bazlı bir Gantt şemasıyla da destekleyebiliriz — ekleyeyim mi?",
-  fiyat: "Fiyatlandırma stratejisi için sektör ortalaması %8-12 kırım oranıyla rekabetçi konumdayız. Rakip analizine göre bu ihalede %9 kırım önerilir. Birim fiyat tablosunu ekleyeyim mi?",
-  referans: "Referans proje bölümü eklendi. Sağlık Bakanlığı ve MEB projelerinizi öne çıkardım — bu ihaleyle en ilgili olanlar bunlar.",
-};
-
 export default function TeklifOlusturucuPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Merhaba! Teklif taslağınızı birlikte hazırlayalım. Teknik yaklaşım, referans projeler veya fiyat stratejisi hakkında sorularınızı yazabilirsiniz." }
-  ]);
   const [input, setInput] = useState("");
   const [proposal, setProposal] = useState(INITIAL_PROPOSAL);
   const [copied, setCopied] = useState(false);
   const messagesEnd = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
+    "Merhaba! Teklif taslağınızı birlikte hazırlayalım. Teknik yaklaşım, referans projeler veya fiyat stratejisi hakkında sorularınızı yazabilirsiniz.",
+    { mode: "proposal" }
+  );
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const userMsg: Message = { role: "user", content: input };
-    setMessages((m) => [...m, userMsg]);
-    const lower = input.toLowerCase();
-    const key = lower.includes("teknik") ? "teknik" : lower.includes("fiyat") || lower.includes("kırım") ? "fiyat" : lower.includes("referans") ? "referans" : "default";
-    setTimeout(() => {
-      setMessages((m) => [...m, { role: "assistant", content: MOCK_RESPONSES[key] }]);
-    }, 800);
+  useEffect(() => {
+    messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleSend = () => {
+    if (!input.trim() || isStreaming) return;
+    sendMessage(input);
     setInput("");
   };
 
@@ -100,8 +87,15 @@ export default function TeklifOlusturucuPage() {
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"}`}>
                   {msg.role === "user" ? <IconUser className="h-4 w-4" /> : <IconRobot className="h-4 w-4" />}
                 </div>
-                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none"}`}>
+                <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-muted text-foreground rounded-tl-none"}`}>
                   {msg.content}
+                  {msg.streaming && (
+                    <span className="inline-flex gap-0.5 ml-1 align-middle">
+                      <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -112,11 +106,18 @@ export default function TeklifOlusturucuPage() {
               placeholder="Teklif hakkında bir şey sorun…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && !isStreaming && handleSend()}
+              disabled={isStreaming}
             />
-            <Button size="icon" onClick={sendMessage} disabled={!input.trim()}>
-              <IconSend className="h-4 w-4" />
-            </Button>
+            {isStreaming ? (
+              <Button size="icon" variant="outline" onClick={cancelStream} title="Durdur">
+                <IconX className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+                <IconSend className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </Card>
 

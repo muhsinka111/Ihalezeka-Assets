@@ -14,9 +14,11 @@ import apiKeysRouter from "./apiKeys";
 import scraperAdminRouter from "./scraperAdmin";
 import notificationsRouter from "./notifications";
 import marketingRouter from "./marketing";
+import aiChatRouter from "./aiChat";
 
 const router: IRouter = Router();
 
+router.use(aiChatRouter);
 router.use(healthRouter);
 router.use(dashboardRouter);
 router.use(tendersRouter);
