@@ -20,13 +20,13 @@ import {
 // ── Demo Data ──────────────────────────────────────────────────────
 
 const KPI_CARDS = [
-  { label: "Eşleşen Fırsatlar", value: "128", change: "+18 bu hafta", trend: "up", color: "indigo", icon: IconBriefcase },
-  { label: "Başvuruda Bulunduğum", value: "24", change: "+12 bu hafta", trend: "up", color: "violet", icon: IconFileText },
-  { label: "Kazanılan Sözleşmeler", value: "₺28.7M", change: "+%37 bu ay", trend: "up", color: "emerald", icon: IconTrophy },
-  { label: "Kazanma Oranı", value: "%37", change: "+%8 bu ay", trend: "up", color: "amber", icon: IconTarget },
-  { label: "Takipteki İhaleler", value: "56", change: "+%8 bu hafta", trend: "up", color: "blue", icon: IconChartAreaLine },
-  { label: "Yaklaşan Son Teslim", value: "7", change: "3'ü bugün sona eriyor", trend: "down", color: "rose", icon: IconClock },
-  { label: "Ort. Uyum Skoru", value: "%85", change: "+%3 bu ay", trend: "up", color: "cyan", icon: IconStarFilled },
+  { label: "Eşleşen Fırsatlar", value: "128", change: "+18 bu hafta", trend: "up", icon: IconBriefcase },
+  { label: "Başvuruda Bulunduğum", value: "24", change: "+12 bu hafta", trend: "up", icon: IconFileText },
+  { label: "Kazanılan Sözleşmeler", value: "₺28.7M", change: "+%37 bu ay", trend: "up", icon: IconTrophy },
+  { label: "Kazanma Oranı", value: "%37", change: "+%8 bu ay", trend: "up", icon: IconTarget },
+  { label: "Takipteki İhaleler", value: "56", change: "+%8 bu hafta", trend: "up", icon: IconChartAreaLine },
+  { label: "Yaklaşan Son Teslim", value: "7", change: "3'ü bugün sona eriyor", trend: "down", icon: IconClock },
+  { label: "Ort. Uyum Skoru", value: "%85", change: "+%3 bu ay", trend: "up", icon: IconStarFilled },
 ];
 
 const TOP_TENDERS = [
@@ -57,28 +57,28 @@ const SECTOR_PIE = [
 
 const KANBAN_COLS = [
   {
-    title: "Fırsat Keşfi", count: 12, color: "blue",
+    title: "Fırsat Keşfi", count: 12,
     cards: [
       { title: "Lojistik Hizmet Alımı", budget: "₺2.500.000", org: "İstanbul Üniversitesi" },
       { title: "Güvenlik Hizmet Alımı", budget: "₺1.300.000", org: "Ankara Adliyesi" },
     ],
   },
   {
-    title: "Teklif Hazırlığı", count: 8, color: "violet",
+    title: "Teklif Hazırlığı", count: 8,
     cards: [
       { title: "Yazılım Geliştirme İşi", budget: "₺5.750.000", org: "TÜBİTAK BİLGEM" },
       { title: "Laboratuvar Cihazları Alımı", budget: "₺3.400.000", org: "Ege Üniversitesi" },
     ],
   },
   {
-    title: "Okul Onarım", count: 4, color: "amber",
+    title: "Okul Onarım", count: 4,
     cards: [
       { title: "Okul Onarım İşi", budget: "₺3.800.000", org: "İstanbul İl Milli Eğitim" },
       { title: "Malzeme Alımı", budget: "₺350.000", org: "MEB İkmal D.şk." },
     ],
   },
   {
-    title: "Değerlendirme", count: 3, color: "emerald",
+    title: "Değerlendirme", count: 3,
     cards: [
       { title: "Hastane Yapım İşi", budget: "₺75.000.000", org: "Sağlık Bakanlığı" },
       { title: "Akıllı Tahta Alımı", budget: "₺1.150.000", org: "MEB Eğitim Bakanlığı" },
@@ -87,11 +87,11 @@ const KANBAN_COLS = [
 ];
 
 const WIN_PREDICTION = [
-  { name: "Okul Binası Yapım İşi", pct: 78, color: "#10b981", label: "Yüksek", labelCls: "bg-emerald-100 text-emerald-700" },
-  { name: "Tıbbi Cihaz Alımı", pct: 65, color: "#f59e0b", label: "Orta", labelCls: "bg-amber-100 text-amber-700" },
-  { name: "Yol Yapım ve Onarım İşi", pct: 52, color: "#f59e0b", label: "Orta", labelCls: "bg-amber-100 text-amber-700" },
-  { name: "Rakip Analizi Yazılım", pct: 40, color: "#ef4444", label: "Düşük", labelCls: "bg-rose-100 text-rose-700" },
-  { name: "Yazılım Lisans Alımı", pct: 40, color: "#ef4444", label: "Düşük", labelCls: "bg-rose-100 text-rose-700" },
+  { name: "Okul Binası Yapım İşi", pct: 78, label: "Yüksek" },
+  { name: "Tıbbi Cihaz Alımı", pct: 65, label: "Orta" },
+  { name: "Yol Yapım ve Onarım İşi", pct: 52, label: "Orta" },
+  { name: "Rakip Analizi Yazılım", pct: 40, label: "Düşük" },
+  { name: "Yazılım Lisans Alımı", pct: 40, label: "Düşük" },
 ];
 
 const SECTOR_MAP = [
@@ -109,33 +109,6 @@ const DEADLINES = [
   { title: "Tıbbi Cihaz Alımı", agency: "Ankara Şehir Hastanesi", days: 14, cls: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" },
   { title: "Yol Yapım ve Onarım İşi", agency: "Karayolları 1. Bölge Müd.", days: 17, cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" },
 ];
-
-const KANBAN_CLR: Record<string, string> = {
-  blue: "border-l-blue-500 bg-blue-50/80 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
-  violet: "border-l-violet-500 bg-violet-50/80 text-violet-800 dark:bg-violet-950/40 dark:text-violet-300",
-  amber: "border-l-amber-500 bg-amber-50/80 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
-  emerald: "border-l-emerald-500 bg-emerald-50/80 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
-};
-
-const KPI_GRAD: Record<string, string> = {
-  indigo: "from-indigo-500 to-indigo-600",
-  violet: "from-violet-500 to-violet-600",
-  emerald: "from-emerald-500 to-emerald-600",
-  amber: "from-amber-500 to-amber-600",
-  blue: "from-blue-500 to-blue-600",
-  rose: "from-rose-500 to-rose-600",
-  cyan: "from-cyan-500 to-cyan-600",
-};
-
-const KPI_BG: Record<string, string> = {
-  indigo: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900/40",
-  violet: "bg-violet-50 dark:bg-violet-950/30 border-violet-100 dark:border-violet-900/40",
-  emerald: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40",
-  amber: "bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900/40",
-  blue: "bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/40",
-  rose: "bg-rose-50 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/40",
-  cyan: "bg-cyan-50 dark:bg-cyan-950/30 border-cyan-100 dark:border-cyan-900/40",
-};
 
 // ── Dashboard Component ────────────────────────────────────────────
 export default function DashboardPage() {
@@ -185,10 +158,10 @@ export default function DashboardPage() {
         {KPI_CARDS.map((k) => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className={cn("rounded-xl border p-3 shadow-sm", KPI_BG[k.color])}>
+            <div key={k.label} className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <div className="flex items-center justify-between mb-2.5">
-                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center bg-gradient-to-br text-white shrink-0", KPI_GRAD[k.color])}>
-                  <Icon className="h-[17px] w-[17px]" />
+                <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-muted shrink-0">
+                  <Icon className="h-[17px] w-[17px] text-muted-foreground" />
                 </div>
                 {k.trend === "up"
                   ? <IconTrendingUp className="h-3.5 w-3.5 text-emerald-500" />
@@ -226,14 +199,9 @@ export default function DashboardPage() {
             {TOP_TENDERS.map((t) => (
               <div key={t.id} className="px-4 py-3 hover:bg-muted/30 transition-colors group cursor-pointer">
                 <div className="flex items-start gap-3">
-                  <div className={cn(
-                    "h-11 w-11 rounded-xl flex flex-col items-center justify-center shrink-0 text-white text-xs font-bold shadow-sm",
-                    t.match >= 90 ? "bg-gradient-to-br from-emerald-500 to-emerald-600"
-                    : t.match >= 70 ? "bg-gradient-to-br from-blue-500 to-indigo-600"
-                    : "bg-gradient-to-br from-amber-500 to-orange-500"
-                  )}>
-                    <span className="text-[9px] font-medium opacity-80">uyum</span>
-                    <span className="text-sm font-bold leading-none">%{t.match}</span>
+                  <div className="h-11 w-11 rounded-xl flex flex-col items-center justify-center shrink-0 border border-border bg-muted/50 text-xs font-bold">
+                    <span className="text-[9px] font-medium text-muted-foreground">uyum</span>
+                    <span className="text-sm font-bold leading-none text-foreground">%{t.match}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-0.5">
@@ -336,14 +304,14 @@ export default function DashboardPage() {
           </div>
 
           {/* AI Asistanım mini */}
-          <div className="rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-50 to-violet-50/60 dark:from-indigo-950/30 dark:to-violet-950/20 shadow-sm overflow-hidden flex-1">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-indigo-100/60 dark:border-indigo-800/30">
+          <div className="rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden flex-1">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm">
-                  <IconRobot className="h-3.5 w-3.5 text-white" />
+                <div className="h-6 w-6 rounded-lg bg-muted flex items-center justify-center">
+                  <IconRobot className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <span className="font-heading font-semibold text-sm text-foreground">AI Asistanınız</span>
-                <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-indigo-600 text-white border-0">BETA</Badge>
+                <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-primary text-primary-foreground border-0">BETA</Badge>
               </div>
               <Link href="/firsatlarim">
                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
@@ -353,31 +321,31 @@ export default function DashboardPage() {
             </div>
             <div className="p-4">
               <div className="flex items-start gap-2.5 mb-3">
-                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
-                  <IconRobot className="h-3.5 w-3.5 text-white" />
+                <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <IconRobot className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
-                <div className="bg-white dark:bg-card/70 border border-border/30 rounded-xl rounded-tl-none px-3 py-2 text-xs text-foreground leading-relaxed shadow-sm">
+                <div className="bg-muted/50 border border-border/50 rounded-xl rounded-tl-none px-3 py-2 text-xs text-foreground leading-relaxed">
                   {aiThread[aiThread.length - 1]?.text}
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {["Rakip analizi yap", "İhale skoru sorgula", "Şartname özetle"].map((q) => (
                   <button key={q} onClick={() => setAiMsg(q)}
-                    className="text-[11px] px-2.5 py-1 rounded-full border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-card/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 transition-colors font-medium">
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-border bg-background text-foreground hover:bg-muted transition-colors font-medium">
                     {q}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2">
                 <input
-                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-white dark:bg-card/50 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-border bg-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   placeholder="Bir şey sorun…"
                   value={aiMsg}
                   onChange={(e) => setAiMsg(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendAi()}
                 />
                 <button onClick={sendAi}
-                  className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white hover:opacity-90 transition-opacity shrink-0 shadow-sm">
+                  className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground hover:opacity-90 transition-opacity shrink-0">
                   <IconChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -399,17 +367,15 @@ export default function DashboardPage() {
                 <input className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border bg-muted/30 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" placeholder="İhale Ara" />
               </div>
               {[
-                { icon: IconBolt, label: "Benim Adıma Başvur", badge: "YENİ", badgeCls: "bg-emerald-500 text-white", iconBg: "from-violet-500 to-indigo-600" },
-                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "", iconBg: null },
-                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "", iconBg: null },
+                { icon: IconBolt, label: "Benim Adıma Başvur", badge: "YENİ", badgeCls: "bg-emerald-500 text-white" },
+                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "" },
+                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "" },
               ].map((action) => (
                 <button key={action.label}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group">
                   <div className="flex items-center gap-2">
-                    <div className={cn("h-7 w-7 rounded-md flex items-center justify-center shrink-0",
-                      action.iconBg ? `bg-gradient-to-br ${action.iconBg}` : "bg-muted"
-                    )}>
-                      <action.icon className={cn("h-3.5 w-3.5", action.iconBg ? "text-white" : "text-muted-foreground")} />
+                    <div className="h-7 w-7 rounded-md flex items-center justify-center shrink-0 bg-muted">
+                      <action.icon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
                     <span className="text-xs font-medium text-foreground">{action.label}</span>
                   </div>
@@ -495,9 +461,9 @@ export default function DashboardPage() {
             <div className="flex gap-3 min-w-max">
               {KANBAN_COLS.map((col) => (
                 <div key={col.title} className="w-[185px] shrink-0">
-                  <div className={cn("flex items-center justify-between mb-2.5 px-2 py-1.5 rounded-lg border-l-[3px]", KANBAN_CLR[col.color])}>
-                    <span className="text-[11px] font-bold">{col.title}</span>
-                    <span className="text-[11px] font-bold ml-2 px-1.5 py-0.5 rounded-full bg-white/50 dark:bg-black/20">{col.count}</span>
+                  <div className="flex items-center justify-between mb-2.5 px-2 py-1.5 rounded-lg bg-muted/40 border border-border/50">
+                    <span className="text-[11px] font-bold text-foreground">{col.title}</span>
+                    <span className="text-[11px] font-bold ml-2 px-1.5 py-0.5 rounded-full bg-background border border-border/50 text-muted-foreground">{col.count}</span>
                   </div>
                   <div className="space-y-2">
                     {col.cards.map((card, ci) => (
@@ -522,7 +488,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <div className="flex items-center gap-2">
               <h2 className="font-heading font-semibold text-sm text-foreground">Kazanma Tahmini</h2>
-              <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-indigo-100 text-indigo-700 border-0 dark:bg-indigo-900/50 dark:text-indigo-300">AI</Badge>
+              <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-primary text-primary-foreground border-0">AI</Badge>
             </div>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
               Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
@@ -534,15 +500,13 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-[11px] font-medium text-foreground line-clamp-1 flex-1 mr-2">{item.name}</p>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-xs font-bold" style={{ color: item.color }}>%{item.pct}</span>
-                    <Badge className={cn("text-[9px] px-1.5 py-0 h-[17px] border-0 font-semibold", item.labelCls)}>
-                      {item.label}
-                    </Badge>
+                    <span className="text-xs font-bold text-foreground">%{item.pct}</span>
+                    <span className="text-[10px] text-muted-foreground">{item.label}</span>
                   </div>
                 </div>
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${item.pct}%`, backgroundColor: item.color }} />
+                  <div className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${item.pct}%` }} />
                 </div>
               </div>
             ))}
