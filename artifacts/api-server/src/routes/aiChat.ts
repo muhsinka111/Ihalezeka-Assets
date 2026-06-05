@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { matchesTable, tendersTable, companyProfilesTable } from "@workspace/db";
-import { eq, desc, gte, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -34,6 +34,19 @@ interface ChatContext {
   tender?: TenderContext;
   topMatches?: TopMatch[];
   companyName?: string;
+  currentDraft?: string;
+}
+
+const EDIT_INTENT_KEYWORDS = [
+  "güncelle", "yaz", "ekle", "düzenle", "değiştir", "revize", "geliştir",
+  "tamamla", "çıkar", "kısalt", "genişlet", "oluştur", "yeniden yaz",
+  "bölümünü", "paragrafı", "taslak", "metnini", "içeriğini", "fiyat",
+  "giriş", "teknik", "sonuç", "firma", "referans", "update", "rewrite",
+];
+
+function detectsEditIntent(userMessage: string): boolean {
+  const lower = userMessage.toLowerCase();
+  return EDIT_INTENT_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 function buildSystemPrompt(context: ChatContext): string {
@@ -79,6 +92,21 @@ Kullanıcı şu anda bir ihale için teklif mektubu hazırlıyor. Teknik yaklaş
   }
 
   return base;
+}
+
+function buildPatchSystemPrompt(context: ChatContext): string {
+  const t = context.tender;
+  const tenderInfo = t
+    ? `\nAktif İhale: ${t.title ?? ""} — ${t.agency ?? ""}${t.estimatedValue ? ` — ${t.estimatedValue.toLocaleString("tr-TR")} TL` : ""}${t.deadline ? ` — Son Tarih: ${new Date(t.deadline).toLocaleDateString("tr-TR")}` : ""}`
+    : "";
+
+  return `Sen profesyonel bir teklif yazarısın. Kullanıcının isteğine göre mevcut teklif taslağını güncelleyeceksin.${tenderInfo}
+
+Kurallar:
+- Mevcut taslağı tamamen koru, yalnızca istenen bölümü değiştir veya ekle.
+- Yalnızca güncellenmiş teklif metnini döndür — başka hiçbir şey ekleme, açıklama yapma.
+- Formatı (markdown başlıklar, listeler vb.) koru.
+- Türkçe yaz.`;
 }
 
 router.post("/ai/chat", async (req, res) => {
@@ -153,6 +181,39 @@ router.post("/ai/chat", async (req, res) => {
       const delta = chunk.choices[0]?.delta?.content ?? "";
       if (delta) {
         res.write(`data: ${JSON.stringify({ delta })}\n\n`);
+      }
+    }
+
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content ?? "";
+    const shouldPatch =
+      chatContext.mode === "proposal" &&
+      chatContext.currentDraft &&
+      detectsEditIntent(lastUserMessage);
+
+    if (shouldPatch && chatContext.currentDraft) {
+      try {
+        const patchMessages = [
+          { role: "system" as const, content: buildPatchSystemPrompt(chatContext) },
+          {
+            role: "user" as const,
+            content: `Mevcut teklif taslağı:\n\n${chatContext.currentDraft}\n\nKullanıcı isteği: ${lastUserMessage}`,
+          },
+        ];
+
+        const patchResponse = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: patchMessages as any,
+          stream: false,
+          max_tokens: 2048,
+          temperature: 0.4,
+        });
+
+        const updatedDraft = patchResponse.choices[0]?.message?.content ?? "";
+        if (updatedDraft) {
+          res.write(`data: ${JSON.stringify({ proposalPatch: updatedDraft })}\n\n`);
+        }
+      } catch (patchErr) {
+        logger.warn({ patchErr }, "Failed to generate proposal patch — skipping");
       }
     }
 

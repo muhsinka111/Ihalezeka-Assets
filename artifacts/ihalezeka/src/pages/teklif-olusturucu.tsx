@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ import {
   IconCheck,
   IconX,
   IconChevronDown,
+  IconArrowBackUp,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { useAiChat } from "@/hooks/useAiChat";
 import { useGetDashboardTopMatches } from "@workspace/api-client-react";
@@ -55,9 +57,12 @@ Saygılarımızla,
 export default function TeklifOlusturucuPage() {
   const [input, setInput] = useState("");
   const [proposal, setProposal] = useState(INITIAL_PROPOSAL);
+  const [previousProposal, setPreviousProposal] = useState<string | null>(null);
+  const [patchApplied, setPatchApplied] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedMatchId, setSelectedMatchId] = useState<string>("");
   const messagesEnd = useRef<HTMLDivElement>(null);
+  const patchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: topMatchesRaw } = useGetDashboardTopMatches();
   const topMatches = Array.isArray(topMatchesRaw) ? topMatchesRaw : [];
@@ -68,9 +73,10 @@ export default function TeklifOlusturucuPage() {
   );
 
   const aiContext = useMemo(() => {
-    if (!selectedMatch) return { mode: "proposal" as const };
+    if (!selectedMatch) return { mode: "proposal" as const, currentDraft: proposal };
     return {
       mode: "proposal" as const,
+      currentDraft: proposal,
       tender: {
         title: selectedMatch.tender?.title ?? undefined,
         agency: selectedMatch.tender?.agencyName ?? undefined,
@@ -80,11 +86,33 @@ export default function TeklifOlusturucuPage() {
         type: selectedMatch.tender?.tenderType ?? null,
       },
     };
-  }, [selectedMatch]);
+  }, [selectedMatch, proposal]);
+
+  const handleProposalPatch = useCallback((newDraft: string) => {
+    setPreviousProposal((prev) => prev ?? proposal);
+    setProposal(newDraft);
+    setPatchApplied(true);
+
+    if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    patchTimerRef.current = setTimeout(() => {
+      setPatchApplied(false);
+      setPreviousProposal(null);
+    }, 30000);
+  }, [proposal]);
+
+  const handleUndo = useCallback(() => {
+    if (previousProposal !== null) {
+      setProposal(previousProposal);
+      setPreviousProposal(null);
+      setPatchApplied(false);
+      if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    }
+  }, [previousProposal]);
 
   const { messages, isStreaming, sendMessage, cancelStream } = useAiChat(
-    "Merhaba! Teklif taslağınızı birlikte hazırlayalım. Teknik yaklaşım, referans projeler veya fiyat stratejisi hakkında sorularınızı yazabilirsiniz.",
-    aiContext
+    "Merhaba! Teklif taslağınızı birlikte hazırlayalım. \"Fiyat bölümünü güncelle\", \"giriş paragrafını yaz\" gibi komutlarla taslağı doğrudan düzenleyebilirsiniz.",
+    aiContext,
+    handleProposalPatch
   );
 
   useEffect(() => {
@@ -96,6 +124,12 @@ export default function TeklifOlusturucuPage() {
       setSelectedMatchId((topMatches[0] as any).id);
     }
   }, [topMatches, selectedMatchId]);
+
+  useEffect(() => {
+    return () => {
+      if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    };
+  }, []);
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return;
@@ -216,16 +250,39 @@ export default function TeklifOlusturucuPage() {
                 <IconFileText className="h-5 w-5 text-primary" />
                 Teklif Önizlemesi
               </CardTitle>
-              <Button variant="ghost" size="sm" className="gap-2" onClick={copyProposal}>
-                {copied ? <IconCheck className="h-4 w-4 text-emerald-500" /> : <IconCopy className="h-4 w-4" />}
-                {copied ? "Kopyalandı" : "Kopyala"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {patchApplied && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+                      <IconSparkles className="h-3 w-3" />
+                      AI güncelledi
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1 text-muted-foreground"
+                      onClick={handleUndo}
+                    >
+                      <IconArrowBackUp className="h-3 w-3" />
+                      Geri Al
+                    </Button>
+                  </div>
+                )}
+                <Button variant="ghost" size="sm" className="gap-2" onClick={copyProposal}>
+                  {copied ? <IconCheck className="h-4 w-4 text-emerald-500" /> : <IconCopy className="h-4 w-4" />}
+                  {copied ? "Kopyalandı" : "Kopyala"}
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto p-4">
             <Textarea
               value={proposal}
-              onChange={(e) => setProposal(e.target.value)}
+              onChange={(e) => {
+                setProposal(e.target.value);
+                setPatchApplied(false);
+                setPreviousProposal(null);
+              }}
               className="w-full h-full min-h-[400px] font-mono text-xs leading-relaxed resize-none border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
           </CardContent>

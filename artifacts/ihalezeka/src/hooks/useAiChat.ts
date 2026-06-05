@@ -18,9 +18,14 @@ export interface AiChatContext {
     aiSummary?: string | null;
     type?: string | null;
   };
+  currentDraft?: string;
 }
 
-export function useAiChat(initialMessage: string, context?: AiChatContext) {
+export function useAiChat(
+  initialMessage: string,
+  context?: AiChatContext,
+  onProposalPatch?: (newDraft: string) => void
+) {
   const [messages, setMessages] = useState<AiChatMessage[]>([
     { role: "assistant", content: initialMessage },
   ]);
@@ -82,15 +87,18 @@ export function useAiChat(initialMessage: string, context?: AiChatContext) {
             const data = line.slice(6).trim();
             if (data === "[DONE]") break;
 
-            let parsed: { delta?: string; error?: string } | null = null;
+            let parsed: { delta?: string; error?: string; proposalPatch?: string } | null = null;
             try {
-              parsed = JSON.parse(data) as { delta?: string; error?: string };
+              parsed = JSON.parse(data) as { delta?: string; error?: string; proposalPatch?: string };
             } catch {
               continue;
             }
 
             if (parsed?.error) {
               throw new Error(parsed.error);
+            }
+            if (parsed?.proposalPatch && onProposalPatch) {
+              onProposalPatch(parsed.proposalPatch);
             }
             if (parsed?.delta) {
               accumulated += parsed.delta;
@@ -148,7 +156,7 @@ export function useAiChat(initialMessage: string, context?: AiChatContext) {
         abortRef.current = null;
       }
     },
-    [messages, isStreaming, context]
+    [messages, isStreaming, context, onProposalPatch]
   );
 
   const cancelStream = useCallback(() => {
