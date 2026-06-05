@@ -89,49 +89,116 @@ export function Hero() {
           transition={{ duration: 0.7, delay: 0.4 }}
           className="mt-20 relative mx-auto max-w-5xl"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent z-20 pointer-events-none" />
           <div className="rounded-xl overflow-hidden border border-border/50 shadow-2xl shadow-primary/10 bg-card">
-            <div className="h-8 bg-muted/50 border-b border-border/50 flex items-center px-4 gap-2">
+            {/* Browser chrome */}
+            <div className="h-9 bg-muted/60 border-b border-border/50 flex items-center px-4 gap-2">
               <div className="w-3 h-3 rounded-full bg-rose-500" />
               <div className="w-3 h-3 rounded-full bg-amber-500" />
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            </div>
-            <div className="p-4 md:p-8 flex gap-6">
-              {/* Sidebar Mock */}
-              <div className="hidden md:flex w-48 flex-col gap-4">
-                <div className="h-4 w-24 bg-muted rounded" />
-                <div className="space-y-2 mt-4">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className={`h-8 rounded ${i === 1 ? 'bg-primary/10 w-full' : 'bg-muted/50 w-5/6'}`} />
-                  ))}
-                </div>
+              <div className="ml-4 flex-1 max-w-xs h-5 bg-background/70 rounded-md border border-border/40 flex items-center px-2">
+                <span className="text-[9px] text-muted-foreground truncate">ihalezeka.com/dashboard</span>
               </div>
-              {/* Content Mock */}
-              <div className="flex-1 space-y-6">
+            </div>
+            <div className="flex" style={{ minHeight: 340 }}>
+              {/* Sidebar */}
+              <div className="hidden md:flex w-44 flex-col bg-[#0F172A] shrink-0 p-3 gap-1">
+                <div className="flex items-center gap-1.5 px-2 py-2 mb-2">
+                  <span className="font-bold text-white text-xs">İhale</span>
+                  <span className="font-bold text-[#2C46D8] text-xs">Zeka</span>
+                </div>
+                {[
+                  { label: "Gösterge Paneli", active: true },
+                  { label: "Fırsatlarım" },
+                  { label: "İhale Arama" },
+                  { label: "Boru Hattı" },
+                  { label: "Rakip Analizi" },
+                  { label: "Raporlar" },
+                ].map(({ label, active }) => (
+                  <div key={label} className={`h-7 rounded-md px-2 flex items-center text-[9px] font-medium ${active ? 'bg-[#2C46D8] text-white' : 'text-slate-400'}`}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+              {/* Main content */}
+              <div className="flex-1 p-4 md:p-5 bg-slate-50 dark:bg-slate-900 space-y-3 overflow-hidden">
+                {/* Header */}
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="h-6 w-48 bg-foreground/10 rounded mb-2" />
-                    <div className="h-4 w-32 bg-muted rounded" />
+                    <div className="text-xs font-bold text-foreground">Hoş geldiniz, Mehmet 👋</div>
+                    <div className="text-[9px] text-muted-foreground">Bugün sizin için derlediğimiz özet bilgiler</div>
                   </div>
-                  <div className="h-10 w-32 bg-primary/20 rounded" />
+                  <div className="h-6 px-3 bg-[#2C46D8] rounded text-[9px] text-white flex items-center font-medium">Hızlı Eylemler</div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="h-24 border border-border rounded-lg p-4 flex flex-col justify-between">
-                      <div className="h-4 w-20 bg-muted rounded" />
-                      <div className="h-8 w-16 bg-foreground/10 rounded" />
+                {/* Stats row */}
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { label: "Eşleşen Fırsatlar", value: "128", badge: "+18 bu hafta", color: "text-emerald-500" },
+                    { label: "Kazanılan Sözleşmeler", value: "₺28.7M", badge: "+%37 bu ay", color: "text-emerald-500" },
+                    { label: "Kazanma Oranı", value: "%37", badge: "+%8 bu ay", color: "text-emerald-500" },
+                    { label: "Ort. Uyum Skoru", value: "%85", badge: "+%3 bu ay", color: "text-emerald-500" },
+                  ].map(({ label, value, badge, color }) => (
+                    <div key={label} className="border border-border rounded-lg p-2 bg-background flex flex-col gap-1">
+                      <div className="text-[8px] text-muted-foreground">{label}</div>
+                      <div className="text-sm font-bold text-foreground">{value}</div>
+                      <div className={`text-[8px] font-medium ${color}`}>{badge}</div>
                     </div>
                   ))}
                 </div>
-                <div className="h-64 border border-border rounded-lg bg-muted/20 p-4">
-                  <div className="h-4 w-32 bg-muted rounded mb-4" />
-                  <div className="space-y-3">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="h-10 bg-background rounded border border-border flex items-center px-4">
-                        <div className="h-3 w-1/3 bg-muted rounded" />
-                        <div className="h-3 w-1/4 bg-primary/20 rounded ml-auto" />
+                {/* Two-column content */}
+                <div className="grid grid-cols-5 gap-3">
+                  {/* Tender list */}
+                  <div className="col-span-3 border border-border rounded-lg bg-background p-3 space-y-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="text-[9px] font-bold text-foreground">En Uygun İhaleler</div>
+                      <div className="text-[8px] text-[#2C46D8] font-medium">Tümünü Gör →</div>
+                    </div>
+                    {[
+                      { name: "Okul Binası Yapım İşi", agency: "İstanbul İl Milli Eğitim", amount: "₺45.000.000", score: 95, days: "8 gün kaldı", daysColor: "bg-rose-100 text-rose-700" },
+                      { name: "Tıbbi Cihaz Alımı", agency: "Ankara Şehir Hastanesi", amount: "₺12.500.000", score: 80, days: "14 gün kaldı", daysColor: "bg-amber-100 text-amber-700" },
+                      { name: "Yol Yapım ve Onarım İşi", agency: "Karayolları 1. Bölge", amount: "₺28.750.000", score: 75, days: "17 gün kaldı", daysColor: "bg-blue-100 text-blue-700" },
+                    ].map(({ name, agency, amount, score, days, daysColor }) => (
+                      <div key={name} className="flex items-center gap-2 p-2 rounded border border-border/50 bg-muted/20">
+                        <div className="w-8 text-center">
+                          <div className="text-[8px] text-muted-foreground leading-none">uyum</div>
+                          <div className="text-[10px] font-bold text-[#2C46D8]">%{score}</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[9px] font-semibold text-foreground truncate">{name}</div>
+                          <div className="text-[8px] text-muted-foreground truncate">{agency} · {amount}</div>
+                        </div>
+                        <div className={`text-[7px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${daysColor}`}>{days}</div>
                       </div>
                     ))}
+                  </div>
+                  {/* Chart */}
+                  <div className="col-span-2 border border-border rounded-lg bg-background p-3">
+                    <div className="text-[9px] font-bold text-foreground mb-1">Para Akışı Analizi</div>
+                    <div className="text-[8px] text-muted-foreground mb-3">₺156.8M · Bu Aylık Toplam</div>
+                    {/* Mini bar chart */}
+                    <div className="flex items-end gap-1 h-16 mb-2">
+                      {[40, 55, 45, 70, 60, 85, 75].map((h, i) => (
+                        <div key={i} className="flex-1 flex flex-col gap-0.5 items-center">
+                          <div className="w-full rounded-t" style={{ height: `${h}%`, background: i === 5 ? '#2C46D8' : '#2C46D820' }} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between text-[7px] text-muted-foreground">
+                      {["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem"].map(m => <span key={m}>{m}</span>)}
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      {[
+                        { label: "Yapım İşleri", pct: "40%", color: "#2C46D8" },
+                        { label: "Hizmet Alımı", pct: "25%", color: "#6366F1" },
+                        { label: "Mal Alımı", pct: "20%", color: "#8B5CF6" },
+                      ].map(({ label, pct, color }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                          <div className="text-[8px] text-muted-foreground flex-1">{label}</div>
+                          <div className="text-[8px] font-medium text-foreground">{pct}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
