@@ -1,6 +1,6 @@
 import { logger } from "../lib/logger.js";
 import { getAllRecentIlanAds, getIlanAdDetail } from "./ilan-client.js";
-import { mapIlanToTender, upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
+import { mapIlanToTender, upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
 
 export async function runIlanScraper(hoursBack = 48): Promise<ScraperResult> {
   const startedAt = new Date();
@@ -37,15 +37,7 @@ export async function runIlanScraper(hoursBack = 48): Promise<ScraperResult> {
     logger.error({ err }, "ilan.gov.tr scraper failed");
   }
 
-  await logScraperRun({
-    source: "ilan_gov",
-    startedAt,
-    completedAt: new Date(),
-    recordsFetched: result.fetched,
-    recordsInserted: result.inserted,
-    recordsUpdated: result.updated,
-    errorMessage: result.error ?? null,
-  });
+  await finalizeScraperRun({ source: "ilan_gov", startedAt, result });
 
   return result;
 }

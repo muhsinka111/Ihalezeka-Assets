@@ -31,45 +31,78 @@ function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
   return userId === ADMIN_USER_ID;
 }
 
+interface RecentRunRow {
+  [key: string]: unknown;
+  id: string;
+  source: string;
+  started_at: Date;
+  completed_at: Date | null;
+  records_fetched: number;
+  records_inserted: number;
+  records_updated: number;
+  error_message: string | null;
+  status: string;
+}
+
 router.get("/admin/scraper/status", async (_req, res) => {
   try {
-    // Fetch latest run per source using DISTINCT ON (most efficient for this pattern)
-    const latestPerSource = await db.execute<{
-      id: string;
-      source: string;
-      started_at: Date;
-      completed_at: Date;
-      records_fetched: number;
-      records_inserted: number;
-      records_updated: number;
-      error_message: string | null;
-    }>(
-      sql`SELECT DISTINCT ON (source) id, source, started_at, completed_at,
-             records_fetched, records_inserted, records_updated, error_message
-          FROM scraper_runs
+    // Pull the most recent runs per source (window-limited) so we can compute
+    // health — last successful run and how many failures in a row — in one query.
+    const windowed = await db.execute<RecentRunRow>(
+      sql`SELECT id, source, started_at, completed_at,
+             records_fetched, records_inserted, records_updated, error_message, status
+          FROM (
+            SELECT *, row_number() OVER (
+              PARTITION BY source ORDER BY completed_at DESC NULLS LAST
+            ) AS rn
+            FROM scraper_runs
+          ) s
+          WHERE rn <= 30
           ORDER BY source, completed_at DESC`,
     );
 
-    const sourceMap = new Map(latestPerSource.rows.map((r) => [r.source, r]));
+    const bySource = new Map<string, RecentRunRow[]>();
+    for (const row of windowed.rows) {
+      const list = bySource.get(row.source) ?? [];
+      list.push(row);
+      bySource.set(row.source, list);
+    }
 
     const perSource = ALL_SOURCES.map((source) => {
-      const r = sourceMap.get(source);
-      if (!r)
+      const runs = bySource.get(source) ?? [];
+      if (runs.length === 0) {
         return {
           source,
-          lastRunAt: null,
           status: "never_run",
+          lastRunAt: null,
+          lastSuccessfulRunAt: null,
           recordsFetched: 0,
           recordsInserted: 0,
+          consecutiveFailures: 0,
           errorMessage: null,
         };
+      }
+
+      const latest = runs[0];
+      const lastSuccessful = runs.find((r) => r.status === "success");
+
+      // Count consecutive degraded runs (error/empty) from the most recent
+      // backwards, stopping at the first healthy or intentionally-disabled run.
+      let consecutiveFailures = 0;
+      for (const r of runs) {
+        if (r.status === "error" || r.status === "empty") consecutiveFailures++;
+        else break;
+      }
+
       return {
         source,
-        lastRunAt: r.completed_at,
-        status: r.error_message ? "error" : "ok",
-        recordsFetched: r.records_fetched,
-        recordsInserted: r.records_inserted,
-        errorMessage: r.error_message ?? null,
+        status: latest.status,
+        lastRunAt: latest.completed_at,
+        lastSuccessfulRunAt: lastSuccessful?.completed_at ?? null,
+        recordsFetched: latest.records_fetched,
+        recordsInserted: latest.records_inserted,
+        consecutiveFailures,
+        errorMessage: latest.error_message ?? null,
       };
     });
 
@@ -80,7 +113,7 @@ router.get("/admin/scraper/status", async (_req, res) => {
       .orderBy(desc(scraperRunsTable.completedAt))
       .limit(20);
 
-    const lastSuccessful = recentRuns.find((r) => !r.errorMessage);
+    const lastSuccessful = recentRuns.find((r) => r.status === "success");
     const lastRunAt =
       lastSuccessful?.completedAt ?? recentRuns[0]?.completedAt ?? null;
 
@@ -90,6 +123,7 @@ router.get("/admin/scraper/status", async (_req, res) => {
       perSource,
       recentRuns: recentRuns.map((r) => ({
         source: r.source,
+        status: r.status,
         completedAt: r.completedAt,
         recordsFetched: r.recordsFetched,
         recordsInserted: r.recordsInserted,

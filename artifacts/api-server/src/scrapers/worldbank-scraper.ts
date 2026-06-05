@@ -1,6 +1,6 @@
 import axios from "axios";
 import { logger } from "../lib/logger.js";
-import { upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
+import { upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
 import type { InsertTender } from "@workspace/db";
 
 const WB_API = "https://search.worldbank.org/api/v2/procnotices";
@@ -114,15 +114,7 @@ export async function runWorldBankScraper(daysBack = 7): Promise<ScraperResult> 
     logger.error({ err }, "World Bank scraper failed");
   }
 
-  await logScraperRun({
-    source: "worldbank",
-    startedAt,
-    completedAt: new Date(),
-    recordsFetched: result.fetched,
-    recordsInserted: result.inserted,
-    recordsUpdated: result.updated,
-    errorMessage: result.error ?? null,
-  });
+  await finalizeScraperRun({ source: "worldbank", startedAt, result });
 
   return result;
 }

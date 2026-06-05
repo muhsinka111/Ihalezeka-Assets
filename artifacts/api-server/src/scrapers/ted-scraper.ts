@@ -1,6 +1,6 @@
 import axios from "axios";
 import { logger } from "../lib/logger.js";
-import { upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
+import { upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
 import type { InsertTender } from "@workspace/db";
 
 const TED_API = "https://api.ted.europa.eu/v3/notices/search";
@@ -59,15 +59,13 @@ export async function runTedScraper(daysBack = 7): Promise<ScraperResult> {
 
   const apiKey = process.env.TED_API_KEY;
   if (!apiKey) {
-    logger.warn("TED_API_KEY not set — skipping TED scraper. Register at api.ted.europa.eu to enable.");
-    await logScraperRun({
+    logger.warn("TED_API_KEY not set — TED source disabled. Register at api.ted.europa.eu to enable.");
+    await finalizeScraperRun({
       source: "ted",
       startedAt,
-      completedAt: new Date(),
-      recordsFetched: 0,
-      recordsInserted: 0,
-      recordsUpdated: 0,
-      errorMessage: "TED_API_KEY not configured",
+      result,
+      disabled: true,
+      reason: "TED_API_KEY tanımlı değil — kaynak devre dışı (api.ted.europa.eu üzerinden anahtar alın).",
     });
     return result;
   }
@@ -120,15 +118,7 @@ export async function runTedScraper(daysBack = 7): Promise<ScraperResult> {
     logger.error({ err }, "TED scraper failed");
   }
 
-  await logScraperRun({
-    source: "ted",
-    startedAt,
-    completedAt: new Date(),
-    recordsFetched: result.fetched,
-    recordsInserted: result.inserted,
-    recordsUpdated: result.updated,
-    errorMessage: result.error ?? null,
-  });
+  await finalizeScraperRun({ source: "ted", startedAt, result });
 
   return result;
 }

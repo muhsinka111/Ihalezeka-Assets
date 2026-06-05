@@ -10,6 +10,11 @@ export const scraperRunsTable = pgTable("scraper_runs", {
   recordsUpdated: integer("records_updated").notNull().default(0),
   recordsAnalyzed: integer("records_analyzed").notNull().default(0),
   errorMessage: text("error_message"),
+  // Health status of the run. "success" = data fetched; "empty" = ran without
+  // error but fetched 0 records (a silent failure); "error" = threw/failed;
+  // "disabled" = source intentionally not run (e.g. missing API key, no stable
+  // source). Defaults to "success" so legacy rows remain valid after migration.
+  status: text("status").notNull().default("success"),
 });
 
 export type ScraperRun = typeof scraperRunsTable.$inferSelect;

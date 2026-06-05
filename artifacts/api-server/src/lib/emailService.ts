@@ -148,6 +148,61 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * Operator alert email shown when a previously-working scraper source breaks
+ * (errors) or goes empty (fetches 0 records). Plain, scannable, action-oriented.
+ */
+export function buildSourceHealthEmailHtml(opts: {
+  sourceLabel: string;
+  status: "error" | "empty";
+  errorMessage: string | null;
+  recordsFetched: number;
+}): string {
+  const appUrl = escapeHtml(process.env.APP_URL ?? "https://ihalezeka.com");
+  const safeLabel = escapeHtml(opts.sourceLabel);
+  const safeError = escapeHtml(opts.errorMessage ?? "Ayrıntı yok");
+  const headline =
+    opts.status === "error"
+      ? `${safeLabel} kaynağında hata oluştu`
+      : `${safeLabel} kaynağı 0 kayıt döndürdü`;
+  const explain =
+    opts.status === "error"
+      ? "Kaynak çalışırken bir hata aldı ve veri çekemedi."
+      : "Kaynak hatasız çalıştı ancak hiç kayıt döndürmedi. Bu genellikle sayfa yapısının değiştiğine veya kaynağın erişilemez hale geldiğine işaret eder.";
+
+  return `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#f9fafb;margin:0;padding:32px 16px;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:24px 32px;">
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;">⚠️ İhaleZeka — Kaynak Uyarısı</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:6px 0 0;font-size:15px;">${headline}</p>
+    </div>
+    <div style="padding:24px 32px;color:#374151;font-size:15px;line-height:1.6;">
+      <p style="margin:0 0 16px;">${explain}</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:160px;">Kaynak</td><td style="padding:8px 0;font-weight:600;">${safeLabel}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Durum</td><td style="padding:8px 0;font-weight:600;">${opts.status === "error" ? "Hata" : "Boş (0 kayıt)"}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">Çekilen kayıt</td><td style="padding:8px 0;font-weight:600;">${opts.recordsFetched}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;vertical-align:top;">Ayrıntı</td><td style="padding:8px 0;color:#991b1b;">${safeError}</td></tr>
+      </table>
+      <div style="margin-top:24px;text-align:center;">
+        <a href="${appUrl}/ihale-arama"
+           style="display:inline-block;background:#2C46D8;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">
+          Kaynak Durumunu Gör
+        </a>
+      </div>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      Bu otomatik uyarı, daha önce çalışan bir kaynak veri çekemediğinde gönderilir.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export function buildMatchEmailHtml(
   matches: Array<{ title: string; fitScore: number; agencyName: string; sourceUrl?: string | null }>
 ): string {

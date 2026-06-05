@@ -38,3 +38,4 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
+OPERATOR_EMAIL = "info@ihalezeka.com"

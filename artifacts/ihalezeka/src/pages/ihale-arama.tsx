@@ -129,9 +129,21 @@ function StatusBadge({ status }: { status?: string | null }) {
   return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">Aktif</span>;
 }
 
+interface SourceHealth {
+  source: string;
+  status: string;
+  lastRunAt: string | null;
+  lastSuccessfulRunAt: string | null;
+  recordsFetched: number;
+  recordsInserted: number;
+  consecutiveFailures: number;
+  errorMessage: string | null;
+}
+
 function useScraperStatus(onFinished?: () => void) {
   const [lastRunAt, setLastRunAt] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [perSource, setPerSource] = useState<SourceHealth[]>([]);
   const [loading, setLoading] = useState(true);
   const wasRunning = useRef(false);
 
@@ -145,6 +157,7 @@ function useScraperStatus(onFinished?: () => void) {
         if (!r.ok) return;
         const data = await r.json();
         if (data?.lastRunAt) setLastRunAt(data.lastRunAt);
+        if (Array.isArray(data?.perSource)) setPerSource(data.perSource);
         const running = Boolean(data?.isRunning);
         setIsRunning(running);
         if (wasRunning.current && !running) {
@@ -164,7 +177,79 @@ function useScraperStatus(onFinished?: () => void) {
     return () => clearTimeout(timer);
   }, []);
 
-  return { lastRunAt, isRunning, loading };
+  return { lastRunAt, isRunning, perSource, loading };
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  ekap: "EKAP",
+  ilan_gov: "ilan.gov.tr",
+  ted: "TED (AB)",
+  worldbank: "Dünya Bankası",
+  ebrd: "EBRD",
+  kit: "KİT",
+  tubitak: "TÜBİTAK",
+  kosgeb: "KOSGEB",
+  kalkinma_ajansi: "Kalkınma Ajansları",
+};
+
+const STATUS_META: Record<string, { label: string; dot: string; text: string }> = {
+  success: { label: "Çalışıyor", dot: "bg-green-500", text: "text-green-700" },
+  empty: { label: "Boş (0 kayıt)", dot: "bg-amber-500", text: "text-amber-700" },
+  error: { label: "Hata", dot: "bg-red-500", text: "text-red-700" },
+  disabled: { label: "Devre dışı", dot: "bg-gray-400", text: "text-gray-500" },
+  never_run: { label: "Hiç çalışmadı", dot: "bg-gray-300", text: "text-gray-400" },
+};
+
+function SourceHealthPanel({ perSource }: { perSource: SourceHealth[] }) {
+  const [open, setOpen] = useState(false);
+  if (perSource.length === 0) return null;
+
+  const problems = perSource.filter((s) => s.status === "error" || s.status === "empty").length;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <span className={cn("h-2 w-2 rounded-full", problems > 0 ? "bg-red-500" : "bg-green-500")} />
+        Kaynak durumu{problems > 0 ? ` (${problems} sorun)` : ""}
+        {open ? <IconChevronUp className="h-3.5 w-3.5" /> : <IconChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-2 w-80 rounded-lg border bg-card shadow-lg p-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-2 py-1">
+            Veri Kaynakları
+          </div>
+          <div className="space-y-0.5 max-h-80 overflow-auto">
+            {perSource.map((s) => {
+              const meta = STATUS_META[s.status] ?? STATUS_META.never_run;
+              return (
+                <div key={s.source} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">
+                  <span className={cn("h-2 w-2 rounded-full mt-1 shrink-0", meta.dot)} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium truncate">{SOURCE_LABELS[s.source] ?? s.source}</span>
+                      <span className={cn("text-[11px] font-medium shrink-0", meta.text)}>{meta.label}</span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {s.lastSuccessfulRunAt
+                        ? `Son başarılı: ${formatRelativeTime(s.lastSuccessfulRunAt)} • ${s.recordsFetched} kayıt`
+                        : "Henüz başarılı çekim yok"}
+                      {s.consecutiveFailures > 0 ? ` • ${s.consecutiveFailures} ardışık başarısız` : ""}
+                    </div>
+                    {s.errorMessage && (s.status === "error" || s.status === "empty") && (
+                      <div className="text-[11px] text-red-600 mt-0.5 line-clamp-2">{s.errorMessage}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -233,7 +318,7 @@ export default function IhaleAramaPage() {
   const { data, isLoading, refetch } = useListTenders(apiParams);
   const tenders = data?.items ?? [];
 
-  const { lastRunAt, isRunning, loading: statusLoading } = useScraperStatus(
+  const { lastRunAt, perSource, loading: statusLoading } = useScraperStatus(
     useCallback(() => { refetch(); }, [refetch])
   );
 
@@ -494,11 +579,14 @@ export default function IhaleAramaPage() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold font-heading tracking-tight">İhale Arama</h1>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <IconRefresh className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {statusLoading ? "Güncelleme kontrol ediliyor…" : lastRunAt ? `Son güncelleme: ${formatRelativeTime(lastRunAt)}` : "Henüz güncelleme yapılmadı"}
-            </span>
+          <div className="flex items-center gap-3 mt-0.5">
+            <div className="flex items-center gap-1.5">
+              <IconRefresh className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                {statusLoading ? "Güncelleme kontrol ediliyor…" : lastRunAt ? `Son güncelleme: ${formatRelativeTime(lastRunAt)}` : "Henüz güncelleme yapılmadı"}
+              </span>
+            </div>
+            <SourceHealthPanel perSource={perSource} />
           </div>
         </div>
       </div>

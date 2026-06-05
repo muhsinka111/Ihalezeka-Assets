@@ -6,7 +6,7 @@ import { getAllEkapTendersForDate, formatEkapDate } from "./ekap-client.js";
 import {
   mapEkapToTender,
   upsertTender,
-  logScraperRun,
+  finalizeScraperRun,
   updateScraperRunAnalyzed,
   retry,
   ScraperResult,
@@ -100,18 +100,9 @@ export async function runEkapScraper(
     logger.error({ err }, "EKAP scraper failed");
   }
 
-  // Persist the scraper run record and capture its ID so we can patch it later
-  // with the actual number of successfully completed analyses.
-  const runId = await logScraperRun({
-    source: "ekap",
-    startedAt,
-    completedAt: new Date(),
-    recordsFetched: result.fetched,
-    recordsInserted: result.inserted,
-    recordsUpdated: result.updated,
-    recordsAnalyzed: 0,
-    errorMessage: result.error ?? null,
-  });
+  // Persist the scraper run record (with computed health status) and capture
+  // its ID so we can patch it later with the number of completed analyses.
+  const runId = await finalizeScraperRun({ source: "ekap", startedAt, result });
 
   if (newTenderIdsForAnalysis.length > 0) {
     logger.info(

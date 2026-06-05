@@ -1,9 +1,11 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { tendersTable, scraperRunsTable } from "@workspace/db";
 import type { InsertTender, InsertScraperRun } from "@workspace/db";
 import type { EkapTender } from "./ekap-client.js";
 import type { IlanAd, IlanAdDetail } from "./ilan-client.js";
+import { logger } from "../lib/logger.js";
+import { sendEmail, buildSourceHealthEmailHtml } from "../lib/emailService.js";
 
 export interface ScraperResult {
   fetched: number;
@@ -13,6 +15,28 @@ export interface ScraperResult {
   newTenderIds?: number[];
   error?: string;
 }
+
+/**
+ * Health outcome of a single scraper run.
+ * - "success"  — fetched at least one record without error.
+ * - "empty"    — ran without throwing but fetched 0 records (a silent failure).
+ * - "error"    — threw / failed during the run.
+ * - "disabled" — source intentionally skipped (missing API key / no stable source).
+ */
+export type ScraperRunStatus = "success" | "empty" | "error" | "disabled";
+
+/** Human-friendly source names used in admin views and operator alert emails. */
+export const SOURCE_LABELS: Record<string, string> = {
+  ekap: "EKAP",
+  ilan_gov: "ilan.gov.tr",
+  ted: "TED (AB İhaleleri)",
+  worldbank: "Dünya Bankası",
+  ebrd: "EBRD",
+  kit: "KİT",
+  tubitak: "TÜBİTAK",
+  kosgeb: "KOSGEB",
+  kalkinma_ajansi: "Kalkınma Ajansları",
+};
 
 export function parseTurkishDate(str: string): Date {
   if (!str) return new Date();
@@ -255,4 +279,122 @@ export async function logScraperRun(run: InsertScraperRun): Promise<string> {
 
 export async function updateScraperRunAnalyzed(id: string, recordsAnalyzed: number): Promise<void> {
   await db.update(scraperRunsTable).set({ recordsAnalyzed }).where(eq(scraperRunsTable.id, id));
+}
+
+/** Derive a run's health status from its result and disabled flag. */
+function deriveRunStatus(result: ScraperResult, disabled?: boolean): ScraperRunStatus {
+  if (disabled) return "disabled";
+  if (result.error) return "error";
+  if (result.fetched === 0) return "empty";
+  return "success";
+}
+
+/**
+ * Persist a scraper run with a computed health status and raise an operator
+ * alert when a previously-healthy source breaks or goes empty.
+ *
+ * This is the single chokepoint every scraper should use so that a 0-record or
+ * errored run is never silently recorded as a success. Returns the run id so
+ * callers (e.g. EKAP) can patch in the analyzed count afterwards.
+ */
+export async function finalizeScraperRun(params: {
+  source: string;
+  startedAt: Date;
+  result: ScraperResult;
+  /** Mark the source as intentionally skipped (not a failure). */
+  disabled?: boolean;
+  /** Human-readable reason recorded when disabled or when an empty run occurs. */
+  reason?: string;
+}): Promise<string> {
+  const { source, startedAt, result, disabled, reason } = params;
+  const status = deriveRunStatus(result, disabled);
+
+  let errorMessage: string | null = result.error ?? null;
+  if (!errorMessage && (status === "disabled" || status === "empty")) {
+    errorMessage =
+      reason ??
+      (status === "disabled"
+        ? "Kaynak devre dışı"
+        : "Çalıştı ancak 0 kayıt döndürdü (sessiz hata)");
+  }
+
+  // Look at the previous run to detect a working -> broken transition.
+  let priorStatus: ScraperRunStatus | undefined;
+  try {
+    const prior = await db
+      .select({ status: scraperRunsTable.status })
+      .from(scraperRunsTable)
+      .where(eq(scraperRunsTable.source, source))
+      .orderBy(desc(scraperRunsTable.completedAt))
+      .limit(1);
+    priorStatus = prior[0]?.status as ScraperRunStatus | undefined;
+  } catch (err) {
+    logger.warn({ err, source }, "Could not read prior scraper run status");
+  }
+
+  const [row] = await db
+    .insert(scraperRunsTable)
+    .values({
+      source,
+      startedAt,
+      completedAt: new Date(),
+      recordsFetched: result.fetched,
+      recordsInserted: result.inserted,
+      recordsUpdated: result.updated,
+      errorMessage,
+      status,
+    })
+    .returning({ id: scraperRunsTable.id });
+
+  // Alert only on the transition from healthy to broken so we never spam the
+  // operator on every cron tick while a source stays down. Intentional disables
+  // never alert.
+  if (priorStatus === "success" && (status === "error" || status === "empty")) {
+    void sendSourceHealthAlert({
+      source,
+      status,
+      errorMessage,
+      recordsFetched: result.fetched,
+    }).catch((err) =>
+      logger.error({ err, source }, "Failed to send source-health alert email"),
+    );
+  }
+
+  return row.id;
+}
+
+/** Email the operator that a previously-working source has broken or gone empty. */
+async function sendSourceHealthAlert(opts: {
+  source: string;
+  status: "error" | "empty";
+  errorMessage: string | null;
+  recordsFetched: number;
+}): Promise<void> {
+  const to = process.env.OPERATOR_EMAIL ?? process.env.ADMIN_EMAIL ?? null;
+  const label = SOURCE_LABELS[opts.source] ?? opts.source;
+
+  if (!to) {
+    logger.warn(
+      { source: opts.source, status: opts.status },
+      "Source broke but no OPERATOR_EMAIL/ADMIN_EMAIL configured — alert email skipped",
+    );
+    return;
+  }
+
+  const subject =
+    opts.status === "error"
+      ? `İhaleZeka uyarısı: ${label} kaynağında hata`
+      : `İhaleZeka uyarısı: ${label} kaynağı 0 kayıt döndürdü`;
+
+  const html = buildSourceHealthEmailHtml({
+    sourceLabel: label,
+    status: opts.status,
+    errorMessage: opts.errorMessage,
+    recordsFetched: opts.recordsFetched,
+  });
+
+  const sent = await sendEmail({ to, subject, html });
+  if (sent) {
+    logger.info({ source: opts.source, to }, "Source-health alert email sent");
+  }
 }

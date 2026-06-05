@@ -115,5 +115,7 @@ export function startScraperScheduler(): void {
     { timezone: "UTC" },
   );
 
-  logger.info("Scraper scheduler started — EKAP, ilan.gov.tr, KİT, TED, World Bank, EBRD, TÜBİTAK, KOSGEB, Kalkınma Ajansları");
+  logger.info(
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT, World Bank, EBRD; conditional: TED (requires TED_API_KEY); disabled (no stable source): TÜBİTAK, KOSGEB, Kalkınma Ajansları",
+  );
 }

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { load } from "cheerio";
 import { logger } from "../lib/logger.js";
-import { upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
+import { upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
 import type { InsertTender } from "@workspace/db";
 
 interface KitTarget {
@@ -177,15 +177,7 @@ export async function runKitScraper(): Promise<ScraperResult> {
     logger.error({ err }, "KİT scraper failed");
   }
 
-  await logScraperRun({
-    source: "kit",
-    startedAt,
-    completedAt: new Date(),
-    recordsFetched: result.fetched,
-    recordsInserted: result.inserted,
-    recordsUpdated: result.updated,
-    errorMessage: result.error ?? null,
-  });
+  await finalizeScraperRun({ source: "kit", startedAt, result });
 
   return result;
 }
