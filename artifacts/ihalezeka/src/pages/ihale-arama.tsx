@@ -646,8 +646,9 @@ export default function IhaleAramaPage() {
           ) : (
             <div className="space-y-2.5">
               {tenders.map((tender: any) => {
-                const daysLeft = Math.ceil((new Date(tender.deadline).getTime() - Date.now()) / 86400_000);
-                const urgency = daysLeft <= 0 ? "text-destructive font-semibold" : daysLeft <= 3 ? "text-red-500 font-semibold" : daysLeft <= 7 ? "text-amber-500 font-semibold" : "";
+                const hasDeadline = tender.deadline != null;
+                const daysLeft = hasDeadline ? Math.ceil((new Date(tender.deadline).getTime() - Date.now()) / 86400_000) : null;
+                const urgency = !hasDeadline ? "" : daysLeft! <= 0 ? "text-destructive font-semibold" : daysLeft! <= 3 ? "text-red-500 font-semibold" : daysLeft! <= 7 ? "text-amber-500 font-semibold" : "";
                 return (
                   <Card key={tender.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="pt-3.5 pb-3.5">
@@ -677,14 +678,12 @@ export default function IhaleAramaPage() {
                             </span>
                             <span className={cn("flex items-center gap-1 text-xs text-muted-foreground", urgency)}>
                               <IconClock className="h-3.5 w-3.5 shrink-0" />
-                              {daysLeft > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti"}
+                              {!hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti"}
                             </span>
-                            {tender.estimatedValue > 0 && (
-                              <span className="flex items-center gap-0.5 text-xs font-semibold text-foreground">
-                                <IconCurrencyLira className="h-3.5 w-3.5 shrink-0" />
-                                {tender.estimatedValue.toLocaleString("tr-TR")}
-                              </span>
-                            )}
+                            <span className={cn("flex items-center gap-0.5 text-xs", tender.estimatedValue != null ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                              <IconCurrencyLira className="h-3.5 w-3.5 shrink-0" />
+                              {tender.estimatedValue != null ? tender.estimatedValue.toLocaleString("tr-TR") : "Belirtilmemiş"}
+                            </span>
                           </div>
                         </div>
                       </div>

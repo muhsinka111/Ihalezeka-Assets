@@ -27,8 +27,10 @@ function mapTedToTender(notice: TedNotice): InsertTender | null {
   const title = titleObj.tur ?? titleObj.eng ?? Object.values(titleObj)[0] ?? "TED İhalesi";
   const buyer = (notice["buyer-name"] ?? [])[0] ?? "Bilinmiyor";
   const deadlineStr = notice["deadline-receipt-request"];
-  const deadline = deadlineStr ? new Date(deadlineStr) : new Date(Date.now() + 60 * 86400_000);
-  const estimated = notice["value-estimated"]?.amount ?? 0;
+  const parsedDeadline = deadlineStr ? new Date(deadlineStr) : null;
+  const deadline = parsedDeadline && !isNaN(parsedDeadline.getTime()) ? parsedDeadline : null;
+  const rawEstimated = notice["value-estimated"]?.amount;
+  const estimated = typeof rawEstimated === "number" && rawEstimated > 0 ? rawEstimated : null;
 
   return {
     ikn: `ted-${pubNum}`,

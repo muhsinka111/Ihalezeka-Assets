@@ -5,6 +5,7 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { ListTendersCategory } from './listTendersCategory';
 import type { ListTendersDurum } from './listTendersDurum';
 import type { ListTendersSortBy } from './listTendersSortBy';
 import type { ListTendersSortDir } from './listTendersSortDir';
@@ -50,7 +51,7 @@ source?: ListTendersSource;
 /**
  * Filter by tender category
  */
-category?: 'ihale' | 'hibe' | 'uluslararasi';
+category?: ListTendersCategory;
 /**
  * Status filter
  */

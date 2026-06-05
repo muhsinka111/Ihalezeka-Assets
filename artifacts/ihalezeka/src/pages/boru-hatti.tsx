@@ -72,7 +72,8 @@ export default function BoruHattiPage() {
             </div>
             <div className={`min-h-48 rounded-xl border-2 border-dashed p-3 space-y-3 ${stage.color} transition-colors`}>
               {grouped[stage.id]?.map((item: any) => {
-                const daysLeft = Math.ceil((new Date(item.tender.deadline).getTime() - Date.now()) / 86400_000);
+                const hasDeadline = item.tender.deadline != null;
+                const daysLeft = hasDeadline ? Math.ceil((new Date(item.tender.deadline).getTime() - Date.now()) / 86400_000) : null;
                 return (
                   <div
                     key={item.id}
@@ -88,8 +89,8 @@ export default function BoruHattiPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${fitColor(item.tender?.fitScore ?? 70)}`}>
                         {item.tender?.fitScore ?? "—"}
                       </span>
-                      <span className={`text-xs ${daysLeft <= 0 ? "text-destructive" : daysLeft <= 7 ? "text-amber-500" : "text-muted-foreground"}`}>
-                        {daysLeft > 0 ? `${daysLeft}g` : "Süresi geçti"}
+                      <span className={`text-xs ${!hasDeadline ? "text-muted-foreground" : daysLeft! <= 0 ? "text-destructive" : daysLeft! <= 7 ? "text-amber-500" : "text-muted-foreground"}`}>
+                        {!hasDeadline ? "—" : daysLeft! > 0 ? `${daysLeft}g` : "Süresi geçti"}
                       </span>
                     </div>
                   </div>

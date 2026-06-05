@@ -83,8 +83,16 @@ export interface Tender {
   type: string;
   /** Procurement method (e.g. açık ihale usulü) */
   method: string;
-  estimatedValue: number;
-  deadline: string;
+  /**
+     * Estimated/contract value in TRY. Null means not disclosed (e.g. confidential EKAP yaklaşık maliyet).
+     * @nullable
+     */
+  estimatedValue?: number | null;
+  /**
+     * Tender deadline. Null means the source did not publish a deadline.
+     * @nullable
+     */
+  deadline?: string | null;
   cpvCodes?: string[];
   /** Province */
   il: string;
@@ -550,13 +558,6 @@ export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTender
 export const ListTendersSource = {
   ekap: 'ekap',
   ilan_gov: 'ilan_gov',
-  ted: 'ted',
-  worldbank: 'worldbank',
-  ebrd: 'ebrd',
-  kit: 'kit',
-  tubitak: 'tubitak',
-  kosgeb: 'kosgeb',
-  kalkinma_ajansi: 'kalkinma_ajansi',
 } as const;
 
 export type ListTendersCategory = typeof ListTendersCategory[keyof typeof ListTendersCategory];

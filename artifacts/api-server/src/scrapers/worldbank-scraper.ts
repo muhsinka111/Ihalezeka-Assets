@@ -24,10 +24,10 @@ interface WbResponse {
   total?: number;
 }
 
-function parseBudget(val: string | number | undefined): number {
-  if (!val) return 0;
+function parseBudget(val: string | number | undefined): number | null {
+  if (!val) return null;
   const n = typeof val === "string" ? parseFloat(val.replace(/[^0-9.]/g, "")) : val;
-  return isNaN(n) ? 0 : n;
+  return isNaN(n) || n <= 0 ? null : n;
 }
 
 function mapWbToTender(notice: WbNotice): InsertTender | null {
@@ -37,7 +37,8 @@ function mapWbToTender(notice: WbNotice): InsertTender | null {
   const title = notice.project_name ?? notice.prd_name ?? "World Bank İhalesi";
   const agency = notice.borrower_name ?? "World Bank";
   const deadlineStr = notice.deadline;
-  const deadline = deadlineStr ? new Date(deadlineStr) : new Date(Date.now() + 60 * 86400_000);
+  const parsedDeadline = deadlineStr ? new Date(deadlineStr) : null;
+  const deadline = parsedDeadline && !isNaN(parsedDeadline.getTime()) ? parsedDeadline : null;
   const estimated = parseBudget(notice.bdgt);
 
   return {

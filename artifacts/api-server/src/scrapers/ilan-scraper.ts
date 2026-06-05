@@ -1,5 +1,5 @@
 import { logger } from "../lib/logger.js";
-import { getAllRecentIlanAds } from "./ilan-client.js";
+import { getAllRecentIlanAds, getIlanAdDetail } from "./ilan-client.js";
 import { mapIlanToTender, upsertTender, logScraperRun, retry, ScraperResult } from "./utils.js";
 
 export async function runIlanScraper(hoursBack = 48): Promise<ScraperResult> {
@@ -14,7 +14,11 @@ export async function runIlanScraper(hoursBack = 48): Promise<ScraperResult> {
 
     for (const ad of ads) {
       try {
-        const mapped = mapIlanToTender(ad);
+        // Fetch the ad detail so we get a real deadline, category (type) and any
+        // published value instead of fabricating them. Falls back to the list ad
+        // when the detail is unavailable.
+        const detail = await getIlanAdDetail(ad.id);
+        const mapped = mapIlanToTender(detail ?? ad);
         const { inserted, tenderId } = await upsertTender(mapped);
         if (inserted) {
           result.inserted++;

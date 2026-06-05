@@ -50,7 +50,7 @@ function buildScoringPrompt(
     `İl: ${tender.il || "Belirtilmemiş"}`,
     `Tahmini Değer: ${tender.estimatedValue ? `${tender.estimatedValue.toLocaleString("tr-TR")} TL` : "Belirtilmemiş"}`,
     `CPV Kodları: ${tender.cpvCodes.length > 0 ? tender.cpvCodes.join(", ") : "Belirtilmemiş"}`,
-    `Son Başvuru: ${tender.deadline.toLocaleDateString("tr-TR")}`,
+    `Son Başvuru: ${tender.deadline ? tender.deadline.toLocaleDateString("tr-TR") : "Belirtilmemiş"}`,
     `Durum: ${tender.status}`,
     tender.description ? `Açıklama: ${tender.description.slice(0, 500)}` : null,
     tender.qualificationCriteria.length > 0
@@ -162,7 +162,7 @@ function computeRuleBasedScore(
     }
   }
 
-  if (profile.experienceCeiling && tender.estimatedValue > 0) {
+  if (profile.experienceCeiling && tender.estimatedValue != null && tender.estimatedValue > 0) {
     if (tender.estimatedValue <= profile.experienceCeiling) {
       score += 10;
       pros.push("İhale değeri deneyim limitinizin altında");

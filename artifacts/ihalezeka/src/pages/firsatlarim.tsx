@@ -93,10 +93,10 @@ export default function FirsatlarimPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      ₺{match.tender.estimatedValue.toLocaleString('tr-TR')}
+                      {match.tender.estimatedValue != null ? `₺${match.tender.estimatedValue.toLocaleString('tr-TR')}` : "Belirtilmemiş"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {new Date(match.tender.deadline).toLocaleDateString('tr-TR')}
+                      {match.tender.deadline != null ? new Date(match.tender.deadline).toLocaleDateString('tr-TR') : "Belirtilmemiş"}
                     </td>
                     <td className="px-4 py-3">
                       {/* Action buttons */}

@@ -20,8 +20,16 @@ export interface Tender {
   type: string;
   /** Procurement method (e.g. açık ihale usulü) */
   method: string;
-  estimatedValue: number;
-  deadline: Date;
+  /**
+     * Estimated/contract value in TRY. Null means not disclosed (e.g. confidential EKAP yaklaşık maliyet).
+     * @nullable
+     */
+  estimatedValue?: number | null;
+  /**
+     * Tender deadline. Null means the source did not publish a deadline.
+     * @nullable
+     */
+  deadline?: Date | null;
   cpvCodes?: string[];
   /** Province */
   il: string;

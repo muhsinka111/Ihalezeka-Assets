@@ -370,9 +370,10 @@ export default function IhaleDetayPage() {
   }
 
   const tender = match.tender;
-  const daysLeft = Math.ceil((new Date(tender.deadline).getTime() - Date.now()) / 86400_000);
-  const deadlineText = daysLeft > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti";
-  const deadlineColor = daysLeft <= 0 ? "text-destructive" : daysLeft <= 7 ? "text-amber-500" : "text-emerald-600";
+  const hasDeadline = tender.deadline != null;
+  const daysLeft = hasDeadline ? Math.ceil((new Date(tender.deadline as string).getTime() - Date.now()) / 86400_000) : null;
+  const deadlineText = !hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti";
+  const deadlineColor = !hasDeadline ? "text-muted-foreground" : daysLeft! <= 0 ? "text-destructive" : daysLeft! <= 7 ? "text-amber-500" : "text-emerald-600";
   const criteria = (match as any).criteriaCompliance ?? [];
   const tenderAny = tender as any;
   const documents: Array<{ name: string; url: string; type: string }> = tenderAny.documents ?? [];
@@ -554,7 +555,7 @@ export default function IhaleDetayPage() {
               <div className="w-full space-y-2 text-sm">
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Tahmini Bedel</span>
-                  <span className="font-semibold">₺{tender.estimatedValue.toLocaleString("tr-TR")}</span>
+                  <span className="font-semibold">{tender.estimatedValue != null ? `₺${tender.estimatedValue.toLocaleString("tr-TR")}` : "Belirtilmemiş"}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">İl</span>
@@ -576,7 +577,7 @@ export default function IhaleDetayPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Son Başvuru</span>
-                  <span className={`font-semibold ${deadlineColor}`}>{new Date(tender.deadline).toLocaleDateString("tr-TR")}</span>
+                  <span className={`font-semibold ${deadlineColor}`}>{hasDeadline ? new Date(tender.deadline as string).toLocaleDateString("tr-TR") : "Belirtilmemiş"}</span>
                 </div>
               </div>
             </CardContent>

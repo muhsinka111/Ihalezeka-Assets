@@ -113,7 +113,7 @@ async function scrapeKalkinmaPage(target: KalkinmaTarget, url: string): Promise<
     const description = descEl.text().trim().slice(0, 500) || null;
 
     const dateText = el$.find("time, .tarih, .deadline, .date, .son-basvuru").text().trim();
-    let deadline = new Date(Date.now() + 90 * 86400_000);
+    let deadline: Date | null = null;
     if (dateText) {
       const parsed = new Date(dateText.replace(/(\d{2})\.(\d{2})\.(\d{4})/, "$3-$2-$1"));
       if (!isNaN(parsed.getTime())) deadline = parsed;
@@ -125,7 +125,7 @@ async function scrapeKalkinmaPage(target: KalkinmaTarget, url: string): Promise<
       agencyName: target.agency,
       type: "Kalkınma Ajansı Hibesi",
       method: "Hibe",
-      estimatedValue: 0,
+      estimatedValue: null,
       deadline,
       cpvCodes: [],
       il: target.il,

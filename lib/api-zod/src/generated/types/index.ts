@@ -30,6 +30,7 @@ export * from './healthStatus';
 export * from './listDocumentsParams';
 export * from './listMatchesParams';
 export * from './listMatchesStatus';
+export * from './listTendersCategory';
 export * from './listTendersDurum';
 export * from './listTendersParams';
 export * from './listTendersSortBy';

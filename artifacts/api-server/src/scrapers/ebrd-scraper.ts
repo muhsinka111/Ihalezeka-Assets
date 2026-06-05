@@ -9,9 +9,9 @@ const EBRD_API = "https://www.ebrd.com/cs/Satellite";
 interface EbrdNotice {
   title: string;
   agency: string;
-  deadline: Date;
+  deadline: Date | null;
   url: string;
-  value: number;
+  value: number | null;
   id: string;
 }
 
@@ -48,15 +48,15 @@ async function fetchEbrdNotices(): Promise<EbrdNotice[]> {
     const href = titleEl.attr("href") ?? "";
     const url = href.startsWith("http") ? href : `https://www.ebrd.com${href}`;
     const dateText = cells.eq(cells.length - 1).text().trim();
-    const deadline = dateText ? new Date(dateText) : new Date(Date.now() + 60 * 86400_000);
-    const validDeadline = isNaN(deadline.getTime()) ? new Date(Date.now() + 60 * 86400_000) : deadline;
+    const parsed = dateText ? new Date(dateText) : null;
+    const validDeadline = parsed && !isNaN(parsed.getTime()) ? parsed : null;
 
     notices.push({
       title,
       agency: "EBRD",
       deadline: validDeadline,
       url,
-      value: 0,
+      value: null,
       id: slugify(title, "ebrd"),
     });
   });

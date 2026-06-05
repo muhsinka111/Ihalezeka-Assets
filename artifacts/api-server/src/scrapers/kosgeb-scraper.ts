@@ -52,7 +52,7 @@ async function scrapeKosgbPage(url: string): Promise<InsertTender[]> {
     const description = descEl.text().trim().slice(0, 500) || null;
 
     const dateText = el$.find("time, .tarih, .deadline, .date").text().trim();
-    let deadline = new Date(Date.now() + 90 * 86400_000);
+    let deadline: Date | null = null;
     if (dateText) {
       const parsed = new Date(dateText.replace(/(\d{2})\.(\d{2})\.(\d{4})/, "$3-$2-$1"));
       if (!isNaN(parsed.getTime())) deadline = parsed;
@@ -64,7 +64,7 @@ async function scrapeKosgbPage(url: string): Promise<InsertTender[]> {
       agencyName: "KOSGEB",
       type: "KOBİ Desteği",
       method: "Hibe",
-      estimatedValue: 0,
+      estimatedValue: null,
       deadline,
       cpvCodes: [],
       il: "",

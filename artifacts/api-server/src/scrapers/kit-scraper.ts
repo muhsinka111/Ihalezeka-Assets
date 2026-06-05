@@ -105,7 +105,7 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
     if (!sourceUrl) sourceUrl = target.url;
 
     const dateText = row.find(target.dateSelector).first().text().trim();
-    let deadline = new Date(Date.now() + 30 * 86400_000);
+    let deadline: Date | null = null;
     if (dateText) {
       const parsed = new Date(dateText.replace(/(\d{2})\.(\d{2})\.(\d{4})/, "$3-$2-$1"));
       if (!isNaN(parsed.getTime())) deadline = parsed;
@@ -119,7 +119,7 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
       agencyName: target.agency,
       type: "İhale",
       method: "Bilinmiyor",
-      estimatedValue: 0,
+      estimatedValue: null,
       deadline,
       cpvCodes: [],
       il: target.il,
