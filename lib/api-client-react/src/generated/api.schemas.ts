@@ -136,6 +136,33 @@ export type AiSummaryQualificationCriteriaItem = {
   threshold?: string | null;
 };
 
+/**
+ * Where the analysis text was grounded (document > notice > source_page > metadata)
+ * @nullable
+ */
+export type AiSummaryGroundingSource = typeof AiSummaryGroundingSource[keyof typeof AiSummaryGroundingSource] | null;
+
+
+export const AiSummaryGroundingSource = {
+  document: 'document',
+  notice: 'notice',
+  source_page: 'source_page',
+  metadata: 'metadata',
+} as const;
+
+/**
+ * Confidence in the analysis given how it was grounded
+ * @nullable
+ */
+export type AiSummaryConfidence = typeof AiSummaryConfidence[keyof typeof AiSummaryConfidence] | null;
+
+
+export const AiSummaryConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
 export interface AiSummary {
   summary: string;
   /**
@@ -157,6 +184,16 @@ export interface AiSummary {
   scoringWeights?: AiSummaryScoringWeights;
   qualificationCriteria?: AiSummaryQualificationCriteriaItem[];
   analyzedAt: string;
+  /**
+     * Where the analysis text was grounded (document > notice > source_page > metadata)
+     * @nullable
+     */
+  groundingSource?: AiSummaryGroundingSource;
+  /**
+     * Confidence in the analysis given how it was grounded
+     * @nullable
+     */
+  confidence?: AiSummaryConfidence;
 }
 
 export type MatchStatus = typeof MatchStatus[keyof typeof MatchStatus];

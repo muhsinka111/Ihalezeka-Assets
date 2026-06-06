@@ -6,6 +6,7 @@ import type { EkapTender } from "./ekap-client.js";
 import type { IlanAd, IlanAdDetail } from "./ilan-client.js";
 import { logger } from "../lib/logger.js";
 import { sendEmail, buildSourceHealthEmailHtml } from "../lib/emailService.js";
+import { stripHtml } from "../services/document-analyzer.js";
 
 export interface ScraperResult {
   fetched: number;
@@ -224,6 +225,15 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
   // Value parsed from the ad text where present; null otherwise.
   const estimatedValue = parseTurkishCurrency(detail.text);
 
+  // Plain-text notice body for grounding/search: the ilan detail HTML lives in
+  // `content`; fall back to the (already-plain) `text` field.
+  const rawContent =
+    typeof (ad as unknown as { content?: unknown }).content === "string"
+      ? ((ad as unknown as { content: string }).content)
+      : "";
+  const description =
+    (rawContent ? stripHtml(rawContent) : (detail.text ?? "").trim()) || null;
+
   const sourceUrl = ad.urlStr
     ? ad.urlStr.startsWith("http")
       ? ad.urlStr
@@ -243,6 +253,7 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
     status: "active",
     sourceSystem: "ilan_gov",
     category: "ihale",
+    description,
     sourceUrl,
     procurementMethod: null,
     documents: null,

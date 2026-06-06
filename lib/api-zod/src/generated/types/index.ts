@@ -8,6 +8,8 @@
 
 export * from './agencySpend';
 export * from './aiSummary';
+export * from './aiSummaryConfidence';
+export * from './aiSummaryGroundingSource';
 export * from './aiSummaryQualificationCriteriaItem';
 export * from './aiSummaryScoringWeights';
 export * from './apiKey';

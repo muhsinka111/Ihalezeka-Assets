@@ -11,7 +11,7 @@ import {
   retry,
   ScraperResult,
 } from "./utils.js";
-import { analyzeDocuments } from "../services/document-analyzer.js";
+import { analyzeTender } from "../services/document-analyzer.js";
 import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
 
 /**
@@ -30,26 +30,39 @@ async function backgroundAnalyzeTender(tenderId: number): Promise<boolean> {
   if (!tender) return false;
   if (tender.aiSummary) return false;
 
-  const documents =
-    (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
-
-  const { analysis, docsDownloaded, docsTotal } = await analyzeDocuments({
-    tenderTitle: tender.title,
-    tenderType: tender.type ?? undefined,
-    tenderMethod: tender.method ?? undefined,
-    agencyName: tender.agencyName ?? undefined,
-    documents,
+  const { analysis, docsDownloaded, docsTotal, extractedText, groundingSource } = await analyzeTender({
+    title: tender.title,
+    type: tender.type,
+    method: tender.method,
+    agencyName: tender.agencyName,
+    il: tender.il,
+    category: tender.category,
+    cpvCodes: tender.cpvCodes,
+    estimatedValue: tender.estimatedValue,
+    deadline: tender.deadline,
+    description: tender.description,
+    sourceSystem: tender.sourceSystem,
+    sourceUrl: tender.sourceUrl,
+    documents: (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [],
+    rawData: (tender.rawData as Record<string, unknown>) ?? {},
   });
 
   const existingRawData = (tender.rawData as Record<string, unknown>) ?? {};
-  const updatedRawData = { ...existingRawData, _aiAnalysis: analysis };
+  const updatedRawData = {
+    ...existingRawData,
+    _aiAnalysis: analysis,
+    ...(extractedText ? { _docText: extractedText, _docTextSource: "document" } : {}),
+  };
 
   await db
     .update(tendersTable)
     .set({ aiSummary: analysis, rawData: updatedRawData, updatedAt: new Date() })
     .where(eq(tendersTable.id, tenderId));
 
-  logger.info({ tenderId, docsDownloaded, docsTotal }, "Background AI document analysis completed");
+  logger.info(
+    { tenderId, docsDownloaded, docsTotal, groundingSource },
+    "Background AI analysis completed",
+  );
   return true;
 }
 
@@ -81,10 +94,9 @@ export async function runEkapScraper(
         if (inserted) {
           result.inserted++;
           result.newTenderIds!.push(tenderId);
-          // Only enqueue tenders that have at least one document with a URL
-          if ((tender.dokumanListe ?? []).some((d) => !!d.url)) {
-            newTenderIdsForAnalysis.push(tenderId);
-          }
+          // Every new tender is analyzable: the grounding chain always yields
+          // at least a metadata-grounded analysis, so no document-URL gate.
+          newTenderIdsForAnalysis.push(tenderId);
         } else {
           result.updated++;
         }

@@ -80,7 +80,9 @@ export const GetDashboardTopMatchesResponseItem = zod.object({
   "criterion": zod.string(),
   "threshold": zod.string().nullish()
 })).optional(),
-  "analyzedAt": zod.coerce.date()
+  "analyzedAt": zod.coerce.date(),
+  "groundingSource": zod.union([zod.literal('document'),zod.literal('notice'),zod.literal('source_page'),zod.literal('metadata'),zod.literal(null)]).nullish().describe('Where the analysis text was grounded (document > notice > source_page > metadata)'),
+  "confidence": zod.union([zod.literal('high'),zod.literal('medium'),zod.literal('low'),zod.literal(null)]).nullish().describe('Confidence in the analysis given how it was grounded')
 }).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })
@@ -282,7 +284,9 @@ export const ListMatchesResponse = zod.object({
   "criterion": zod.string(),
   "threshold": zod.string().nullish()
 })).optional(),
-  "analyzedAt": zod.coerce.date()
+  "analyzedAt": zod.coerce.date(),
+  "groundingSource": zod.union([zod.literal('document'),zod.literal('notice'),zod.literal('source_page'),zod.literal('metadata'),zod.literal(null)]).nullish().describe('Where the analysis text was grounded (document > notice > source_page > metadata)'),
+  "confidence": zod.union([zod.literal('high'),zod.literal('medium'),zod.literal('low'),zod.literal(null)]).nullish().describe('Confidence in the analysis given how it was grounded')
 }).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })),
@@ -347,7 +351,9 @@ export const GetMatchResponse = zod.object({
   "criterion": zod.string(),
   "threshold": zod.string().nullish()
 })).optional(),
-  "analyzedAt": zod.coerce.date()
+  "analyzedAt": zod.coerce.date(),
+  "groundingSource": zod.union([zod.literal('document'),zod.literal('notice'),zod.literal('source_page'),zod.literal('metadata'),zod.literal(null)]).nullish().describe('Where the analysis text was grounded (document > notice > source_page > metadata)'),
+  "confidence": zod.union([zod.literal('high'),zod.literal('medium'),zod.literal('low'),zod.literal(null)]).nullish().describe('Confidence in the analysis given how it was grounded')
 }).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 }).and(zod.object({
@@ -447,7 +453,9 @@ export const UpdateMatchStatusResponse = zod.object({
   "criterion": zod.string(),
   "threshold": zod.string().nullish()
 })).optional(),
-  "analyzedAt": zod.coerce.date()
+  "analyzedAt": zod.coerce.date(),
+  "groundingSource": zod.union([zod.literal('document'),zod.literal('notice'),zod.literal('source_page'),zod.literal('metadata'),zod.literal(null)]).nullish().describe('Where the analysis text was grounded (document > notice > source_page > metadata)'),
+  "confidence": zod.union([zod.literal('high'),zod.literal('medium'),zod.literal('low'),zod.literal(null)]).nullish().describe('Confidence in the analysis given how it was grounded')
 }).nullish().describe('AI-extracted document analysis (null when no documents analyzed)'),
   "createdAt": zod.coerce.date().optional()
 })

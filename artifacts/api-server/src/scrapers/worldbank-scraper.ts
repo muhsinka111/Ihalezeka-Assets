@@ -17,6 +17,8 @@ interface WbNotice {
   url?: string;
   status?: string;
   country?: string;
+  notice_text?: string;
+  bid_description?: string;
 }
 
 interface WbResponse {
@@ -41,6 +43,14 @@ function mapWbToTender(notice: WbNotice): InsertTender | null {
   const deadline = parsedDeadline && !isNaN(parsedDeadline.getTime()) ? parsedDeadline : null;
   const estimated = parseBudget(notice.bdgt);
 
+  // Notice body for grounding/search (these fields are returned by the API even
+  // though the public docs omit them).
+  const description =
+    [notice.notice_text, notice.bid_description]
+      .map((s) => (typeof s === "string" ? s.trim() : ""))
+      .filter(Boolean)
+      .join("\n\n") || null;
+
   return {
     ikn: `wb-${String(id).replace(/[^a-zA-Z0-9-]/g, "-").slice(0, 80)}`,
     title,
@@ -53,6 +63,7 @@ function mapWbToTender(notice: WbNotice): InsertTender | null {
     il: "",
     status: "active",
     category: "uluslararasi",
+    description,
     sourceSystem: "worldbank",
     sourceUrl: notice.url ?? `https://projects.worldbank.org/`,
     procurementMethod: null,

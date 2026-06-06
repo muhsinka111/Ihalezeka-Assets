@@ -46,7 +46,19 @@ interface AiAnalysis {
   contact?: TenderContact | null;
   docsDownloaded?: number;
   docsTotal?: number;
+  groundingSource?: "document" | "notice" | "source_page" | "metadata" | null;
+  confidence?: "high" | "medium" | "low" | null;
 }
+
+const GROUNDING_META: Record<
+  NonNullable<AiAnalysis["groundingSource"]>,
+  { label: string; cls: string }
+> = {
+  document: { label: "Belge bazlı", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+  notice: { label: "İlan bazlı", cls: "bg-sky-100 text-sky-700 border-sky-200" },
+  source_page: { label: "Kaynak sayfadan", cls: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  metadata: { label: "Künye bazlı", cls: "bg-slate-100 text-slate-600 border-slate-200" },
+};
 
 const VERDICT_META: Record<FitVerdict, { label: string; cls: string; box: string; icon: typeof IconCheck }> = {
   uygun: {
@@ -172,6 +184,7 @@ function AiSummaryCard({
     analysis?.docsTotal != null &&
     analysis?.docsDownloaded != null &&
     analysis.docsDownloaded < analysis.docsTotal;
+  const gMeta = analysis?.groundingSource ? GROUNDING_META[analysis.groundingSource] : null;
 
   return (
     <Card>
@@ -182,6 +195,12 @@ function AiSummaryCard({
             Yapay Zeka Özeti
           </span>
           <div className="flex items-center gap-2">
+            {gMeta && (
+              <Badge variant="outline" className={`${gMeta.cls} gap-1 text-[11px] font-normal`}>
+                {gMeta.label}
+                {analysis?.confidence === "low" && " · sınırlı bilgi"}
+              </Badge>
+            )}
             {vMeta && (
               <Badge className={`${vMeta.cls} hover:${vMeta.cls} gap-1`}>
                 <vMeta.icon className="h-3.5 w-3.5" />

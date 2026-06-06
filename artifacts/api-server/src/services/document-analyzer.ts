@@ -4,7 +4,13 @@ import crypto from "crypto";
 import net from "net";
 import dns from "dns/promises";
 import { createRequire } from "module";
-import type { AiAnalysis, TenderContact, FitVerdict } from "@workspace/db";
+import type {
+  AiAnalysis,
+  TenderContact,
+  FitVerdict,
+  GroundingSource,
+  GroundingConfidence,
+} from "@workspace/db";
 
 const _require = createRequire(import.meta.url);
 
@@ -107,6 +113,51 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
+const MAX_REDIRECT_HOPS = 5;
+
+/**
+ * Redirect-safe GET. Axios/follow-redirects only validates the initial URL, so a
+ * public URL could 30x-redirect to a private/internal target and bypass the SSRF
+ * guard. We disable automatic redirects and follow them manually, re-running
+ * isUnsafeFetchTarget() on every hop before issuing the next request.
+ */
+async function safeAxiosGet(
+  startUrl: string,
+  opts: {
+    agent: https.Agent;
+    responseType: "arraybuffer" | "text";
+    headers: Record<string, string>;
+    maxContentLength?: number;
+    transitional?: { silentJSONParsing: boolean };
+  },
+): Promise<import("axios").AxiosResponse> {
+  let url = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+    const res = await axios.get(url, {
+      responseType: opts.responseType,
+      timeout: DOWNLOAD_TIMEOUT_MS,
+      httpsAgent: opts.agent,
+      maxRedirects: 0,
+      maxContentLength: opts.maxContentLength,
+      headers: opts.headers,
+      validateStatus: (s) => s >= 200 && s < 400,
+      ...(opts.transitional ? { transitional: opts.transitional } : {}),
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers?.location;
+      if (!loc) return res;
+      const next = new URL(loc, url).toString();
+      if (await isUnsafeFetchTarget(next)) {
+        throw new Error("unsafe-redirect-target");
+      }
+      url = next;
+      continue;
+    }
+    return res;
+  }
+  throw new Error("too-many-redirects");
+}
+
 function aesCbcEncrypt(plaintext: string, key: Buffer, iv: Buffer): string {
   const cipher = crypto.createCipheriv("aes-192-cbc", key, iv);
   return Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]).toString("base64");
@@ -136,10 +187,9 @@ async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer
   };
 
   try {
-    const res = await axios.get(fullUrl, {
+    const res = await safeAxiosGet(fullUrl, {
+      agent: strictAgent,
       responseType: "arraybuffer",
-      timeout: DOWNLOAD_TIMEOUT_MS,
-      httpsAgent: strictAgent,
       headers,
     });
     return Buffer.from(res.data);
@@ -147,10 +197,9 @@ async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer
     // For EKAP hosts only: fall back to relaxed TLS when the government CA is
     // not trusted — this mirrors the same pattern in ekap-client.ts.
     if (isEkap && EKAP_TLS_ERRORS.has(strictErr?.code)) {
-      const res = await axios.get(fullUrl, {
+      const res = await safeAxiosGet(fullUrl, {
+        agent: ekapFallbackAgent,
         responseType: "arraybuffer",
-        timeout: DOWNLOAD_TIMEOUT_MS,
-        httpsAgent: ekapFallbackAgent,
         headers,
       });
       return Buffer.from(res.data);
@@ -263,9 +312,12 @@ async function getOpenAI() {
   return openai;
 }
 
-const EXTRACTION_PROMPT = `Sen bir Türk kamu ihalesi uzmanısın. Aşağıdaki ihale belgesi metnini ve (varsa) başvuran firmanın profilini analiz et ve yapılandırılmış bilgi çıkar.
+const EXTRACTION_PROMPT = `Sen bir Türk kamu ihalesi uzmanısın. Aşağıda sana bir ihaleye ait MEVCUT bilgi (belge metni, ilan/duyuru metni veya ihale künyesi) ve (varsa) başvuran firmanın profili verilecek. Bu bilgiyi analiz et ve yapılandırılmış bilgi çıkar.
 
-ÖNEMLİ: Tüm çıkarımlar SADECE verilen belge metnine dayanmalı. Belgede olmayan bilgileri UYDURMA; bilgi yoksa null veya boş liste döndür. Eğer belge içeriği indirilemediyse bunu özet ve gerekçede açıkça belirt ve uydurma gereksinim yazma.
+ÖNEMLİ KURALLAR:
+- Tüm çıkarımlar SADECE sana verilen metne dayanmalı. Metinde olmayan sayısal/teknik gereksinimleri UYDURMA; bir alan metinde yoksa null veya boş liste döndür.
+- Sana verilen bilgi sınırlı olsa bile (örneğin sadece ihale künyesi/başlığı), ASLA "doküman bulunamadı", "bilgi mevcut belgelerde bulunamadı" gibi bir RET cevabı verme. Her zaman eldeki bilgiye dayanan gerçek bir özet ve değerlendirme üret.
+- Bilgi sınırlıysa, özette ihalenin konusunu/idaresini/kapsamını eldeki künyeye göre açıkla ve gereksinimlerin resmi ilan/dokümandan teyit edilmesi gerektiğini kısaca belirt. Yine de fitVerdict, pros ve risks alanlarını eldeki bilgiye göre doldur.
 
 Metinden şunları çıkar:
 1. Kısa özet (2-3 cümle, Türkçe)
@@ -321,7 +373,50 @@ function normalizeContact(c: unknown): TenderContact | null {
   return hasAny ? contact : null;
 }
 
-async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<AiAnalysis> {
+/**
+ * Hard-refusal detector. The product requirement is that the analyzer/chat must
+ * NEVER answer with a "documents could not be found / downloaded / accessed"
+ * refusal — prompting alone is not a guarantee, so we deterministically detect
+ * and replace such output. NOTE: this intentionally does NOT match the allowed
+ * soft phrasing ("bu detay eldeki ihale bilgisinde yer almıyor"), which is a
+ * legitimate, grounded answer rather than a blanket refusal.
+ */
+const REFUSAL_RE =
+  /(belge|belgeler|doküman|dokuman|dökuman)\w*\s+(bulunamad|indirilemed|erişilemed|erisilemed|mevcut\s+değil|mevcut\s+degil)|mevcut\s+belgelerde\s+bulunamad|bilgi\s+mevcut\s+belgelerde\s+bulunamad|no\s+documents?\s+(found|available)|could\s+not\s+(find|access|download)\s+(the\s+)?documents?|unable\s+to\s+(access|find|download)\s+(the\s+)?documents?/i;
+
+function isRefusal(text: string | null | undefined): boolean {
+  return !!text && REFUSAL_RE.test(text);
+}
+
+/** Build a grounded summary from the resolved context — used when the model refuses. */
+function groundedFallbackSummary(
+  title: string,
+  source: GroundingSource,
+  contextText: string,
+): string {
+  const snippet = contextText.replace(/\s+/g, " ").trim().slice(0, 400);
+  const label = GROUNDING_LABEL[source].toLowerCase();
+  const base = `${title} ihalesine ilişkin değerlendirme ${label} esas alınarak yapılmıştır.`;
+  const detail = snippet ? ` Eldeki bilgi: ${snippet}${snippet.length >= 400 ? "…" : ""}` : "";
+  const note =
+    source === "document" || source === "notice"
+      ? ""
+      : " Ayrıntılı gereksinimlerin resmi ilan/ihale dokümanından teyit edilmesi önerilir.";
+  return `${base}${detail}${note}`.trim();
+}
+
+const GROUNDING_LABEL: Record<GroundingSource, string> = {
+  document: "İhale dokümanından çıkarılan metin",
+  notice: "İhale ilan/duyuru metni",
+  source_page: "Kaynak ilan sayfasından alınan metin",
+  metadata: "Yalnızca ihale künyesi (detaylı doküman metni yok)",
+};
+
+async function analyzeWithAI(
+  textContent: string,
+  tenderTitle: string,
+  groundingSource: GroundingSource = "notice",
+): Promise<AiAnalysis> {
   const openai = await getOpenAI();
   const maxChars = 12_000;
   const truncated =
@@ -329,12 +424,20 @@ async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<
       ? textContent.slice(0, maxChars) + "\n\n[Metin kesildi — belge çok uzun]"
       : textContent;
 
+  const sourceNote =
+    groundingSource === "metadata"
+      ? "\n\nNOT: Bu ihale için detaylı doküman metni mevcut değil; aşağıdaki bilgi yalnızca ihale künyesidir. Yine de eldeki bilgiye dayalı gerçek bir özet ve değerlendirme üret, RET cevabı verme."
+      : "";
+
   const response = await openai.chat.completions.create({
     model: "gpt-5-mini",
     max_completion_tokens: 2048,
     messages: [
       { role: "system", content: EXTRACTION_PROMPT },
-      { role: "user", content: `İhale Adı: ${tenderTitle}\n\nBelge İçeriği:\n${truncated}` },
+      {
+        role: "user",
+        content: `İhale Adı: ${tenderTitle}\n\nBilgi Kaynağı: ${GROUNDING_LABEL[groundingSource]}${sourceNote}\n\nMevcut Bilgi:\n${truncated}`,
+      },
     ],
   });
 
@@ -347,8 +450,16 @@ async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<
     parsed = {};
   }
 
+  // Deterministic refusal guardrail: never let a "documents not found/downloadable"
+  // refusal escape as the summary — replace it with a grounded fallback.
+  const rawSummary = typeof parsed.summary === "string" ? parsed.summary.trim() : "";
+  const summary =
+    rawSummary && !isRefusal(rawSummary)
+      ? rawSummary
+      : groundedFallbackSummary(tenderTitle, groundingSource, truncated);
+
   return {
-    summary: parsed.summary ?? "Belge analizi tamamlandı.",
+    summary,
     requiredTurnover: typeof parsed.requiredTurnover === "number" ? parsed.requiredTurnover : null,
     experienceYears: typeof parsed.experienceYears === "number" ? parsed.experienceYears : null,
     personnelCount: typeof parsed.personnelCount === "number" ? parsed.personnelCount : null,
@@ -369,15 +480,37 @@ async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<
   };
 }
 
-export interface DocumentAnalysisInput {
-  tenderTitle: string;
-  tenderType?: string;
-  tenderMethod?: string;
-  agencyName?: string;
-  documents: Array<{ name: string; url: string; type: string }>;
+/**
+ * Everything the grounding chain needs to resolve a text context for a tender.
+ * Accepts the relevant subset of a tender row (all source systems).
+ */
+export interface TenderGroundingInput {
+  title: string;
+  type?: string | null;
+  method?: string | null;
+  agencyName?: string | null;
+  il?: string | null;
+  category?: string | null;
+  cpvCodes?: string[] | null;
+  estimatedValue?: number | null;
+  deadline?: Date | string | null;
+  description?: string | null;
+  sourceSystem?: string | null;
+  sourceUrl?: string | null;
+  documents?: Array<{ name: string; url: string; type: string }> | null;
+  rawData?: Record<string, unknown> | null;
 }
 
-/** Result type returned by analyzeDocuments — extends AiAnalysis with coverage stats. */
+/** Outcome of the mandatory grounding chain — never has empty text. */
+export interface GroundingResult {
+  text: string;
+  source: GroundingSource;
+  confidence: GroundingConfidence;
+  docsDownloaded: number;
+  docsTotal: number;
+}
+
+/** Result type returned by analyzeTender — extends AiAnalysis with coverage stats. */
 export interface DocumentAnalysisResult {
   analysis: AiAnalysis;
   /** Number of documents successfully downloaded and parsed. */
@@ -444,69 +577,272 @@ export interface DocumentAnalysisResultWithText extends DocumentAnalysisResult {
   extractedText: string;
 }
 
-export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<DocumentAnalysisResultWithText> {
-  const { tenderTitle, tenderType, tenderMethod, agencyName, documents } = input;
+// ── Grounding chain ────────────────────────────────────────────────
+// The analyzer/chat MUST always have text to work with. We try, in order:
+//   1. extracted attachment document text (persisted _docText or live download)
+//   2. stored notice/detail text (description / ilan content / raw_data harvest)
+//   3. live-fetched source_url page text
+//   4. tender metadata (always available)
+// The first step yielding >= MIN_GROUNDING_CHARS wins; step 4 is the guaranteed
+// floor, so the context passed to the AI is NEVER empty.
+
+const MIN_GROUNDING_CHARS = 200;
+
+/** Keys in raw_data that commonly carry the human-readable notice/detail text. */
+const RAW_TEXT_KEYS = [
+  "content", "notice_text", "noticeText", "bid_description", "bidDescription",
+  "description", "aciklama", "açıklama", "ozet", "özet", "summary", "text",
+  "detay", "ihaleKonusu", "konu", "scope", "legalBasisDetail",
+];
+
+/** raw_data keys we must never harvest as grounding text. */
+const RAW_SKIP_KEYS = new Set([
+  "_docText",
+  "_docTextSource",
+  "_aiAnalysis",
+  "_groundingSource",
+]);
+
+/** Strip HTML to readable plain text (scripts/styles removed, entities decoded). */
+export function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\/(p|div|li|tr|h[1-6]|table)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&apos;/gi, "'")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Harvest readable text from raw_data string fields (HTML stripped where needed). */
+function harvestRawDataText(rawData: Record<string, unknown> | null | undefined): string {
+  if (!rawData || typeof rawData !== "object") return "";
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  const consider = (v: unknown) => {
+    if (typeof v !== "string") return;
+    const trimmed = v.trim();
+    if (!trimmed) return;
+    if (/^https?:\/\//i.test(trimmed)) return; // url
+    if (/^[\w.+-]+@[\w.-]+$/.test(trimmed)) return; // email
+    const cleaned = /<[a-z!/][\s\S]*>/i.test(trimmed) ? stripHtml(trimmed) : trimmed;
+    if (cleaned.length < 20) return;
+    const key = cleaned.slice(0, 100).toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    parts.push(cleaned);
+  };
+  // Priority known text keys first, then any other long string field.
+  for (const k of RAW_TEXT_KEYS) {
+    if (k in rawData && !RAW_SKIP_KEYS.has(k)) consider((rawData as Record<string, unknown>)[k]);
+  }
+  for (const [k, v] of Object.entries(rawData)) {
+    if (RAW_TEXT_KEYS.includes(k) || RAW_SKIP_KEYS.has(k)) continue;
+    if (typeof v === "string" && v.length >= 60) consider(v);
+  }
+  return parts.join("\n\n").slice(0, MAX_EXTRACT_CHARS);
+}
+
+/** Build a labelled metadata block — the guaranteed grounding floor. */
+function buildMetadataText(t: TenderGroundingInput): string {
+  const deadline =
+    t.deadline != null
+      ? (() => {
+          const d = t.deadline instanceof Date ? t.deadline : new Date(t.deadline);
+          return isNaN(d.getTime()) ? null : d.toLocaleString("tr-TR");
+        })()
+      : null;
+  return [
+    `İhale Başlığı: ${t.title}`,
+    t.agencyName && `İdare / Kurum: ${t.agencyName}`,
+    t.il && `İl: ${t.il}`,
+    t.type && `İhale Türü: ${t.type}`,
+    t.method && `İhale Usulü: ${t.method}`,
+    t.category && `Kategori: ${t.category}`,
+    t.cpvCodes && t.cpvCodes.length > 0 && `CPV Kodları: ${t.cpvCodes.join(", ")}`,
+    t.estimatedValue != null && `Yaklaşık/İhale Bedeli: ${t.estimatedValue.toLocaleString("tr-TR")} TL`,
+    deadline && `Son Teklif / İhale Tarihi: ${deadline}`,
+    t.sourceUrl && `Kaynak Bağlantısı: ${t.sourceUrl}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Resolve stored notice/detail text (chain step 2). */
+function resolveStoredText(t: TenderGroundingInput): string {
+  const desc = (t.description ?? "").trim();
+  if (desc.length >= MIN_GROUNDING_CHARS) return desc;
+  const content =
+    typeof t.rawData?.content === "string" ? stripHtml(t.rawData.content as string) : "";
+  if (content.length >= MIN_GROUNDING_CHARS) return content;
+  const harvested = harvestRawDataText(t.rawData);
+  if (harvested.length >= MIN_GROUNDING_CHARS) return harvested;
+  // Return whatever partial text exists (used to enrich the metadata floor).
+  return [desc, content, harvested].sort((a, b) => b.length - a.length)[0] ?? "";
+}
+
+/** Live-fetch the source page and extract readable text (chain step 3). */
+async function fetchPageText(url: string): Promise<string> {
+  try {
+    if (!url || !url.startsWith("http")) return "";
+    if (await isUnsafeFetchTarget(url)) return "";
+    const isEkap = EKAP_HOSTNAME_RE.test(new URL(url).hostname);
+    const headers = {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+    };
+    const get = (agent: https.Agent) =>
+      safeAxiosGet(url, {
+        agent,
+        responseType: "text",
+        maxContentLength: 8_000_000,
+        headers,
+        transitional: { silentJSONParsing: true },
+      });
+    let res;
+    try {
+      res = await get(strictAgent);
+    } catch (err: any) {
+      if (isEkap && EKAP_TLS_ERRORS.has(err?.code)) res = await get(ekapFallbackAgent);
+      else throw err;
+    }
+    const html = typeof res.data === "string" ? res.data : String(res.data ?? "");
+    return stripHtml(html).slice(0, MAX_EXTRACT_CHARS);
+  } catch (err: any) {
+    console.warn(`[document-analyzer] source page fetch failed (${err?.code ?? err?.message}): ${url}`);
+    return "";
+  }
+}
+
+/** Run the mandatory grounding chain. Never returns empty text. */
+export async function resolveGrounding(t: TenderGroundingInput): Promise<GroundingResult> {
+  let docsDownloaded = 0;
+  let docsTotal = 0;
+
+  // Step 1a: persisted attachment text (set by a prior analyze / task #72).
+  // Only trust it as a real document when it carries the provenance marker we
+  // write at persist time — otherwise legacy/poisoned _docText could be mislabelled.
+  const persisted =
+    typeof t.rawData?._docText === "string" ? (t.rawData._docText as string).trim() : "";
+  const persistedIsDocument = t.rawData?._docTextSource === "document";
+  if (persistedIsDocument && persisted.length >= MIN_GROUNDING_CHARS) {
+    return { text: persisted, source: "document", confidence: "high", docsDownloaded, docsTotal };
+  }
+  // Step 1b: live download + extract any real document URLs (empty today).
+  const docs = (t.documents ?? []).filter((d) => !!d.url);
+  if (docs.length > 0) {
+    const extracted = await extractDocumentsText(docs, t.title);
+    docsDownloaded = extracted.docsDownloaded;
+    docsTotal = extracted.docsTotal;
+    if (extracted.text.trim().length >= MIN_GROUNDING_CHARS) {
+      return {
+        text: extracted.text,
+        source: "document",
+        confidence: "high",
+        docsDownloaded,
+        docsTotal,
+      };
+    }
+  }
+
+  // Step 2: stored notice/detail text.
+  const stored = resolveStoredText(t);
+  if (stored.length >= MIN_GROUNDING_CHARS) {
+    return { text: stored, source: "notice", confidence: "high", docsDownloaded, docsTotal };
+  }
+
+  // Step 3: live source page.
+  if (t.sourceUrl) {
+    const page = await fetchPageText(t.sourceUrl);
+    if (page.length >= MIN_GROUNDING_CHARS) {
+      return { text: page, source: "source_page", confidence: "medium", docsDownloaded, docsTotal };
+    }
+  }
+
+  // Step 4: metadata floor (always). Enrich with any partial stored text found.
+  const meta = buildMetadataText(t);
+  const text = stored ? `${meta}\n\n${stored}` : meta;
+  return { text, source: "metadata", confidence: "low", docsDownloaded, docsTotal };
+}
+
+export async function analyzeTender(
+  input: TenderGroundingInput,
+): Promise<DocumentAnalysisResultWithText & { groundingSource: GroundingSource; confidence: GroundingConfidence }> {
+  const grounding = await resolveGrounding(input);
 
   const contextPrefix = [
-    tenderType && `Tür: ${tenderType}`,
-    tenderMethod && `Usul: ${tenderMethod}`,
-    agencyName && `İdare: ${agencyName}`,
+    input.type && `Tür: ${input.type}`,
+    input.method && `Usul: ${input.method}`,
+    input.agencyName && `İdare: ${input.agencyName}`,
   ]
     .filter(Boolean)
     .join(" | ");
 
-  const { text: extractedText, docsDownloaded, docsTotal } = await extractDocumentsText(
-    documents ?? [],
-    tenderTitle,
-  );
+  const combinedText = contextPrefix ? `${contextPrefix}\n\n${grounding.text}` : grounding.text;
+  const analysis = await analyzeWithAI(combinedText, input.title, grounding.source);
+  analysis.docsDownloaded = grounding.docsDownloaded;
+  analysis.docsTotal = grounding.docsTotal;
+  analysis.groundingSource = grounding.source;
+  analysis.confidence = grounding.confidence;
 
-  const bodyText =
-    extractedText.length === 0
-      ? (documents?.length ?? 0) === 0
-        ? "Bu ihale için doküman URL'si mevcut değil. İhale başlığı ve bilgilere göre genel bir değerlendirme yap."
-        : "Bu ihale için doküman içeriği indirilemedi veya okunamadı. İhale başlığı ve bilgilere göre genel bir değerlendirme yap."
-      : extractedText;
+  // Only persist text as attachment text when it really came from documents —
+  // otherwise step 1 of the chain would later mislabel notice text as "document".
+  const extractedText = grounding.source === "document" ? grounding.text : "";
 
-  const combinedText = contextPrefix ? `${contextPrefix}\n\n${bodyText}` : bodyText;
-  const analysis = await analyzeWithAI(combinedText, tenderTitle);
-  analysis.docsDownloaded = docsDownloaded;
-  analysis.docsTotal = docsTotal;
-
-  return { analysis, docsDownloaded, docsTotal, extractedText };
+  return {
+    analysis,
+    docsDownloaded: grounding.docsDownloaded,
+    docsTotal: grounding.docsTotal,
+    extractedText,
+    groundingSource: grounding.source,
+    confidence: grounding.confidence,
+  };
 }
 
 export interface DocumentChatInput {
   tenderTitle: string;
   agencyName?: string;
-  /** Already-extracted document text. When empty, the model is told docs are unavailable. */
+  /** Grounded tender text (documents / notice / source page / metadata). */
   docText: string;
+  /** Where docText came from, so the assistant frames its answer honestly. */
+  groundingSource?: GroundingSource;
   question: string;
   /** Prior turns (most recent last). Optional. */
   history?: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
-const DOC_CHAT_SYSTEM = `Sen bir Türk kamu ihalesi uzmanı asistanısın. Kullanıcının sorusunu SADECE aşağıda verilen ihale belgesi metnine dayanarak yanıtla.
+const DOC_CHAT_SYSTEM = `Sen bir Türk kamu ihalesi uzmanı asistanısın. Kullanıcının sorusunu SADECE aşağıda verilen ihale bilgisine (belge metni, ilan/duyuru metni veya ihale künyesi) dayanarak yanıtla.
 
 Kurallar:
-- Yanıtların yalnızca verilen belge metnine dayanmalı. Belgede olmayan bir bilgiyi UYDURMA.
-- Cevap belgede yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
-- Belge metni boşsa veya indirilemediyse, belgeye erişilemediğini açıkça belirt.
+- Yanıtların yalnızca verilen ihale bilgisine dayanmalı. Verilmeyen bir bilgiyi UYDURMA.
+- Sorunun yanıtı eldeki bilgide yoksa, bunu kibarca belirt ("Bu detay eldeki ihale bilgisinde yer almıyor; resmi ilan veya ihale dokümanını kontrol edebilirsiniz.") ve varsa konuyla ilgili genel bilgiyi yine de paylaş. ASLA "belge indirilemedi/bulunamadı" deme — sana her zaman en azından ihale künyesi verilir.
 - Kısa, net ve Türkçe yanıt ver. Mümkünse ilgili tutar/tarih/madde gibi somut bilgileri ver.`;
 
 export async function chatWithDocuments(input: DocumentChatInput): Promise<string> {
-  const { tenderTitle, agencyName, docText, question, history } = input;
+  const { tenderTitle, agencyName, docText, groundingSource = "metadata", question, history } = input;
   const openai = await getOpenAI();
 
   const trimmedDocs =
     docText && docText.trim().length > 0
       ? docText.slice(0, 24_000)
-      : "[Belge metni mevcut değil veya indirilemedi.]";
+      : `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}`;
 
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: DOC_CHAT_SYSTEM },
     {
       role: "system",
-      content: `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}\n\nBelge İçeriği:\n${trimmedDocs}`,
+      content: `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}\nBilgi Kaynağı: ${GROUNDING_LABEL[groundingSource]}\n\nMevcut İhale Bilgisi:\n${trimmedDocs}`,
     },
     ...(history ?? []).slice(-6),
     { role: "user", content: question },
@@ -519,7 +855,14 @@ export async function chatWithDocuments(input: DocumentChatInput): Promise<strin
     temperature: 0.2,
   });
 
-  return response.choices[0]?.message?.content?.trim() ?? "Yanıt üretilemedi.";
+  const answer = response.choices[0]?.message?.content?.trim() ?? "";
+  // Deterministic refusal guardrail: replace a hard "documents unavailable" refusal
+  // with a grounded, honest answer that still leans on the available tender info.
+  if (!answer || isRefusal(answer)) {
+    const snippet = trimmedDocs.replace(/\s+/g, " ").trim().slice(0, 500);
+    return `Bu detay eldeki ihale bilgisinde net olarak yer almıyor; resmi ilan veya ihale dokümanını kontrol edebilirsiniz. Eldeki bilgiye göre: ${snippet}`;
+  }
+  return answer;
 }
 
 export interface CriteriaComplianceItem {

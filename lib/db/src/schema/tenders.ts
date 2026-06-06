@@ -12,6 +12,18 @@ export interface TenderContact {
 
 export type FitVerdict = "uygun" | "dikkat" | "uygun_degil";
 
+/**
+ * Where the AI analysis text came from (mandatory grounding chain):
+ *  - document    → extracted attachment document text
+ *  - notice      → stored notice/detail text (ilan content, raw_data harvest)
+ *  - source_page → live-fetched source_url page text
+ *  - metadata    → tender metadata only (title/agency/CPV/value/deadline …)
+ */
+export type GroundingSource = "document" | "notice" | "source_page" | "metadata";
+
+/** Confidence in the analysis given how it was grounded. */
+export type GroundingConfidence = "high" | "medium" | "low";
+
 export interface AiAnalysis {
   summary: string;
   requiredTurnover: number | null;
@@ -28,6 +40,8 @@ export interface AiAnalysis {
   contact?: TenderContact | null;
   docsDownloaded?: number;
   docsTotal?: number;
+  groundingSource?: GroundingSource | null;
+  confidence?: GroundingConfidence | null;
 }
 
 export const tendersTable = pgTable("tenders", {

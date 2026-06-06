@@ -959,6 +959,14 @@ components:
         analyzedAt:
           type: string
           format: date-time
+        groundingSource:
+          type: ["string", "null"]
+          enum: [document, notice, source_page, metadata, null]
+          description: Where the analysis text was grounded (document > notice > source_page > metadata)
+        confidence:
+          type: ["string", "null"]
+          enum: [high, medium, low, null]
+          description: Confidence in the analysis given how it was grounded
 
     # ─── Match ──────────────────────────────────────────────────────────────────
     Match:

@@ -5,6 +5,8 @@
  * İhaleZeka API — Turkish public procurement intelligence platform
  * OpenAPI spec version: 0.1.0
  */
+import type { AiSummaryConfidence } from './aiSummaryConfidence';
+import type { AiSummaryGroundingSource } from './aiSummaryGroundingSource';
 import type { AiSummaryQualificationCriteriaItem } from './aiSummaryQualificationCriteriaItem';
 import type { AiSummaryScoringWeights } from './aiSummaryScoringWeights';
 
@@ -29,4 +31,14 @@ export interface AiSummary {
   scoringWeights?: AiSummaryScoringWeights;
   qualificationCriteria?: AiSummaryQualificationCriteriaItem[];
   analyzedAt: Date;
+  /**
+     * Where the analysis text was grounded (document > notice > source_page > metadata)
+     * @nullable
+     */
+  groundingSource?: AiSummaryGroundingSource;
+  /**
+     * Confidence in the analysis given how it was grounded
+     * @nullable
+     */
+  confidence?: AiSummaryConfidence;
 }

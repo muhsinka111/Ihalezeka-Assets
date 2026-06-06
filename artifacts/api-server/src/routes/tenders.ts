@@ -5,14 +5,35 @@ import { eq, ilike, and, gte, lte, or, isNull, sql, type SQL, desc, asc, count, 
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
 import { isFuzzySearchReady } from "../lib/search-bootstrap.js";
 import {
-  analyzeDocuments,
+  analyzeTender,
   chatWithDocuments,
-  extractDocumentsText,
+  resolveGrounding,
   fetchDocumentBytes,
   extractTextFromDocument,
+  type TenderGroundingInput,
 } from "../services/document-analyzer.js";
 
 const router = Router();
+
+/** Map a tender row to the grounding-chain input the analyzer/chat expect. */
+function toGroundingInput(tender: typeof tendersTable.$inferSelect): TenderGroundingInput {
+  return {
+    title: tender.title,
+    type: tender.type,
+    method: tender.method,
+    agencyName: tender.agencyName,
+    il: tender.il,
+    category: tender.category,
+    cpvCodes: tender.cpvCodes,
+    estimatedValue: tender.estimatedValue,
+    deadline: tender.deadline,
+    description: tender.description,
+    sourceSystem: tender.sourceSystem,
+    sourceUrl: tender.sourceUrl,
+    documents: (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [],
+    rawData: (tender.rawData as Record<string, unknown>) ?? {},
+  };
+}
 
 router.get("/tenders", async (req, res) => {
   try {
@@ -139,23 +160,18 @@ router.post("/tenders/:id/analyze", async (req, res) => {
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
     if (!tender) return res.status(404).json({ error: "Not found" });
 
-    const documents = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
-
-    const { analysis, docsDownloaded, docsTotal, extractedText } = await analyzeDocuments({
-      tenderTitle: tender.title,
-      tenderType: tender.type ?? undefined,
-      tenderMethod: tender.method ?? undefined,
-      agencyName: tender.agencyName ?? undefined,
-      documents,
-    });
+    const { analysis, docsDownloaded, docsTotal, extractedText, groundingSource, confidence } =
+      await analyzeTender(toGroundingInput(tender));
 
     const existingRawData = (tender.rawData as Record<string, unknown>) ?? {};
     const updatedRawData = {
       ...existingRawData,
       _aiAnalysis: analysis,
-      // Persist extracted document text so the document-chat endpoint and
-      // repeat analyses do not have to re-download/parse the files.
-      ...(extractedText ? { _docText: extractedText } : {}),
+      // Persist extracted document text ONLY when it really came from attachments —
+      // persisting notice/page text here would make the grounding chain later
+      // mislabel it as "document". extractedText is empty for non-document sources.
+      // _docTextSource is a provenance marker the chain requires before trusting it.
+      ...(extractedText ? { _docText: extractedText, _docTextSource: "document" } : {}),
     };
 
     await db
@@ -163,7 +179,7 @@ router.post("/tenders/:id/analyze", async (req, res) => {
       .set({ aiSummary: analysis, rawData: updatedRawData, updatedAt: new Date() })
       .where(eq(tendersTable.id, id));
 
-    res.json({ ok: true, analysis, docsDownloaded, docsTotal });
+    res.json({ ok: true, analysis, docsDownloaded, docsTotal, groundingSource, confidence });
   } catch (err) {
     console.error("Tender analyze error:", err);
     res.status(500).json({ error: "Analysis failed" });
@@ -282,17 +298,22 @@ router.post("/tenders/:id/chat", async (req, res) => {
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
     if (!tender) return res.status(404).json({ error: "Not found" });
 
-    const rawData = (tender.rawData as Record<string, unknown>) ?? {};
-    let docText = typeof rawData._docText === "string" ? (rawData._docText as string) : "";
+    // Ground the chat in the same mandatory chain the analyzer uses, so the
+    // assistant always has at least the tender metadata to answer from and
+    // never claims "no documents found".
+    const grounding = await resolveGrounding(toGroundingInput(tender));
 
-    if (!docText) {
-      const documents = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
-      const extracted = await extractDocumentsText(documents, tender.title);
-      docText = extracted.text;
-      if (docText) {
+    // Cache real attachment text for reuse; never persist notice/page text as
+    // _docText (it would later be mislabelled as a document by the chain).
+    if (grounding.source === "document" && grounding.text) {
+      const rawData = (tender.rawData as Record<string, unknown>) ?? {};
+      if (rawData._docText !== grounding.text) {
         await db
           .update(tendersTable)
-          .set({ rawData: { ...rawData, _docText: docText }, updatedAt: new Date() })
+          .set({
+            rawData: { ...rawData, _docText: grounding.text, _docTextSource: "document" },
+            updatedAt: new Date(),
+          })
           .where(eq(tendersTable.id, id));
       }
     }
@@ -300,12 +321,13 @@ router.post("/tenders/:id/chat", async (req, res) => {
     const answer = await chatWithDocuments({
       tenderTitle: tender.title,
       agencyName: tender.agencyName ?? undefined,
-      docText,
+      docText: grounding.text,
+      groundingSource: grounding.source,
       question: question.trim(),
       history: safeHistory,
     });
 
-    res.json({ answer, hasDocText: docText.length > 0 });
+    res.json({ answer, hasDocText: grounding.text.length > 0, groundingSource: grounding.source });
   } catch (err) {
     console.error("Tender chat error:", err);
     res.status(500).json({ error: "Chat failed" });
