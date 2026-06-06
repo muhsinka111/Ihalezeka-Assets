@@ -1,10 +1,68 @@
 import axios from "axios";
 import https from "https";
 import crypto from "crypto";
+import net from "net";
+import dns from "dns/promises";
 import { createRequire } from "module";
-import type { AiAnalysis } from "@workspace/db";
+import type { AiAnalysis, TenderContact, FitVerdict } from "@workspace/db";
 
 const _require = createRequire(import.meta.url);
+
+/**
+ * SSRF guard for outbound document downloads.
+ *
+ * Document URLs originate from external scrapers (EKAP / ilan.gov.tr) and are
+ * stored in the DB. If that data is ever poisoned, the byte-proxy endpoints
+ * (`/tenders/:id/document*`) could be turned into an SSRF sink. We therefore:
+ *  - allow only http/https targets;
+ *  - resolve the hostname and reject any private/loopback/link-local IP.
+ */
+function isPrivateIp(ip: string): boolean {
+  const v = net.isIP(ip);
+  if (v === 4) {
+    const [a, b] = ip.split(".").map(Number);
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+  if (v === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (lower.startsWith("fe80")) return true; // link-local
+    if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // ULA
+    // IPv4-mapped IPv6 (::ffff:a.b.c.d)
+    const mapped = lower.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return false;
+  }
+  return false;
+}
+
+/** Returns true if it is unsafe to fetch the given absolute URL. */
+async function isUnsafeFetchTarget(fullUrl: string): Promise<boolean> {
+  let parsed: URL;
+  try {
+    parsed = new URL(fullUrl);
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return true;
+  const host = parsed.hostname;
+  // Literal IP host — check directly.
+  if (net.isIP(host)) return isPrivateIp(host);
+  try {
+    const records = await dns.lookup(host, { all: true });
+    if (records.length === 0) return true;
+    return records.some((r) => isPrivateIp(r.address));
+  } catch {
+    return true; // resolution failed — treat as unsafe
+  }
+}
 
 const EKAP_BASE = "https://ekapv2.kik.gov.tr";
 const AES_KEY = Buffer.from("Qm2LtXR0aByP69vZNKef4wMJ");
@@ -110,7 +168,7 @@ async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer
  *
  * Returns null if all attempts fail.
  */
-async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
+export async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
   const fullUrl = url.startsWith("http") ? url : `${EKAP_BASE}${url}`;
   const cacheKey = fullUrl;
 
@@ -123,6 +181,13 @@ async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
     hostname = new URL(fullUrl).hostname;
   } catch {
     console.warn(`[document-analyzer] Invalid URL, skipping: ${url}`);
+    return null;
+  }
+
+  // SSRF guard: refuse non-http(s) targets and any host that resolves to a
+  // private/loopback/link-local address.
+  if (await isUnsafeFetchTarget(fullUrl)) {
+    console.warn(`[document-analyzer] Blocked unsafe fetch target: ${fullUrl}`);
     return null;
   }
 
@@ -177,7 +242,7 @@ async function extractTextFromDocx(buffer: Buffer): Promise<string> {
   }
 }
 
-async function extractTextFromDocument(
+export async function extractTextFromDocument(
   buffer: Buffer,
   docType: string,
   docName: string,
@@ -198,7 +263,9 @@ async function getOpenAI() {
   return openai;
 }
 
-const EXTRACTION_PROMPT = `Sen bir Türk kamu ihalesi uzmanısın. Aşağıdaki ihale belgesi metnini analiz et ve yapılandırılmış bilgi çıkar.
+const EXTRACTION_PROMPT = `Sen bir Türk kamu ihalesi uzmanısın. Aşağıdaki ihale belgesi metnini ve (varsa) başvuran firmanın profilini analiz et ve yapılandırılmış bilgi çıkar.
+
+ÖNEMLİ: Tüm çıkarımlar SADECE verilen belge metnine dayanmalı. Belgede olmayan bilgileri UYDURMA; bilgi yoksa null veya boş liste döndür. Eğer belge içeriği indirilemediyse bunu özet ve gerekçede açıkça belirt ve uydurma gereksinim yazma.
 
 Metinden şunları çıkar:
 1. Kısa özet (2-3 cümle, Türkçe)
@@ -208,6 +275,11 @@ Metinden şunları çıkar:
 5. Teknik şartnameden önemli gereksinimler (liste, en fazla 8 madde, Türkçe)
 6. Değerlendirme kriterleri ağırlıkları (obje: {"Fiyat": 40, "Teknik": 60} formatında, boş olabilir)
 7. Yeterlilik kriterleri — SADECE belge metninde açıkça belirtilmiş kriterler (liste: her biri {criterion: string, threshold: string|null} formatında, en fazla 8 madde)
+8. Genel uygunluk kararı (fitVerdict): firmanın bu ihaleye girmesi için "uygun" (güçlü uyum), "dikkat" (bazı riskler/eksikler var) veya "uygun_degil" (ciddi engeller var). Firma profili verilmemişse belgenin genel zorluğuna göre değerlendir.
+9. Kararın gerekçesi (fitReason): 1-2 cümle, belgeye dayalı Türkçe açıklama.
+10. Artılar (pros): firma için olumlu yönler (liste, en fazla 5 madde, Türkçe).
+11. Riskler (risks): dikkat edilmesi gereken riskler/zorluklar (liste, en fazla 5 madde, Türkçe).
+12. İletişim bilgileri (contact): idarenin adı, açık adresi, telefonu, e-postası ve irtibat kişisi. Belgede yoksa ilgili alan null olsun.
 
 Sadece JSON döndür, başka açıklama ekleme:
 {
@@ -217,8 +289,37 @@ Sadece JSON döndür, başka açıklama ekleme:
   "personnelCount": null,
   "technicalSpecs": [],
   "scoringWeights": {},
-  "qualificationCriteria": []
+  "qualificationCriteria": [],
+  "fitVerdict": "dikkat",
+  "fitReason": "...",
+  "pros": [],
+  "risks": [],
+  "contact": { "authority": null, "address": null, "phone": null, "email": null, "contactPerson": null }
 }`;
+
+function normalizeVerdict(v: unknown): FitVerdict | null {
+  if (typeof v !== "string") return null;
+  const s = v.toLowerCase().replace(/\s+/g, "_");
+  if (s.includes("uygun_degil") || s.includes("uygun_değil") || s === "no-go" || s === "nogo") return "uygun_degil";
+  if (s === "uygun" || s === "go") return "uygun";
+  if (s === "dikkat" || s === "caution") return "dikkat";
+  return null;
+}
+
+function normalizeContact(c: unknown): TenderContact | null {
+  if (!c || typeof c !== "object") return null;
+  const o = c as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : null);
+  const contact: TenderContact = {
+    authority: str(o.authority),
+    address: str(o.address),
+    phone: str(o.phone),
+    email: str(o.email),
+    contactPerson: str(o.contactPerson),
+  };
+  const hasAny = Object.values(contact).some((v) => v != null);
+  return hasAny ? contact : null;
+}
 
 async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<AiAnalysis> {
   const openai = await getOpenAI();
@@ -260,6 +361,11 @@ async function analyzeWithAI(textContent: string, tenderTitle: string): Promise<
       ? parsed.qualificationCriteria
       : [],
     analyzedAt: new Date().toISOString(),
+    fitVerdict: normalizeVerdict(parsed.fitVerdict),
+    fitReason: typeof parsed.fitReason === "string" ? parsed.fitReason : null,
+    pros: Array.isArray(parsed.pros) ? parsed.pros.filter((p) => typeof p === "string") : [],
+    risks: Array.isArray(parsed.risks) ? parsed.risks.filter((r) => typeof r === "string") : [],
+    contact: normalizeContact(parsed.contact),
   };
 }
 
@@ -280,21 +386,28 @@ export interface DocumentAnalysisResult {
   docsTotal: number;
 }
 
-export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<DocumentAnalysisResult> {
-  const { tenderTitle, tenderType, tenderMethod, agencyName, documents } = input;
+/** Result of extracting raw text from a tender's documents. */
+export interface ExtractedDocsText {
+  /** Concatenated, per-document labelled text (empty string when nothing extractable). */
+  text: string;
+  docsDownloaded: number;
+  docsTotal: number;
+}
 
-  const contextPrefix = [
-    tenderType && `Tür: ${tenderType}`,
-    tenderMethod && `Usul: ${tenderMethod}`,
-    agencyName && `İdare: ${agencyName}`,
-  ]
-    .filter(Boolean)
-    .join(" | ");
+const MAX_EXTRACT_CHARS = 40_000;
 
+/**
+ * Download (with EKAP TLS fallback + cache) and extract text from up to the
+ * first few documents of a tender. Shared by analyzeDocuments and the
+ * document-chat endpoint so text extraction is consistent and reuses the cache.
+ */
+export async function extractDocumentsText(
+  documents: Array<{ name: string; url: string; type: string }>,
+  tenderTitle = "",
+): Promise<ExtractedDocsText> {
   const docsToFetch = (documents ?? []).filter((d) => !!d.url).slice(0, 3);
   const docsTotal = docsToFetch.length;
   let docsDownloaded = 0;
-
   const allText: string[] = [];
 
   for (const doc of docsToFetch) {
@@ -315,20 +428,98 @@ export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<Do
         `[document-analyzer] Doc downloaded but no extractable text — tender="${tenderTitle}" doc="${doc.name}"`,
       );
     }
-    if (allText.join("\n").length > 15_000) break;
+    if (allText.join("\n").length > MAX_EXTRACT_CHARS) break;
   }
 
+  return {
+    text: allText.join("\n\n").slice(0, MAX_EXTRACT_CHARS),
+    docsDownloaded,
+    docsTotal,
+  };
+}
+
+/** Extends DocumentAnalysisResult with the raw extracted text used for analysis. */
+export interface DocumentAnalysisResultWithText extends DocumentAnalysisResult {
+  /** Combined extracted document text (for persistence + later document chat). */
+  extractedText: string;
+}
+
+export async function analyzeDocuments(input: DocumentAnalysisInput): Promise<DocumentAnalysisResultWithText> {
+  const { tenderTitle, tenderType, tenderMethod, agencyName, documents } = input;
+
+  const contextPrefix = [
+    tenderType && `Tür: ${tenderType}`,
+    tenderMethod && `Usul: ${tenderMethod}`,
+    agencyName && `İdare: ${agencyName}`,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  const { text: extractedText, docsDownloaded, docsTotal } = await extractDocumentsText(
+    documents ?? [],
+    tenderTitle,
+  );
+
   const bodyText =
-    allText.length === 0
-      ? documents.length === 0
+    extractedText.length === 0
+      ? (documents?.length ?? 0) === 0
         ? "Bu ihale için doküman URL'si mevcut değil. İhale başlığı ve bilgilere göre genel bir değerlendirme yap."
         : "Bu ihale için doküman içeriği indirilemedi veya okunamadı. İhale başlığı ve bilgilere göre genel bir değerlendirme yap."
-      : allText.join("\n\n");
+      : extractedText;
 
   const combinedText = contextPrefix ? `${contextPrefix}\n\n${bodyText}` : bodyText;
   const analysis = await analyzeWithAI(combinedText, tenderTitle);
+  analysis.docsDownloaded = docsDownloaded;
+  analysis.docsTotal = docsTotal;
 
-  return { analysis, docsDownloaded, docsTotal };
+  return { analysis, docsDownloaded, docsTotal, extractedText };
+}
+
+export interface DocumentChatInput {
+  tenderTitle: string;
+  agencyName?: string;
+  /** Already-extracted document text. When empty, the model is told docs are unavailable. */
+  docText: string;
+  question: string;
+  /** Prior turns (most recent last). Optional. */
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
+const DOC_CHAT_SYSTEM = `Sen bir Türk kamu ihalesi uzmanı asistanısın. Kullanıcının sorusunu SADECE aşağıda verilen ihale belgesi metnine dayanarak yanıtla.
+
+Kurallar:
+- Yanıtların yalnızca verilen belge metnine dayanmalı. Belgede olmayan bir bilgiyi UYDURMA.
+- Cevap belgede yoksa "Bu bilgi mevcut belgelerde bulunamadı." de.
+- Belge metni boşsa veya indirilemediyse, belgeye erişilemediğini açıkça belirt.
+- Kısa, net ve Türkçe yanıt ver. Mümkünse ilgili tutar/tarih/madde gibi somut bilgileri ver.`;
+
+export async function chatWithDocuments(input: DocumentChatInput): Promise<string> {
+  const { tenderTitle, agencyName, docText, question, history } = input;
+  const openai = await getOpenAI();
+
+  const trimmedDocs =
+    docText && docText.trim().length > 0
+      ? docText.slice(0, 24_000)
+      : "[Belge metni mevcut değil veya indirilemedi.]";
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: DOC_CHAT_SYSTEM },
+    {
+      role: "system",
+      content: `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}\n\nBelge İçeriği:\n${trimmedDocs}`,
+    },
+    ...(history ?? []).slice(-6),
+    { role: "user", content: question },
+  ];
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages,
+    max_tokens: 700,
+    temperature: 0.2,
+  });
+
+  return response.choices[0]?.message?.content?.trim() ?? "Yanıt üretilemedi.";
 }
 
 export interface CriteriaComplianceItem {

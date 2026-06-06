@@ -2,6 +2,16 @@ import { pgTable, text, serial, timestamp, real, jsonb, boolean } from "drizzle-
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export interface TenderContact {
+  authority: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  contactPerson: string | null;
+}
+
+export type FitVerdict = "uygun" | "dikkat" | "uygun_degil";
+
 export interface AiAnalysis {
   summary: string;
   requiredTurnover: number | null;
@@ -11,6 +21,13 @@ export interface AiAnalysis {
   scoringWeights: Record<string, number>;
   qualificationCriteria: Array<{ criterion: string; threshold: string | null }>;
   analyzedAt: string;
+  fitVerdict?: FitVerdict | null;
+  fitReason?: string | null;
+  pros?: string[];
+  risks?: string[];
+  contact?: TenderContact | null;
+  docsDownloaded?: number;
+  docsTotal?: number;
 }
 
 export const tendersTable = pgTable("tenders", {

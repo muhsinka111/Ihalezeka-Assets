@@ -8,6 +8,36 @@ import { computeCriteriaCompliance } from "../services/document-analyzer.js";
 const router = Router();
 const DEFAULT_BIZ = "demo-business";
 
+interface ResolvedContact {
+  authority: string | null;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  contactPerson: string | null;
+  sourceUrl: string | null;
+}
+
+/**
+ * Merge contact details from the AI document extraction (aiSummary.contact)
+ * with structured fields already present in the scraped raw data, preferring
+ * extracted values and falling back to raw data / tender columns.
+ */
+function buildContact(tender: any, aiSummary: any): ResolvedContact {
+  const raw = (tender?.rawData as Record<string, any>) ?? {};
+  const c = aiSummary?.contact ?? {};
+  const pick = (...vals: any[]) =>
+    vals.find((v) => typeof v === "string" && v.trim().length > 0)?.trim() ?? null;
+
+  return {
+    authority: pick(c.authority, raw.idareAdi, raw.advertiserName, tender?.agencyName),
+    address: pick(c.address, raw.addressCityName),
+    phone: pick(c.phone),
+    email: pick(c.email),
+    contactPerson: pick(c.contactPerson),
+    sourceUrl: pick(tender?.sourceUrl, raw.link, raw.url),
+  };
+}
+
 const formatMatch = (m: any, t: any) => ({
   id: m.id,
   tender: {
@@ -74,6 +104,7 @@ router.get("/matches/:tenderId", async (req, res) => {
     const match = formatMatch(row.matches, row.tenders);
     const tenderAny = row.tenders as any;
     const aiSummary = tenderAny.aiSummary ?? null;
+    const contact = buildContact(tenderAny, aiSummary);
 
     const [profile] = await db
       .select()
@@ -99,7 +130,7 @@ router.get("/matches/:tenderId", async (req, res) => {
       criteriaCompliance = [];
     }
 
-    res.json({ ...match, criteriaCompliance, aiSummary });
+    res.json({ ...match, criteriaCompliance, aiSummary, contact });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
