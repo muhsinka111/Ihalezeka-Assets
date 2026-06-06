@@ -934,3 +934,128 @@ export const DeleteApiKeyParams = zod.object({
 })
 
 
+/**
+ * @summary List the business's saved searches
+ */
+export const ListSavedSearchesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "criteria": zod.object({
+  "q": zod.string().optional(),
+  "il": zod.string().optional(),
+  "tur": zod.string().optional(),
+  "usul": zod.string().optional(),
+  "idare": zod.string().optional(),
+  "cpv": zod.string().optional(),
+  "sector": zod.string().optional(),
+  "minBedel": zod.number().optional(),
+  "maxBedel": zod.number().optional(),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional(),
+  "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional(),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional(),
+  "deadlineFrom": zod.string().optional(),
+  "deadlineTo": zod.string().optional()
+}).describe('Saved tender search filters; mirrors GET \/tenders query params.'),
+  "alertsEnabled": zod.boolean(),
+  "lastAlertedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListSavedSearchesResponse = zod.array(ListSavedSearchesResponseItem)
+
+
+/**
+ * @summary Save a new named search
+ */
+export const createSavedSearchBodyNameMax = 120;
+
+export const createSavedSearchBodyAlertsEnabledDefault = true;
+
+export const CreateSavedSearchBody = zod.object({
+  "name": zod.string().min(1).max(createSavedSearchBodyNameMax),
+  "criteria": zod.object({
+  "q": zod.string().optional(),
+  "il": zod.string().optional(),
+  "tur": zod.string().optional(),
+  "usul": zod.string().optional(),
+  "idare": zod.string().optional(),
+  "cpv": zod.string().optional(),
+  "sector": zod.string().optional(),
+  "minBedel": zod.number().optional(),
+  "maxBedel": zod.number().optional(),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional(),
+  "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional(),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional(),
+  "deadlineFrom": zod.string().optional(),
+  "deadlineTo": zod.string().optional()
+}).describe('Saved tender search filters; mirrors GET \/tenders query params.'),
+  "alertsEnabled": zod.boolean().default(createSavedSearchBodyAlertsEnabledDefault)
+})
+
+
+/**
+ * @summary Rename, retarget, or toggle alerts on a saved search
+ */
+export const UpdateSavedSearchParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateSavedSearchBodyNameMax = 120;
+
+
+
+export const UpdateSavedSearchBody = zod.object({
+  "name": zod.string().min(1).max(updateSavedSearchBodyNameMax).optional(),
+  "criteria": zod.object({
+  "q": zod.string().optional(),
+  "il": zod.string().optional(),
+  "tur": zod.string().optional(),
+  "usul": zod.string().optional(),
+  "idare": zod.string().optional(),
+  "cpv": zod.string().optional(),
+  "sector": zod.string().optional(),
+  "minBedel": zod.number().optional(),
+  "maxBedel": zod.number().optional(),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional(),
+  "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional(),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional(),
+  "deadlineFrom": zod.string().optional(),
+  "deadlineTo": zod.string().optional()
+}).optional().describe('Saved tender search filters; mirrors GET \/tenders query params.'),
+  "alertsEnabled": zod.boolean().optional()
+}).describe('Partial update — any subset of fields.')
+
+export const UpdateSavedSearchResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "criteria": zod.object({
+  "q": zod.string().optional(),
+  "il": zod.string().optional(),
+  "tur": zod.string().optional(),
+  "usul": zod.string().optional(),
+  "idare": zod.string().optional(),
+  "cpv": zod.string().optional(),
+  "sector": zod.string().optional(),
+  "minBedel": zod.number().optional(),
+  "maxBedel": zod.number().optional(),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional(),
+  "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional(),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional(),
+  "deadlineFrom": zod.string().optional(),
+  "deadlineTo": zod.string().optional()
+}).describe('Saved tender search filters; mirrors GET \/tenders query params.'),
+  "alertsEnabled": zod.boolean(),
+  "lastAlertedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a saved search
+ */
+export const DeleteSavedSearchParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+

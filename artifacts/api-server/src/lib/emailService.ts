@@ -203,6 +203,98 @@ export function buildSourceHealthEmailHtml(opts: {
 </html>`;
 }
 
+/**
+ * Daily digest for saved-search alerts. Groups newly-ingested tenders by the
+ * saved search they matched. Each tender shows title, buyer (agency) and
+ * deadline, and links into the app's tender detail page.
+ */
+export function buildSavedSearchEmailHtml(
+  groups: Array<{
+    searchName: string;
+    tenders: Array<{
+      id: number;
+      title: string;
+      agencyName: string;
+      deadline: Date | string | null;
+      sourceUrl?: string | null;
+    }>;
+  }>
+): string {
+  const appUrl = (process.env.APP_URL ?? "https://ihalezeka.com").replace(/\/$/, "");
+  const totalCount = groups.reduce((n, g) => n + g.tenders.length, 0);
+
+  const fmtDeadline = (d: Date | string | null): string => {
+    if (!d) return "Belirtilmemiş";
+    const date = d instanceof Date ? d : new Date(d);
+    if (isNaN(date.getTime())) return "Belirtilmemiş";
+    return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
+  };
+
+  const sections = groups
+    .map((g) => {
+      const rows = g.tenders
+        .map((t) => {
+          const safeTitle = escapeHtml(t.title);
+          const safeAgency = escapeHtml(t.agencyName);
+          const link = `${appUrl}/ihale/${t.id}`;
+          return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">
+          <a href="${link}" style="font-weight:600;color:#2C46D8;text-decoration:none;">${safeTitle}</a>
+          <div style="color:#6b7280;font-size:13px;margin-top:2px;">${safeAgency}</div>
+        </td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;color:#374151;font-size:13px;">
+          ${escapeHtml(fmtDeadline(t.deadline))}
+        </td>
+      </tr>`;
+        })
+        .join("");
+      return `
+      <div style="margin-bottom:28px;">
+        <h2 style="font-size:16px;color:#111827;margin:0 0 8px;font-weight:700;">
+          🔖 ${escapeHtml(g.searchName)}
+          <span style="font-weight:500;color:#6b7280;font-size:13px;">(${g.tenders.length} yeni)</span>
+        </h2>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#f9fafb;">
+              <th style="text-align:left;padding:8px 12px;font-size:12px;color:#374151;font-weight:600;border-bottom:2px solid #e5e7eb;">İhale Adı</th>
+              <th style="text-align:right;padding:8px 12px;font-size:12px;color:#374151;font-weight:600;border-bottom:2px solid #e5e7eb;">Son Teklif</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    })
+    .join("");
+
+  return `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#f9fafb;margin:0;padding:32px 16px;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#2C46D8,#7c3aed);padding:28px 32px;">
+      <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;">İhaleZeka — Kayıtlı Arama Bildirimi</h1>
+      <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:15px;">Kayıtlı aramalarınıza uyan ${totalCount} yeni ihale yayınlandı</p>
+    </div>
+    <div style="padding:24px 32px;">
+      ${sections}
+      <div style="margin-top:8px;text-align:center;">
+        <a href="${appUrl}/ihale-arama"
+           style="display:inline-block;background:#2C46D8;color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">
+          İhaleZeka'da Aç
+        </a>
+      </div>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      Bu e-posta kayıtlı aramalarınız için gönderilmiştir. Bildirimleri her aramanın yanından kapatabilirsiniz.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export function buildMatchEmailHtml(
   matches: Array<{ title: string; fitScore: number; agencyName: string; sourceUrl?: string | null }>
 ): string {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useListTenders, useGetTenderFacets } from "@workspace/api-client-react";
+import type { SavedSearchCriteria } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { AgencyLogo } from "@/components/AgencyLogo";
+import { SavedSearchesBar } from "@/components/SavedSearchesBar";
 import { Link, useSearch, useLocation } from "wouter";
 import {
   IconSearch, IconFilter, IconMapPin, IconCalendar, IconBuilding,
@@ -112,6 +114,24 @@ function filtersToUrlParams(f: Filters): string {
   if (f.sortBy) p.set("sortBy", f.sortBy);
   if (f.sortDir) p.set("sortDir", f.sortDir);
   return p.toString();
+}
+
+function appliedToCriteria(f: Filters): SavedSearchCriteria {
+  const c: SavedSearchCriteria = {};
+  if (f.q) c.q = f.q;
+  if (f.il) c.il = f.il;
+  if (f.tur) c.tur = f.tur;
+  if (f.sector) c.sector = f.sector;
+  if (f.usul) c.usul = f.usul;
+  if (f.idare) c.idare = f.idare;
+  if (f.minBedel) c.minBedel = f.minBedel;
+  if (f.maxBedel) c.maxBedel = f.maxBedel;
+  if (f.durum) c.durum = f.durum as SavedSearchCriteria["durum"];
+  if (f.deadlineFrom) c.deadlineFrom = f.deadlineFrom;
+  if (f.deadlineTo) c.deadlineTo = f.deadlineTo;
+  if (f.source) c.source = f.source as SavedSearchCriteria["source"];
+  if (f.category) c.category = f.category as SavedSearchCriteria["category"];
+  return c;
 }
 
 const SOURCE_META: Record<string, { label: string; className: string }> = {
@@ -427,6 +447,12 @@ export default function IhaleAramaPage() {
     applyFilters(empty);
   };
 
+  const applySavedSearch = useCallback((criteria: SavedSearchCriteria) => {
+    const next: Filters = { ...(criteria as Filters) };
+    setDraft(next);
+    applyFilters(next);
+  }, [applyFilters]);
+
   const removeChip = (key: keyof Filters) => {
     const next = { ...applied };
     delete next[key];
@@ -443,6 +469,8 @@ export default function IhaleAramaPage() {
 
   const hasMore = allItems.length < total;
   const isLoadingMore = isFetching && page > 1;
+
+  const hasActiveFilters = Object.keys(appliedToCriteria(applied)).length > 0;
 
   const currentSort = applied.sortBy && applied.sortDir
     ? `${applied.sortBy}_${applied.sortDir}`
@@ -776,6 +804,11 @@ export default function IhaleAramaPage() {
         <Button onClick={handleApply} className="gap-2 shrink-0">
           <IconSearch className="h-4 w-4" /> Ara
         </Button>
+        <SavedSearchesBar
+          currentCriteria={appliedToCriteria(applied)}
+          hasActiveFilters={hasActiveFilters}
+          onApply={applySavedSearch}
+        />
         <Button
           variant="outline"
           size="icon"

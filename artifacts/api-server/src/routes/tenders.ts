@@ -36,7 +36,7 @@ function toGroundingInput(tender: typeof tendersTable.$inferSelect): TenderGroun
   };
 }
 
-type ListQuery = ReturnType<typeof ListTendersQueryParams.parse>;
+export type ListQuery = ReturnType<typeof ListTendersQueryParams.parse>;
 
 /**
  * Build the SQL predicates shared by the list and facet endpoints, plus the
@@ -46,7 +46,7 @@ type ListQuery = ReturnType<typeof ListTendersQueryParams.parse>;
  * the OTHER active filters — the standard faceted-search behaviour where a
  * dimension's own selection does not constrain its own counts.
  */
-function buildTenderConditions(
+export function buildTenderConditions(
   query: ListQuery,
   opts: { excludeSector?: boolean } = {},
 ): { conditions: SQL[]; relevanceExpr: SQL | null } {

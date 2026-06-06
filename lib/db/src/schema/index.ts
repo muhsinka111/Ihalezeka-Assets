@@ -8,5 +8,6 @@ export * from "./competitors";
 export * from "./apiKeys";
 export * from "./scraperRuns";
 export * from "./notifications";
+export * from "./savedSearches";
 export * from "./socialConnections";
 export * from "./socialPosts";

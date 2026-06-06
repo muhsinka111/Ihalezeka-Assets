@@ -32,6 +32,8 @@ tags:
     description: Performance reports
   - name: api-keys
     description: AI provider key management
+  - name: saved-searches
+    description: Saved searches and email alerts
 
 paths:
   /healthz:
@@ -822,6 +824,81 @@ paths:
         "204":
           description: Deleted
 
+  # ─── Saved Searches ───────────────────────────────────────────────────────────
+  /saved-searches:
+    get:
+      operationId: listSavedSearches
+      tags: [saved-searches]
+      summary: List the business's saved searches
+      responses:
+        "200":
+          description: Saved searches list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedSearch"
+
+    post:
+      operationId: createSavedSearch
+      tags: [saved-searches]
+      summary: Save a new named search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedSearchInput"
+      responses:
+        "201":
+          description: Created saved search
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedSearch"
+
+  /saved-searches/{id}:
+    patch:
+      operationId: updateSavedSearch
+      tags: [saved-searches]
+      summary: Rename, retarget, or toggle alerts on a saved search
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavedSearchUpdate"
+      responses:
+        "200":
+          description: Updated saved search
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedSearch"
+        "404":
+          description: Not found
+
+    delete:
+      operationId: deleteSavedSearch
+      tags: [saved-searches]
+      summary: Delete a saved search
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -1514,3 +1591,89 @@ components:
         key:
           type: string
           description: Raw API key (will be encrypted before storage)
+
+    SavedSearchCriteria:
+      type: object
+      description: Saved tender search filters; mirrors GET /tenders query params.
+      properties:
+        q:
+          type: string
+        il:
+          type: string
+        tur:
+          type: string
+        usul:
+          type: string
+        idare:
+          type: string
+        cpv:
+          type: string
+        sector:
+          type: string
+        minBedel:
+          type: number
+        maxBedel:
+          type: number
+        source:
+          type: string
+          enum: [ekap, ilan_gov, ted, worldbank, ebrd, kit, tubitak, kosgeb, kalkinma_ajansi]
+        category:
+          type: string
+          enum: [ihale, hibe, uluslararasi]
+        durum:
+          type: string
+          enum: [active, cancelled, awarded, draft]
+        deadlineFrom:
+          type: string
+        deadlineTo:
+          type: string
+
+    SavedSearch:
+      type: object
+      required: [id, name, criteria, alertsEnabled, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        criteria:
+          $ref: "#/components/schemas/SavedSearchCriteria"
+        alertsEnabled:
+          type: boolean
+        lastAlertedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SavedSearchInput:
+      type: object
+      required: [name, criteria]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        criteria:
+          $ref: "#/components/schemas/SavedSearchCriteria"
+        alertsEnabled:
+          type: boolean
+          default: true
+
+    SavedSearchUpdate:
+      type: object
+      description: Partial update — any subset of fields.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        criteria:
+          $ref: "#/components/schemas/SavedSearchCriteria"
+        alertsEnabled:
+          type: boolean

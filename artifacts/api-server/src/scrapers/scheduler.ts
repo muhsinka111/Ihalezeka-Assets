@@ -11,6 +11,7 @@ import { runKosgbScraper } from "./kosgeb-scraper.js";
 import { runKalkinmaScraper } from "./kalkinma-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
+import { dispatchSavedSearchAlerts } from "../lib/savedSearchAlerts.js";
 
 let _scraperRunning = false;
 
@@ -89,6 +90,9 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
       logger.info({ count: allNewIds.length }, "Dispatching notifications for new tenders");
       await scoreAndNotify(allNewIds).catch((err) =>
         logger.error({ err }, "Notification dispatch failed")
+      );
+      await dispatchSavedSearchAlerts(allNewIds).catch((err) =>
+        logger.error({ err }, "Saved-search alert dispatch failed")
       );
     }
   } finally {

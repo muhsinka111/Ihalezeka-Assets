@@ -552,6 +552,93 @@ export interface ApiKeyInput {
   key: string;
 }
 
+export type SavedSearchCriteriaSource = typeof SavedSearchCriteriaSource[keyof typeof SavedSearchCriteriaSource];
+
+
+export const SavedSearchCriteriaSource = {
+  ekap: 'ekap',
+  ilan_gov: 'ilan_gov',
+  ted: 'ted',
+  worldbank: 'worldbank',
+  ebrd: 'ebrd',
+  kit: 'kit',
+  tubitak: 'tubitak',
+  kosgeb: 'kosgeb',
+  kalkinma_ajansi: 'kalkinma_ajansi',
+} as const;
+
+export type SavedSearchCriteriaCategory = typeof SavedSearchCriteriaCategory[keyof typeof SavedSearchCriteriaCategory];
+
+
+export const SavedSearchCriteriaCategory = {
+  ihale: 'ihale',
+  hibe: 'hibe',
+  uluslararasi: 'uluslararasi',
+} as const;
+
+export type SavedSearchCriteriaDurum = typeof SavedSearchCriteriaDurum[keyof typeof SavedSearchCriteriaDurum];
+
+
+export const SavedSearchCriteriaDurum = {
+  active: 'active',
+  cancelled: 'cancelled',
+  awarded: 'awarded',
+  draft: 'draft',
+} as const;
+
+/**
+ * Saved tender search filters; mirrors GET /tenders query params.
+ */
+export interface SavedSearchCriteria {
+  q?: string;
+  il?: string;
+  tur?: string;
+  usul?: string;
+  idare?: string;
+  cpv?: string;
+  sector?: string;
+  minBedel?: number;
+  maxBedel?: number;
+  source?: SavedSearchCriteriaSource;
+  category?: SavedSearchCriteriaCategory;
+  durum?: SavedSearchCriteriaDurum;
+  deadlineFrom?: string;
+  deadlineTo?: string;
+}
+
+export interface SavedSearch {
+  id: number;
+  name: string;
+  criteria: SavedSearchCriteria;
+  alertsEnabled: boolean;
+  lastAlertedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedSearchInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  criteria: SavedSearchCriteria;
+  alertsEnabled?: boolean;
+}
+
+/**
+ * Partial update — any subset of fields.
+ */
+export interface SavedSearchUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name?: string;
+  criteria?: SavedSearchCriteria;
+  alertsEnabled?: boolean;
+}
+
 export type ListTendersParams = {
 /**
  * Natural language or keyword search

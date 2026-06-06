@@ -13,6 +13,7 @@ import reportsRouter from "./reports";
 import apiKeysRouter from "./apiKeys";
 import scraperAdminRouter from "./scraperAdmin";
 import notificationsRouter from "./notifications";
+import savedSearchesRouter from "./savedSearches";
 import marketingRouter from "./marketing";
 import aiChatRouter from "./aiChat";
 
@@ -33,6 +34,7 @@ router.use(reportsRouter);
 router.use(apiKeysRouter);
 router.use(scraperAdminRouter);
 router.use(notificationsRouter);
+router.use(savedSearchesRouter);
 router.use(marketingRouter);
 
 export default router;
