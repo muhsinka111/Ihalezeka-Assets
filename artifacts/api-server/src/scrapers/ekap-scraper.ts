@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
-import { getAllEkapTendersForDate, formatEkapDate } from "./ekap-client.js";
+import { getAllEkapTendersForDate, formatEkapDate, fetchEkapDetailText } from "./ekap-client.js";
 import {
   mapEkapToTender,
   upsertTender,
@@ -90,6 +90,23 @@ export async function runEkapScraper(
     for (const tender of tenders) {
       try {
         const mapped = mapEkapToTender(tender);
+        // Best-effort enrichment: pull the EKAP detail/announcement text via the
+        // detail endpoint (using dokumanListe[].ihaleId) and store it as the
+        // notice description so the grounding chain can ground on real text
+        // rather than metadata. Falls through quietly when EKAP's detail routes
+        // are unreachable (see fetchEkapDetailText).
+        const docList = (tender.dokumanListe ?? []) as Array<{ ihaleId?: string | number }>;
+        const ihaleId =
+          docList.find((d) => d.ihaleId != null)?.ihaleId ??
+          (tender as unknown as { id?: string | number }).id;
+        if (ihaleId != null) {
+          try {
+            const detailText = await fetchEkapDetailText(ihaleId);
+            if (detailText) mapped.description = detailText;
+          } catch (err) {
+            logger.debug({ tenderId: tender.id, err }, "EKAP detail fetch failed");
+          }
+        }
         const { inserted, tenderId } = await upsertTender(mapped);
         if (inserted) {
           result.inserted++;

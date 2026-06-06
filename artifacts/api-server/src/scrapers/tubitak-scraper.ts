@@ -155,7 +155,9 @@ function makeTender(
     il: "",
     status: "active",
     category: "hibe",
-    description: null,
+    description: [title, label ? `Kategori: ${label}` : "", "TÜBİTAK Ar-Ge / Destek Programı"]
+      .filter(Boolean)
+      .join("\n"),
     sourceSystem: "tubitak",
     sourceUrl,
     procurementMethod: null,

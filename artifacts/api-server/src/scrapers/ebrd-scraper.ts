@@ -105,6 +105,21 @@ async function fetchEbrdNotices(): Promise<EbrdNotice[]> {
 }
 
 function mapEbrdToTender(notice: EbrdNotice): InsertTender {
+  // Capture whatever notice text the EBRD listing exposes into `description`.
+  // The feed only returns short metadata (buyer / type / country), so this is a
+  // compact notice block; the analyzer's grounding chain still prefers the live
+  // source page (which is richer) and only uses this when nothing longer exists.
+  const description =
+    [
+      notice.title,
+      notice.buyer ? `Alıcı: ${notice.buyer}` : "",
+      notice.noticeType ? `İlan türü: ${notice.noticeType}` : "",
+      notice.country ? `Ülke: ${notice.country}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n")
+      .trim() || null;
+
   return {
     ikn: `ebrd-${notice.noticeId}`,
     title: notice.title,
@@ -119,6 +134,7 @@ function mapEbrdToTender(notice: EbrdNotice): InsertTender {
     il: "",
     status: "active",
     category: "uluslararasi",
+    description,
     sourceSystem: "ebrd",
     sourceUrl: notice.url,
     procurementMethod: notice.noticeType || null,

@@ -125,6 +125,7 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
       il: target.il,
       status: "active",
       category: "ihale",
+      description: [title, `Kurum: ${target.agency}`].filter(Boolean).join("\n"),
       sourceSystem: "kit",
       sourceUrl,
       procurementMethod: null,

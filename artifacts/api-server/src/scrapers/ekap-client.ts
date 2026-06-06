@@ -142,3 +142,89 @@ export function formatEkapDate(daysBack = 1): { start: string; end: string } {
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Recursively collect human-readable string values out of an EKAP detail
+ * payload, skipping ids/urls/booleans so we end up with the notice prose
+ * (ihale adı, idare adı, açıklamalar, şartname metni, …) rather than plumbing.
+ */
+function harvestDetailStrings(value: unknown, out: string[], depth = 0): void {
+  if (depth > 6 || out.length > 400) return;
+  if (typeof value === "string") {
+    const s = value.trim();
+    // Skip urls, guids, pure numbers and trivially short tokens.
+    if (
+      s.length >= 12 &&
+      !/^https?:\/\//i.test(s) &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s) &&
+      !/^[\d.,/\s-]+$/.test(s)
+    ) {
+      out.push(s);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const v of value) harvestDetailStrings(v, out, depth + 1);
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const v of Object.values(value as Record<string, unknown>)) {
+      harvestDetailStrings(v, out, depth + 1);
+    }
+  }
+}
+
+/**
+ * Best-effort fetch of the EKAP tender detail/announcement text for a given
+ * `ihaleId` (taken from `dokumanListe[].ihaleId`). Reuses the same AES security
+ * headers and TLS-relaxed agent as the search API.
+ *
+ * NOTE: as of this writing the public EKAP v2 detail routes are not reachable
+ * from outside the portal — `GET /b_ihalearama/api/IhaleDetay/GetByIhaleId`
+ * returns 404 and the `/b_ihaleilan` announcement service returns 406 for every
+ * route/version (it requires a portal session). This function therefore returns
+ * `null` today and the analyzer's grounding chain falls back to metadata. It is
+ * wired so that if/when EKAP exposes a usable detail endpoint, enabling it here
+ * (and re-running the backfill) immediately upgrades EKAP grounding to "notice"
+ * quality with no other changes.
+ */
+export async function fetchEkapDetailText(
+  ihaleId: string | number,
+): Promise<string | null> {
+  const id = String(ihaleId).trim();
+  if (!id) return null;
+
+  const attempts: Array<() => Promise<unknown>> = [
+    () =>
+      client
+        .get(`/b_ihalearama/api/IhaleDetay/GetByIhaleId?ihaleId=${id}`, {
+          headers: secHeaders(),
+        })
+        .then((r) => r.data),
+    () =>
+      client
+        .get(`/b_ihaleilan/api/IhaleIlan/GetByIhaleId?ihaleId=${id}`, {
+          headers: secHeaders(),
+        })
+        .then((r) => r.data),
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const data = await attempt();
+      if (!data) continue;
+      const parts: string[] = [];
+      harvestDetailStrings(data, parts);
+      // De-duplicate while preserving order.
+      const seen = new Set<string>();
+      const text = parts
+        .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
+        .join("\n")
+        .trim();
+      if (text.length >= 200) return text.slice(0, 20_000);
+    } catch {
+      // 404/406/network — try the next shape, then give up quietly.
+    }
+  }
+  return null;
+}

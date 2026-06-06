@@ -88,7 +88,7 @@ async function scrapeKosgbPage(pageNum: number): Promise<InsertTender[]> {
       il: "",
       status: "active",
       category: "hibe",
-      description: null,
+      description: [title, "KOSGEB Destek Programı"].filter(Boolean).join("\n"),
       sourceSystem: "kosgeb",
       sourceUrl,
       procurementMethod: null,
