@@ -43,4 +43,9 @@ export interface Tender {
   lastFetchedAt?: Date | null;
   /** @nullable */
   documents?: TenderDocument[] | null;
+  /**
+     * Search relevance score. Present only when results were produced by a text query (q); higher means a better match.
+     * @nullable
+     */
+  relevance?: number | null;
 }

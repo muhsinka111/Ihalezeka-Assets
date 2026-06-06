@@ -12,7 +12,7 @@ import { Link, useSearch, useLocation } from "wouter";
 import {
   IconSearch, IconFilter, IconMapPin, IconCalendar, IconBuilding,
   IconRefresh, IconX, IconChevronDown, IconChevronUp, IconArrowsSort,
-  IconCurrencyLira, IconClock, IconAdjustmentsHorizontal,
+  IconCurrencyLira, IconClock, IconAdjustmentsHorizontal, IconSparkles,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ const STATUS_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
+  { value: "relevance_desc", label: "En Alakalı" },
   { value: "deadline_asc", label: "Son Başvuru (Yakın → Uzak)" },
   { value: "deadline_desc", label: "Son Başvuru (Uzak → Yakın)" },
   { value: "estimatedValue_desc", label: "Bütçe (Yüksek → Düşük)" },
@@ -119,6 +120,22 @@ function SourceBadge({ source }: { source?: string | null }) {
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${meta.className}`}>
       {meta.label}
+    </span>
+  );
+}
+
+function MatchBadge({ score }: { score?: number | null }) {
+  if (score == null) return null;
+  // word_similarity (0–1) + field boosts (title +0.5, agency +0.2).
+  const tier =
+    score >= 0.7 ? { label: "Çok ilgili", className: "bg-emerald-100 text-emerald-700 border-emerald-200" } :
+    score >= 0.4 ? { label: "İlgili", className: "bg-blue-100 text-blue-700 border-blue-200" } :
+    null;
+  if (!tier) return null;
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${tier.className}`}>
+      <IconSparkles className="h-2.5 w-2.5" />
+      {tier.label}
     </span>
   );
 }
@@ -395,7 +412,9 @@ export default function IhaleAramaPage() {
 
   const currentSort = applied.sortBy && applied.sortDir
     ? `${applied.sortBy}_${applied.sortDir}`
-    : "deadline_asc";
+    : applied.q
+      ? "relevance_desc"
+      : "deadline_asc";
 
   const handleSortChange = (val: string) => {
     const [sortBy, sortDir] = val.split("_") as [string, string];
@@ -832,6 +851,7 @@ export default function IhaleAramaPage() {
                                 <p className="text-[11px] text-muted-foreground font-mono">{tender.ikn}</p>
                                 <SourceBadge source={tender.sourceSystem} />
                                 <StatusBadge status={tender.status} />
+                                <MatchBadge score={tender.relevance} />
                               </div>
                               <Link href={`/ihale/${tender.id}`}>
                                 <p className="font-semibold text-sm hover:text-primary cursor-pointer transition-colors line-clamp-2">{tender.title}</p>

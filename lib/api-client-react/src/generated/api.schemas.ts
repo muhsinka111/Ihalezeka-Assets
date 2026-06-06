@@ -106,6 +106,11 @@ export interface Tender {
   lastFetchedAt?: string | null;
   /** @nullable */
   documents?: TenderDocument[] | null;
+  /**
+     * Search relevance score. Present only when results were produced by a text query (q); higher means a better match.
+     * @nullable
+     */
+  relevance?: number | null;
 }
 
 export type TenderDetail = Tender & ({
@@ -552,7 +557,7 @@ deadlineFrom?: string;
  */
 deadlineTo?: string;
 /**
- * Sort column
+ * Sort column. "relevance" is the default when a text query (q) is present.
  */
 sortBy?: ListTendersSortBy;
 /**
@@ -594,6 +599,7 @@ export type ListTendersSortBy = typeof ListTendersSortBy[keyof typeof ListTender
 
 
 export const ListTendersSortBy = {
+  relevance: 'relevance',
   deadline: 'deadline',
   estimatedValue: 'estimatedValue',
   createdAt: 'createdAt',

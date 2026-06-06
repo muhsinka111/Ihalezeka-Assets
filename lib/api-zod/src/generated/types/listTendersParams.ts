@@ -65,7 +65,7 @@ deadlineFrom?: string;
  */
 deadlineTo?: string;
 /**
- * Sort column
+ * Sort column. "relevance" is the default when a text query (q) is present.
  */
 sortBy?: ListTendersSortBy;
 /**

@@ -200,8 +200,8 @@ paths:
           in: query
           schema:
             type: string
-            enum: [deadline, estimatedValue, createdAt]
-          description: Sort column
+            enum: [relevance, deadline, estimatedValue, createdAt]
+          description: Sort column. "relevance" is the default when a text query (q) is present.
         - name: sortDir
           in: query
           schema:
@@ -884,6 +884,9 @@ components:
           type: ["array", "null"]
           items:
             $ref: "#/components/schemas/TenderDocument"
+        relevance:
+          type: ["number", "null"]
+          description: Search relevance score. Present only when results were produced by a text query (q); higher means a better match.
 
     TenderDetail:
       allOf:

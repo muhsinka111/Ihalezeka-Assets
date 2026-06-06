@@ -10,6 +10,7 @@ export type ListTendersSortBy = typeof ListTendersSortBy[keyof typeof ListTender
 
 
 export const ListTendersSortBy = {
+  relevance: 'relevance',
   deadline: 'deadline',
   estimatedValue: 'estimatedValue',
   createdAt: 'createdAt',

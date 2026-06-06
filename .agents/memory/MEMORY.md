@@ -1,4 +1,5 @@
 - [Replit port routing quirks](replit-port-routing.md) — ports not in `.replit` [[ports]] can't be detected by workflow monitor; fix by serving frontend from api-server (port 8080) and updating artifact.toml localPort to 8080 via verifyAndReplaceArtifactToml
+- [Tender search (Postgres FTS + trigram)](tender-search.md) — no built-in Turkish FTS stemmer; normalize with IMMUTABLE f_unaccent(lower()), trigram word_similarity, startup bootstrap + isFuzzySearchReady() ILIKE fallback
 - [Orval codegen → rebuild api-zod declarations](orval-codegen-rebuild.md) — after orval regen, run `tsc -b lib/api-zod --force` or consumers read stale dist .d.ts; watch for spec/generated drift dropping params
 - [EKAP document URLs are empty placeholders](ekap-document-urls.md) — tenders.documents arrays exist but have empty url/name/type; document-grounded features must fall back to title/metadata grounding
 - [React Query invalidation keys](react-query-invalidation-keys.md) — generated hooks key on full `/api/...` path; bare path in invalidateQueries silently no-ops (stale UI after mutation)

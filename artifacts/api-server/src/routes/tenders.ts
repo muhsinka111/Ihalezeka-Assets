@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
-import { eq, ilike, and, gte, lte, or, isNull, sql, type SQL, desc, asc, count } from "drizzle-orm";
+import { eq, ilike, and, gte, lte, or, isNull, sql, type SQL, desc, asc, count, getTableColumns } from "drizzle-orm";
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
+import { isFuzzySearchReady } from "../lib/search-bootstrap.js";
 import {
   analyzeDocuments,
   chatWithDocuments,
@@ -18,7 +19,41 @@ router.get("/tenders", async (req, res) => {
     const query = ListTendersQueryParams.parse(req.query);
     const conditions: SQL[] = [];
 
-    if (query.q) conditions.push(ilike(tendersTable.title, `%${query.q}%`));
+    // ── Smarter text search ──────────────────────────────────────────────
+    // Spans title, description, agency name and CPV codes. Everything is
+    // normalised with f_unaccent(lower(...)) so Turkish case/accent variants
+    // (İ↔i, ş↔s, ç↔c, ö↔o, ü↔u, ğ↔g, ı↔i) match. A row matches when the query
+    // is a substring OR has a high enough trigram word-similarity (typo
+    // tolerance). Relevance blends the fuzzy score with field-weighted boosts.
+    const q = query.q?.trim();
+    let relevanceExpr: SQL | null = null;
+    if (q && isFuzzySearchReady()) {
+      const searchable = sql`(coalesce(${tendersTable.title}, '') || ' ' || coalesce(${tendersTable.description}, '') || ' ' || coalesce(${tendersTable.agencyName}, '') || ' ' || array_to_string(${tendersTable.cpvCodes}, ' '))`;
+      const nq = sql`f_unaccent(lower(${q}))`;
+      const nSearch = sql`f_unaccent(lower(${searchable}))`;
+      const nTitle = sql`f_unaccent(lower(coalesce(${tendersTable.title}, '')))`;
+      const nAgency = sql`f_unaccent(lower(coalesce(${tendersTable.agencyName}, '')))`;
+      const like = sql`('%' || ${nq} || '%')`;
+      conditions.push(sql`(${nSearch} like ${like} or word_similarity(${nq}, ${nSearch}) > 0.3)`);
+      relevanceExpr = sql`(
+        word_similarity(${nq}, ${nSearch})
+        + case when ${nTitle} like ${like} then 0.5 else 0 end
+        + case when ${nAgency} like ${like} then 0.2 else 0 end
+      )::float8`;
+    } else if (q) {
+      // Degraded fallback when trigram/unaccent objects aren't available:
+      // still search across multiple fields (case-insensitive), just without
+      // accent folding, fuzzy tolerance, or a relevance score.
+      const likeVal = `%${q}%`;
+      conditions.push(
+        or(
+          ilike(tendersTable.title, likeVal),
+          ilike(tendersTable.description, likeVal),
+          ilike(tendersTable.agencyName, likeVal),
+        )!,
+      );
+    }
+
     if (query.il) conditions.push(ilike(tendersTable.il, query.il));
     if (query.tur) conditions.push(eq(tendersTable.type, query.tur));
     if (query.usul) conditions.push(eq(tendersTable.method, query.usul));
@@ -46,6 +81,9 @@ router.get("/tenders", async (req, res) => {
     const offset = (page - 1) * limit;
 
     const isDesc = query.sortDir === "desc";
+    // Default to relevance ordering when a text query is present and the user
+    // hasn't explicitly chosen a different column (or picked "relevance").
+    const useRelevance = !!relevanceExpr && (!query.sortBy || query.sortBy === "relevance");
     const sortCol =
       query.sortBy === "estimatedValue" ? tendersTable.estimatedValue :
       query.sortBy === "createdAt" ? tendersTable.createdAt :
@@ -54,14 +92,26 @@ router.get("/tenders", async (req, res) => {
     // For deadline sorts: use NULLS LAST on ASC so upcoming deadlines appear
     // first and grant/programme records (no deadline) sink to the bottom.
     // NULLS FIRST on DESC keeps the same sensible ordering.
-    const orderClause = query.sortBy === "deadline" || !query.sortBy
-      ? isDesc
+    let orderClause: SQL;
+    if (useRelevance && relevanceExpr) {
+      // Best matches first; break ties by soonest deadline.
+      orderClause = sql`${relevanceExpr} DESC, ${tendersTable.deadline} ASC NULLS LAST`;
+    } else if (query.sortBy === "deadline" || !query.sortBy || query.sortBy === "relevance") {
+      orderClause = isDesc
         ? sql`${sortCol} DESC NULLS FIRST`
-        : sql`${sortCol} ASC NULLS LAST`
-      : isDesc ? desc(sortCol) : asc(sortCol);
+        : sql`${sortCol} ASC NULLS LAST`;
+    } else {
+      orderClause = isDesc ? desc(sortCol) : asc(sortCol);
+    }
+
+    // Surface the relevance score on each item when a text query was used so
+    // the UI can indicate match quality.
+    const selection = relevanceExpr
+      ? { ...getTableColumns(tendersTable), relevance: relevanceExpr }
+      : getTableColumns(tendersTable);
 
     const [items, totalResult] = await Promise.all([
-      db.select().from(tendersTable).where(where).orderBy(orderClause).limit(limit).offset(offset),
+      db.select(selection).from(tendersTable).where(where).orderBy(orderClause).limit(limit).offset(offset),
       db.select({ total: count() }).from(tendersTable).where(where),
     ]);
 

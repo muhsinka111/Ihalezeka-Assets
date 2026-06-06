@@ -61,7 +61,8 @@ export const GetDashboardTopMatchesResponseItem = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "fitScore": zod.number().min(getDashboardTopMatchesResponseFitScoreMin).max(getDashboardTopMatchesResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -139,7 +140,7 @@ export const ListTendersQueryParams = zod.object({
   "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional().describe('Status filter'),
   "deadlineFrom": zod.coerce.string().optional().describe('Filter tenders with deadline on or after this date (YYYY-MM-DD)'),
   "deadlineTo": zod.coerce.string().optional().describe('Filter tenders with deadline on or before this date (YYYY-MM-DD)'),
-  "sortBy": zod.enum(['deadline', 'estimatedValue', 'createdAt']).optional().describe('Sort column'),
+  "sortBy": zod.enum(['relevance', 'deadline', 'estimatedValue', 'createdAt']).optional().describe('Sort column. \"relevance\" is the default when a text query (q) is present.'),
   "sortDir": zod.enum(['asc', 'desc']).optional().describe('Sort direction'),
   "page": zod.coerce.number().default(listTendersQueryPageDefault),
   "limit": zod.coerce.number().default(listTendersQueryLimitDefault)
@@ -169,7 +170,8 @@ export const ListTendersResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 })),
   "total": zod.number(),
   "page": zod.number(),
@@ -207,7 +209,8 @@ export const GetTenderResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }).and(zod.object({
   "description": zod.string().nullish(),
   "qualificationCriteria": zod.array(zod.string()).optional(),
@@ -260,7 +263,8 @@ export const ListMatchesResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "fitScore": zod.number().min(listMatchesResponseItemsItemFitScoreMin).max(listMatchesResponseItemsItemFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -324,7 +328,8 @@ export const GetMatchResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "fitScore": zod.number().min(getMatchResponseOneFitScoreMin).max(getMatchResponseOneFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -367,7 +372,8 @@ export const GetMatchResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }).and(zod.object({
   "description": zod.string().nullish(),
   "qualificationCriteria": zod.array(zod.string()).optional(),
@@ -422,7 +428,8 @@ export const UpdateMatchStatusResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "fitScore": zod.number().min(updateMatchStatusResponseFitScoreMin).max(updateMatchStatusResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
@@ -474,7 +481,8 @@ export const ListPipelineItemsResponseItem = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "stage": zod.enum(['discovery', 'preparation', 'applied', 'evaluation', 'won', 'lost']),
   "notes": zod.string().nullish(),
@@ -531,7 +539,8 @@ export const UpdatePipelineItemResponse = zod.object({
   "name": zod.string(),
   "url": zod.string(),
   "type": zod.string()
-})).nullish()
+})).nullish(),
+  "relevance": zod.number().nullish().describe('Search relevance score. Present only when results were produced by a text query (q); higher means a better match.')
 }),
   "stage": zod.enum(['discovery', 'preparation', 'applied', 'evaluation', 'won', 'lost']),
   "notes": zod.string().nullish(),
