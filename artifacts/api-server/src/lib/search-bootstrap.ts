@@ -34,6 +34,16 @@ export async function ensureSearchObjects(): Promise<void> {
        ON tenders USING gin (f_unaccent(lower(agency_name)) gin_trgm_ops)`,
     `CREATE INDEX IF NOT EXISTS idx_tenders_il_trgm
        ON tenders USING gin (f_unaccent(lower(il)) gin_trgm_ops)`,
+    // B-tree indexes backing the structured filter dimensions (type, category,
+    // source, status) and the range/sort columns (estimated value, deadline).
+    // Keeps combined filtering fast as the dataset grows beyond a seq-scan-cheap
+    // size. All are idempotent.
+    `CREATE INDEX IF NOT EXISTS idx_tenders_type ON tenders (type)`,
+    `CREATE INDEX IF NOT EXISTS idx_tenders_category ON tenders (category)`,
+    `CREATE INDEX IF NOT EXISTS idx_tenders_source_system ON tenders (source_system)`,
+    `CREATE INDEX IF NOT EXISTS idx_tenders_status ON tenders (status)`,
+    `CREATE INDEX IF NOT EXISTS idx_tenders_estimated_value ON tenders (estimated_value)`,
+    `CREATE INDEX IF NOT EXISTS idx_tenders_deadline ON tenders (deadline)`,
   ];
 
   for (const stmt of statements) {

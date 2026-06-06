@@ -128,6 +128,18 @@ export interface TenderPage {
   limit: number;
 }
 
+export interface SectorFacet {
+  id: string;
+  label: string;
+  count: number;
+}
+
+export interface TenderFacets {
+  /** Total tenders matching all filters except sector */
+  total: number;
+  sectors: SectorFacet[];
+}
+
 export type AiSummaryScoringWeights = {[key: string]: number};
 
 export type AiSummaryQualificationCriteriaItem = {
@@ -574,6 +586,10 @@ idare?: string;
  */
 cpv?: string;
 /**
+ * Industry/sector grouping id (see GET /tenders/facets for ids)
+ */
+sector?: string;
+/**
  * Filter by data source
  */
 source?: ListTendersSource;
@@ -611,6 +627,13 @@ export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTender
 export const ListTendersSource = {
   ekap: 'ekap',
   ilan_gov: 'ilan_gov',
+  ted: 'ted',
+  worldbank: 'worldbank',
+  ebrd: 'ebrd',
+  kit: 'kit',
+  tubitak: 'tubitak',
+  kosgeb: 'kosgeb',
+  kalkinma_ajansi: 'kalkinma_ajansi',
 } as const;
 
 export type ListTendersCategory = typeof ListTendersCategory[keyof typeof ListTendersCategory];
@@ -648,6 +671,55 @@ export type ListTendersSortDir = typeof ListTendersSortDir[keyof typeof ListTend
 export const ListTendersSortDir = {
   asc: 'asc',
   desc: 'desc',
+} as const;
+
+export type GetTenderFacetsParams = {
+q?: string;
+il?: string;
+tur?: string;
+usul?: string;
+minBedel?: number;
+maxBedel?: number;
+idare?: string;
+source?: GetTenderFacetsSource;
+category?: GetTenderFacetsCategory;
+durum?: GetTenderFacetsDurum;
+deadlineFrom?: string;
+deadlineTo?: string;
+};
+
+export type GetTenderFacetsSource = typeof GetTenderFacetsSource[keyof typeof GetTenderFacetsSource];
+
+
+export const GetTenderFacetsSource = {
+  ekap: 'ekap',
+  ilan_gov: 'ilan_gov',
+  ted: 'ted',
+  worldbank: 'worldbank',
+  ebrd: 'ebrd',
+  kit: 'kit',
+  tubitak: 'tubitak',
+  kosgeb: 'kosgeb',
+  kalkinma_ajansi: 'kalkinma_ajansi',
+} as const;
+
+export type GetTenderFacetsCategory = typeof GetTenderFacetsCategory[keyof typeof GetTenderFacetsCategory];
+
+
+export const GetTenderFacetsCategory = {
+  ihale: 'ihale',
+  hibe: 'hibe',
+  uluslararasi: 'uluslararasi',
+} as const;
+
+export type GetTenderFacetsDurum = typeof GetTenderFacetsDurum[keyof typeof GetTenderFacetsDurum];
+
+
+export const GetTenderFacetsDurum = {
+  active: 'active',
+  cancelled: 'cancelled',
+  awarded: 'awarded',
+  draft: 'draft',
 } as const;
 
 export type ListMatchesParams = {

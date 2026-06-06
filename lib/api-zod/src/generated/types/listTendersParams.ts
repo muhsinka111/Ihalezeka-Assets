@@ -45,6 +45,10 @@ idare?: string;
  */
 cpv?: string;
 /**
+ * Industry/sector grouping id (see GET /tenders/facets for ids)
+ */
+sector?: string;
+/**
  * Filter by data source
  */
 source?: ListTendersSource;

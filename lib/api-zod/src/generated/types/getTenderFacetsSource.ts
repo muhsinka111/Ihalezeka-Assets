@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListTendersSource = typeof ListTendersSource[keyof typeof ListTendersSource];
+export type GetTenderFacetsSource = typeof GetTenderFacetsSource[keyof typeof GetTenderFacetsSource];
 
 
-export const ListTendersSource = {
+export const GetTenderFacetsSource = {
   ekap: 'ekap',
   ilan_gov: 'ilan_gov',
   ted: 'ted',

@@ -137,7 +137,8 @@ export const ListTendersQueryParams = zod.object({
   "maxBedel": zod.coerce.number().optional().describe('Maximum estimated value'),
   "idare": zod.coerce.string().optional().describe('Agency name filter'),
   "cpv": zod.coerce.string().optional().describe('CPV code filter'),
-  "source": zod.enum(['ekap', 'ilan_gov']).optional().describe('Filter by data source'),
+  "sector": zod.coerce.string().optional().describe('Industry\/sector grouping id (see GET \/tenders\/facets for ids)'),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional().describe('Filter by data source'),
   "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional().describe('Filter by tender category'),
   "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional().describe('Status filter'),
   "deadlineFrom": zod.coerce.string().optional().describe('Filter tenders with deadline on or after this date (YYYY-MM-DD)'),
@@ -178,6 +179,34 @@ export const ListTendersResponse = zod.object({
   "total": zod.number(),
   "page": zod.number(),
   "limit": zod.number()
+})
+
+
+/**
+ * @summary Sector facet counts honouring all active filters except sector
+ */
+export const GetTenderFacetsQueryParams = zod.object({
+  "q": zod.coerce.string().optional(),
+  "il": zod.coerce.string().optional(),
+  "tur": zod.coerce.string().optional(),
+  "usul": zod.coerce.string().optional(),
+  "minBedel": zod.coerce.number().optional(),
+  "maxBedel": zod.coerce.number().optional(),
+  "idare": zod.coerce.string().optional(),
+  "source": zod.enum(['ekap', 'ilan_gov', 'ted', 'worldbank', 'ebrd', 'kit', 'tubitak', 'kosgeb', 'kalkinma_ajansi']).optional(),
+  "category": zod.enum(['ihale', 'hibe', 'uluslararasi']).optional(),
+  "durum": zod.enum(['active', 'cancelled', 'awarded', 'draft']).optional(),
+  "deadlineFrom": zod.coerce.string().optional(),
+  "deadlineTo": zod.coerce.string().optional()
+})
+
+export const GetTenderFacetsResponse = zod.object({
+  "total": zod.number().describe('Total tenders matching all filters except sector'),
+  "sectors": zod.array(zod.object({
+  "id": zod.string(),
+  "label": zod.string(),
+  "count": zod.number()
+}))
 })
 
 

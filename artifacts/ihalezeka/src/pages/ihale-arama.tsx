@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useListTenders } from "@workspace/api-client-react";
+import { useListTenders, useGetTenderFacets } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,15 @@ const ILLER = [
   "Tokat","Trabzon","Tunceli","Uşak","Van","Yalova","Yozgat","Zonguldak",
 ];
 
-const TYPES = ["Hizmet Alımı", "Yapım İşleri", "Mal Alımı", "Danışmanlık"];
+// value = stable canonical key the API maps to forgiving prefix matches over the
+// messy underlying `type` column; label = what the user sees.
+const TYPES = [
+  { value: "mal", label: "Mal Alımı" },
+  { value: "hizmet", label: "Hizmet Alımı" },
+  { value: "yapim", label: "Yapım İşleri" },
+  { value: "danismanlik", label: "Danışmanlık" },
+];
+const TYPE_LABELS: Record<string, string> = Object.fromEntries(TYPES.map(t => [t.value, t.label]));
 const METHODS = ["Açık İhale", "Belli İstekliler Arasında İhale", "Pazarlık Usulü"];
 
 const STATUS_OPTIONS = [
@@ -51,6 +59,7 @@ interface Filters {
   q?: string;
   il?: string;
   tur?: string;
+  sector?: string;
   usul?: string;
   idare?: string;
   minBedel?: number;
@@ -70,6 +79,7 @@ function parseUrlFilters(search: string): Filters {
     q: p.get("q") || undefined,
     il: p.get("il") || undefined,
     tur: p.get("tur") || undefined,
+    sector: p.get("sector") || undefined,
     usul: p.get("usul") || undefined,
     idare: p.get("idare") || undefined,
     minBedel: p.get("minBedel") ? Number(p.get("minBedel")) : undefined,
@@ -89,6 +99,7 @@ function filtersToUrlParams(f: Filters): string {
   if (f.q) p.set("q", f.q);
   if (f.il) p.set("il", f.il);
   if (f.tur) p.set("tur", f.tur);
+  if (f.sector) p.set("sector", f.sector);
   if (f.usul) p.set("usul", f.usul);
   if (f.idare) p.set("idare", f.idare);
   if (f.minBedel) p.set("minBedel", String(f.minBedel));
@@ -319,6 +330,7 @@ export default function IhaleAramaPage() {
   // before the new data arrives.
   const filterVersion = useRef(0);
 
+  const [secSektor, setSecSektor] = useState(true);
   const [secTemel, setSecTemel] = useState(true);
   const [secButce, setSecButce] = useState(true);
   const [secTarih, setSecTarih] = useState(true);
@@ -333,6 +345,7 @@ export default function IhaleAramaPage() {
     q: applied.q,
     il: applied.il,
     tur: applied.tur,
+    sector: applied.sector,
     usul: applied.usul,
     idare: applied.idare,
     minBedel: applied.minBedel,
@@ -351,6 +364,27 @@ export default function IhaleAramaPage() {
 
   const { data, isLoading, isFetching, refetch } = useListTenders(apiParams);
   const total = data?.total ?? 0;
+
+  // Sector facet counts honour every active filter EXCEPT sector itself, so the
+  // user sees how many tenders fall into each industry given their other choices.
+  const facetParams: any = {
+    q: applied.q,
+    il: applied.il,
+    tur: applied.tur,
+    usul: applied.usul,
+    idare: applied.idare,
+    minBedel: applied.minBedel,
+    maxBedel: applied.maxBedel,
+    durum: applied.durum,
+    deadlineFrom: effectiveDeadlineFrom,
+    deadlineTo: applied.deadlineTo,
+    source: applied.source,
+    category: applied.category,
+  };
+  Object.keys(facetParams).forEach(k => facetParams[k] === undefined && delete facetParams[k]);
+  const { data: facets } = useGetTenderFacets(facetParams);
+  const sectorFacets = facets?.sectors ?? [];
+  const sectorLabel = (id: string) => sectorFacets.find(s => s.id === id)?.label ?? id;
 
   // Accumulate items across pages; replace when page resets to 1.
   useEffect(() => {
@@ -441,7 +475,8 @@ export default function IhaleAramaPage() {
   const activeChips: { key: keyof Filters; label: string }[] = [];
   if (applied.q) activeChips.push({ key: "q", label: `"${applied.q}"` });
   if (applied.il) activeChips.push({ key: "il", label: applied.il });
-  if (applied.tur) activeChips.push({ key: "tur", label: applied.tur });
+  if (applied.tur) activeChips.push({ key: "tur", label: TYPE_LABELS[applied.tur] ?? applied.tur });
+  if (applied.sector) activeChips.push({ key: "sector", label: sectorLabel(applied.sector) });
   if (applied.usul) activeChips.push({ key: "usul", label: applied.usul });
   if (applied.idare) activeChips.push({ key: "idare", label: `İdare: ${applied.idare}` });
   if (applied.minBedel) activeChips.push({ key: "minBedel", label: `Min ₺${applied.minBedel.toLocaleString("tr-TR")}` });
@@ -453,6 +488,46 @@ export default function IhaleAramaPage() {
 
   const FilterPanel = () => (
     <div className="flex flex-col gap-4 text-sm">
+      <div>
+        <SectionHeader title="Sektör" open={secSektor} onToggle={() => setSecSektor(v => !v)} />
+        {secSektor && (
+          <div className="mt-2 flex flex-col gap-1">
+            <button
+              onClick={() => setDraft(d => ({ ...d, sector: undefined }))}
+              className={cn(
+                "flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors text-left",
+                !draft.sector ? "bg-primary text-white" : "hover:bg-muted"
+              )}
+            >
+              <span>Tüm Sektörler</span>
+            </button>
+            {sectorFacets.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setDraft(d => ({ ...d, sector: d.sector === s.id ? undefined : s.id }))}
+                className={cn(
+                  "flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors text-left",
+                  draft.sector === s.id ? "bg-primary text-white font-medium" : "hover:bg-muted"
+                )}
+              >
+                <span className="truncate">{s.label}</span>
+                <span className={cn(
+                  "shrink-0 tabular-nums text-[10px] px-1.5 py-0.5 rounded-full",
+                  draft.sector === s.id ? "bg-white/20" : "bg-muted text-muted-foreground"
+                )}>
+                  {s.count.toLocaleString("tr-TR")}
+                </span>
+              </button>
+            ))}
+            {sectorFacets.length === 0 && (
+              <p className="text-[11px] text-muted-foreground px-2.5 py-1">Sektörler yükleniyor…</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
       <div>
         <SectionHeader title="Temel Filtreler" open={secTemel} onToggle={() => setSecTemel(v => !v)} />
         {secTemel && (
@@ -473,7 +548,7 @@ export default function IhaleAramaPage() {
                 <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tüm Türler" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Tüm Türler</SelectItem>
-                  {TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

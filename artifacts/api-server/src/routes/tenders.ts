@@ -4,6 +4,7 @@ import { tendersTable } from "@workspace/db";
 import { eq, ilike, and, gte, lte, or, isNull, sql, type SQL, desc, asc, count, getTableColumns } from "drizzle-orm";
 import { ListTendersQueryParams, GetTenderParams } from "@workspace/api-zod";
 import { isFuzzySearchReady } from "../lib/search-bootstrap.js";
+import { SECTORS, buildSectorCondition, buildTypeCondition } from "../lib/tender-filters.js";
 import {
   analyzeTender,
   chatWithDocuments,
@@ -35,66 +36,131 @@ function toGroundingInput(tender: typeof tendersTable.$inferSelect): TenderGroun
   };
 }
 
+type ListQuery = ReturnType<typeof ListTendersQueryParams.parse>;
+
+/**
+ * Build the SQL predicates shared by the list and facet endpoints, plus the
+ * optional relevance expression used when a text query is present.
+ *
+ * `excludeSector` lets the facet endpoint compute per-sector counts using all
+ * the OTHER active filters — the standard faceted-search behaviour where a
+ * dimension's own selection does not constrain its own counts.
+ */
+function buildTenderConditions(
+  query: ListQuery,
+  opts: { excludeSector?: boolean } = {},
+): { conditions: SQL[]; relevanceExpr: SQL | null } {
+  const conditions: SQL[] = [];
+
+  // ── Smarter text search ──────────────────────────────────────────────
+  // Spans title, description, agency name and CPV codes. Everything is
+  // normalised with f_unaccent(lower(...)) so Turkish case/accent variants
+  // (İ↔i, ş↔s, ç↔c, ö↔o, ü↔u, ğ↔g, ı↔i) match. A row matches when the query
+  // is a substring OR has a high enough trigram word-similarity (typo
+  // tolerance). Relevance blends the fuzzy score with field-weighted boosts.
+  const q = query.q?.trim();
+  let relevanceExpr: SQL | null = null;
+  if (q && isFuzzySearchReady()) {
+    const searchable = sql`(coalesce(${tendersTable.title}, '') || ' ' || coalesce(${tendersTable.description}, '') || ' ' || coalesce(${tendersTable.agencyName}, '') || ' ' || array_to_string(${tendersTable.cpvCodes}, ' '))`;
+    const nq = sql`f_unaccent(lower(${q}))`;
+    const nSearch = sql`f_unaccent(lower(${searchable}))`;
+    const nTitle = sql`f_unaccent(lower(coalesce(${tendersTable.title}, '')))`;
+    const nAgency = sql`f_unaccent(lower(coalesce(${tendersTable.agencyName}, '')))`;
+    const like = sql`('%' || ${nq} || '%')`;
+    conditions.push(sql`(${nSearch} like ${like} or word_similarity(${nq}, ${nSearch}) > 0.3)`);
+    relevanceExpr = sql`(
+      word_similarity(${nq}, ${nSearch})
+      + case when ${nTitle} like ${like} then 0.5 else 0 end
+      + case when ${nAgency} like ${like} then 0.2 else 0 end
+    )::float8`;
+  } else if (q) {
+    // Degraded fallback when trigram/unaccent objects aren't available:
+    // still search across multiple fields (case-insensitive), just without
+    // accent folding, fuzzy tolerance, or a relevance score.
+    const likeVal = `%${q}%`;
+    conditions.push(
+      or(
+        ilike(tendersTable.title, likeVal),
+        ilike(tendersTable.description, likeVal),
+        ilike(tendersTable.agencyName, likeVal),
+      )!,
+    );
+  }
+
+  if (query.il) conditions.push(ilike(tendersTable.il, query.il));
+  // `type` is messy and source-dependent, so map friendly keys to forgiving
+  // accent-folded prefix matches instead of an exact equality.
+  if (query.tur) {
+    const typeCond = buildTypeCondition(query.tur);
+    if (typeCond) conditions.push(typeCond);
+  }
+  // Industry/sector grouping derived from title keywords (+ CPV when present).
+  if (!opts.excludeSector && query.sector) {
+    const sectorCond = buildSectorCondition(query.sector);
+    if (sectorCond) conditions.push(sectorCond);
+  }
+  if (query.usul) conditions.push(eq(tendersTable.method, query.usul));
+  if (query.idare) conditions.push(ilike(tendersTable.agencyName, `%${query.idare}%`));
+  if (query.minBedel) conditions.push(gte(tendersTable.estimatedValue, query.minBedel));
+  if (query.maxBedel) conditions.push(lte(tendersTable.estimatedValue, query.maxBedel));
+  if (query.source) conditions.push(eq(tendersTable.sourceSystem, query.source));
+  if (query.category) conditions.push(eq(tendersTable.category, query.category));
+  if (query.durum) conditions.push(eq(tendersTable.status, query.durum));
+  if (query.deadlineFrom) {
+    // Include tenders with deadline >= date AND tenders with no deadline set
+    conditions.push(
+      or(gte(tendersTable.deadline, new Date(query.deadlineFrom)), isNull(tendersTable.deadline))!
+    );
+  }
+  if (query.deadlineTo) {
+    const endOfDay = new Date(query.deadlineTo);
+    endOfDay.setHours(23, 59, 59, 999);
+    conditions.push(lte(tendersTable.deadline, endOfDay));
+  }
+
+  return { conditions, relevanceExpr };
+}
+
+/**
+ * Faceted counts for the sector dimension. Honours every active filter EXCEPT
+ * sector so the user sees how many tenders fall into each industry given their
+ * other choices. One scan with per-sector conditional aggregates.
+ */
+router.get("/tenders/facets", async (req, res) => {
+  try {
+    const query = ListTendersQueryParams.parse(req.query);
+    const { conditions } = buildTenderConditions(query, { excludeSector: true });
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const sectorCounts = SECTORS.map((s) => {
+      const cond = buildSectorCondition(s.id);
+      // cond is always non-null for a real sector id, but guard for safety.
+      return sql`count(*) filter (where ${cond ?? sql`false`})::int as ${sql.raw(`"sector_${s.id}"`)}`;
+    });
+
+    const selection = sql.join([sql`count(*)::int as "total"`, ...sectorCounts], sql`, `);
+    const result = await db.execute(
+      sql`select ${selection} from ${tendersTable}${where ? sql` where ${where}` : sql``}`,
+    );
+    const row = (result.rows?.[0] ?? {}) as Record<string, number>;
+
+    const sectors = SECTORS.map((s) => ({
+      id: s.id,
+      label: s.label,
+      count: Number(row[`sector_${s.id}`] ?? 0),
+    }));
+
+    res.json({ total: Number(row.total ?? 0), sectors });
+  } catch (err) {
+    console.error("Tender facets error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/tenders", async (req, res) => {
   try {
     const query = ListTendersQueryParams.parse(req.query);
-    const conditions: SQL[] = [];
-
-    // ── Smarter text search ──────────────────────────────────────────────
-    // Spans title, description, agency name and CPV codes. Everything is
-    // normalised with f_unaccent(lower(...)) so Turkish case/accent variants
-    // (İ↔i, ş↔s, ç↔c, ö↔o, ü↔u, ğ↔g, ı↔i) match. A row matches when the query
-    // is a substring OR has a high enough trigram word-similarity (typo
-    // tolerance). Relevance blends the fuzzy score with field-weighted boosts.
-    const q = query.q?.trim();
-    let relevanceExpr: SQL | null = null;
-    if (q && isFuzzySearchReady()) {
-      const searchable = sql`(coalesce(${tendersTable.title}, '') || ' ' || coalesce(${tendersTable.description}, '') || ' ' || coalesce(${tendersTable.agencyName}, '') || ' ' || array_to_string(${tendersTable.cpvCodes}, ' '))`;
-      const nq = sql`f_unaccent(lower(${q}))`;
-      const nSearch = sql`f_unaccent(lower(${searchable}))`;
-      const nTitle = sql`f_unaccent(lower(coalesce(${tendersTable.title}, '')))`;
-      const nAgency = sql`f_unaccent(lower(coalesce(${tendersTable.agencyName}, '')))`;
-      const like = sql`('%' || ${nq} || '%')`;
-      conditions.push(sql`(${nSearch} like ${like} or word_similarity(${nq}, ${nSearch}) > 0.3)`);
-      relevanceExpr = sql`(
-        word_similarity(${nq}, ${nSearch})
-        + case when ${nTitle} like ${like} then 0.5 else 0 end
-        + case when ${nAgency} like ${like} then 0.2 else 0 end
-      )::float8`;
-    } else if (q) {
-      // Degraded fallback when trigram/unaccent objects aren't available:
-      // still search across multiple fields (case-insensitive), just without
-      // accent folding, fuzzy tolerance, or a relevance score.
-      const likeVal = `%${q}%`;
-      conditions.push(
-        or(
-          ilike(tendersTable.title, likeVal),
-          ilike(tendersTable.description, likeVal),
-          ilike(tendersTable.agencyName, likeVal),
-        )!,
-      );
-    }
-
-    if (query.il) conditions.push(ilike(tendersTable.il, query.il));
-    if (query.tur) conditions.push(eq(tendersTable.type, query.tur));
-    if (query.usul) conditions.push(eq(tendersTable.method, query.usul));
-    if (query.idare) conditions.push(ilike(tendersTable.agencyName, `%${query.idare}%`));
-    if (query.minBedel) conditions.push(gte(tendersTable.estimatedValue, query.minBedel));
-    if (query.maxBedel) conditions.push(lte(tendersTable.estimatedValue, query.maxBedel));
-    if (query.source) conditions.push(eq(tendersTable.sourceSystem, query.source));
-    if (query.category) conditions.push(eq(tendersTable.category, query.category));
-    if (query.durum) conditions.push(eq(tendersTable.status, query.durum));
-    if (query.deadlineFrom) {
-      // Include tenders with deadline >= date AND tenders with no deadline set
-      conditions.push(
-        or(gte(tendersTable.deadline, new Date(query.deadlineFrom)), isNull(tendersTable.deadline))!
-      );
-    }
-    if (query.deadlineTo) {
-      const endOfDay = new Date(query.deadlineTo);
-      endOfDay.setHours(23, 59, 59, 999);
-      conditions.push(lte(tendersTable.deadline, endOfDay));
-    }
+    const { conditions, relevanceExpr } = buildTenderConditions(query);
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const page = query.page ?? 1;

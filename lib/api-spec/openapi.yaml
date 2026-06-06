@@ -168,11 +168,16 @@ paths:
           schema:
             type: string
           description: CPV code filter
+        - name: sector
+          in: query
+          schema:
+            type: string
+          description: Industry/sector grouping id (see GET /tenders/facets for ids)
         - name: source
           in: query
           schema:
             type: string
-            enum: [ekap, ilan_gov]
+            enum: [ekap, ilan_gov, ted, worldbank, ebrd, kit, tubitak, kosgeb, kalkinma_ajansi]
           description: Filter by data source
         - name: category
           in: query
@@ -225,6 +230,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TenderPage"
+
+  /tenders/facets:
+    get:
+      operationId: getTenderFacets
+      tags: [tenders]
+      summary: Sector facet counts honouring all active filters except sector
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: il
+          in: query
+          schema:
+            type: string
+        - name: tur
+          in: query
+          schema:
+            type: string
+        - name: usul
+          in: query
+          schema:
+            type: string
+        - name: minBedel
+          in: query
+          schema:
+            type: number
+        - name: maxBedel
+          in: query
+          schema:
+            type: number
+        - name: idare
+          in: query
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+            enum: [ekap, ilan_gov, ted, worldbank, ebrd, kit, tubitak, kosgeb, kalkinma_ajansi]
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [ihale, hibe, uluslararasi]
+        - name: durum
+          in: query
+          schema:
+            type: string
+            enum: [active, cancelled, awarded, draft]
+        - name: deadlineFrom
+          in: query
+          schema:
+            type: string
+        - name: deadlineTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sector facet counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenderFacets"
 
   /tenders/{id}:
     get:
@@ -921,6 +991,29 @@ components:
         page:
           type: integer
         limit:
+          type: integer
+
+    TenderFacets:
+      type: object
+      required: [total, sectors]
+      properties:
+        total:
+          type: integer
+          description: Total tenders matching all filters except sector
+        sectors:
+          type: array
+          items:
+            $ref: "#/components/schemas/SectorFacet"
+
+    SectorFacet:
+      type: object
+      required: [id, label, count]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        count:
           type: integer
 
     AiSummary:

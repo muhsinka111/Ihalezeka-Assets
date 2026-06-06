@@ -33,6 +33,7 @@ import type {
   Document,
   DocumentFolder,
   DocumentInput,
+  GetTenderFacetsParams,
   HealthStatus,
   ListDocumentsParams,
   ListMatchesParams,
@@ -52,6 +53,7 @@ import type {
   ProposalUpdate,
   ReportsSummary,
   TenderDetail,
+  TenderFacets,
   TenderPage,
   WinPrediction
 } from './api.schemas';
@@ -602,6 +604,90 @@ export function useListTenders<TData = Awaited<ReturnType<typeof listTenders>>, 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListTendersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetTenderFacetsUrl = (params?: GetTenderFacetsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tenders/facets?${stringifiedParams}` : `/api/tenders/facets`
+}
+
+/**
+ * @summary Sector facet counts honouring all active filters except sector
+ */
+export const getTenderFacets = async (params?: GetTenderFacetsParams, options?: RequestInit): Promise<TenderFacets> => {
+
+  return customFetch<TenderFacets>(getGetTenderFacetsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTenderFacetsQueryKey = (params?: GetTenderFacetsParams,) => {
+    return [
+    `/api/tenders/facets`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetTenderFacetsQueryOptions = <TData = Awaited<ReturnType<typeof getTenderFacets>>, TError = ErrorType<unknown>>(params?: GetTenderFacetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenderFacets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTenderFacetsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenderFacets>>> = ({ signal }) => getTenderFacets(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTenderFacets>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTenderFacetsQueryResult = NonNullable<Awaited<ReturnType<typeof getTenderFacets>>>
+export type GetTenderFacetsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Sector facet counts honouring all active filters except sector
+ */
+
+export function useGetTenderFacets<TData = Awaited<ReturnType<typeof getTenderFacets>>, TError = ErrorType<unknown>>(
+ params?: GetTenderFacetsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTenderFacets>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTenderFacetsQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
