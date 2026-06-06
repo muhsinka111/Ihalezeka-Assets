@@ -86,6 +86,17 @@ const AES_KEY = Buffer.from("Qm2LtXR0aByP69vZNKef4wMJ");
  */
 const EKAP_HOSTNAME_RE = /^ekapv2?\.kik\.gov\.tr$/i;
 
+/**
+ * Any *.kik.gov.tr host (EKAP v2 API + the legacy `ekap.kik.gov.tr` document
+ * host). Used to decide when the relaxed-TLS fallback is permitted — the legacy
+ * document host presents the same untrusted government CA as the v2 API.
+ */
+const EKAP_TLS_FALLBACK_RE = /(^|\.)kik\.gov\.tr$/i;
+
+/** Legacy EKAP host that fronts the actual document download (F5/Shape gated). */
+const EKAP_LEGACY_HOSTNAME_RE = /^ekap\.kik\.gov\.tr$/i;
+const EKAP_LEGACY_BASE = "https://ekap.kik.gov.tr";
+
 const EKAP_TLS_ERRORS = new Set([
   "DEPTH_ZERO_SELF_SIGNED_CERT",
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
@@ -129,20 +140,35 @@ async function safeAxiosGet(
     headers: Record<string, string>;
     maxContentLength?: number;
     transitional?: { silentJSONParsing: boolean };
+    /**
+     * When provided, Set-Cookie from every hop is merged into this jar and sent
+     * back as the Cookie header on subsequent hops. EKAP's document download
+     * stashes the requested ihaleId in the ASP.NET session on the first hop and
+     * reads it back on the redirected download hop, so the session cookie must
+     * stay consistent across the whole 302 chain.
+     */
+    cookieJar?: Map<string, string>;
   },
 ): Promise<import("axios").AxiosResponse> {
   let url = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+    const headers = { ...opts.headers };
+    if (opts.cookieJar && opts.cookieJar.size > 0) {
+      headers.Cookie = Array.from(opts.cookieJar.entries())
+        .map(([k, v]) => `${k}=${v}`)
+        .join("; ");
+    }
     const res = await axios.get(url, {
       responseType: opts.responseType,
       timeout: DOWNLOAD_TIMEOUT_MS,
       httpsAgent: opts.agent,
       maxRedirects: 0,
       maxContentLength: opts.maxContentLength,
-      headers: opts.headers,
+      headers,
       validateStatus: (s) => s >= 200 && s < 400,
       ...(opts.transitional ? { transitional: opts.transitional } : {}),
     });
+    if (opts.cookieJar) collectSetCookies(res.headers?.["set-cookie"], opts.cookieJar);
     if (res.status >= 300 && res.status < 400) {
       const loc = res.headers?.location;
       if (!loc) return res;
@@ -175,22 +201,137 @@ function generateSecurityHeaders(): Record<string, string> {
   };
 }
 
+// ── Legacy EKAP session warmup (anti-bot cookie jar) ───────────────
+// The legacy `ekap.kik.gov.tr` document host is fronted by an F5/Shape anti-bot
+// gate: a cold request is answered with a "Doğrula / İşleminiz Devam Ediyor"
+// HTML interstitial (or a 302 to it) instead of the file. The EKAP document flow
+// is therefore: warm up a session to obtain its cookies, then issue the download
+// with those cookies. We cache the cookie process-wide for a short TTL.
+const EKAP_COOKIE_TTL_MS = 10 * 60 * 1000;
+let ekapLegacyCookie: { value: string; ts: number } | null = null;
+
+function collectSetCookies(setCookie: unknown, jar: Map<string, string>): void {
+  if (!Array.isArray(setCookie)) return;
+  for (const c of setCookie) {
+    if (typeof c !== "string") continue;
+    const pair = c.split(";")[0];
+    const eq = pair.indexOf("=");
+    if (eq > 0) jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+  }
+}
+
+/**
+ * Warm up an EKAP legacy session and return a Cookie header string ("" on
+ * failure). Cached for EKAP_COOKIE_TTL_MS; pass force=true to re-warm after the
+ * gate rejects a request. Targets are hard-coded EKAP URLs (no user input), so
+ * following their redirects here does not widen the SSRF surface.
+ */
+async function getEkapLegacyCookie(force = false): Promise<string> {
+  const now = Date.now();
+  if (!force && ekapLegacyCookie && now - ekapLegacyCookie.ts < EKAP_COOKIE_TTL_MS) {
+    return ekapLegacyCookie.value;
+  }
+  const jar = new Map<string, string>();
+  const warmTargets = [
+    `${EKAP_LEGACY_BASE}/EKAP/YeniIhaleArama.aspx`,
+    `${EKAP_LEGACY_BASE}/EKAP/Ortak/YeniIhaleAramaData.ashx?metot=idareAra&aranan=a`,
+  ];
+  for (const u of warmTargets) {
+    try {
+      const res = await axios.get(u, {
+        timeout: DOWNLOAD_TIMEOUT_MS,
+        httpsAgent: ekapFallbackAgent,
+        maxRedirects: 5,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+          Connection: "keep-alive",
+        },
+        validateStatus: () => true,
+      });
+      collectSetCookies(res.headers?.["set-cookie"], jar);
+    } catch {
+      // best-effort — a failed warmup just yields no cookie for this target
+    }
+  }
+  const value = Array.from(jar.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+  ekapLegacyCookie = { value, ts: now };
+  return value;
+}
+
+/**
+ * True when a downloaded buffer is the EKAP anti-bot/verification HTML gate
+ * (F5/Shape JS challenge) rather than the real attachment, so the caller can
+ * stop and fall back to notice/detail grounding instead of ingesting the gate.
+ */
+function looksLikeAntiBotHtml(buffer: Buffer): boolean {
+  const head = buffer.toString("utf8", 0, Math.min(buffer.length, 4_000));
+  if (!/<!doctype html|<html[\s>]/i.test(head)) return false;
+  // Scan the whole page — the F5/Shape gate buries its "Doğrula / İşleminiz Devam
+  // Ediyor" notice well past the first 50 KB of challenge script, so a short
+  // window would miss it and we'd cache a useless interstitial as a "document".
+  const visible = stripHtml(buffer.toString("utf8", 0, Math.min(buffer.length, 500_000)));
+  return (
+    visible.length < 200 ||
+    /İşleminiz Devam Ediyor|Doğrula|verification in progress|are you a human|captcha/i.test(
+      visible,
+    )
+  );
+}
+
+/** Seed a cookie jar from a "k=v; k2=v2" Cookie header string. */
+function seedCookieJar(cookie: string): Map<string, string> {
+  const jar = new Map<string, string>();
+  for (const part of cookie.split(";")) {
+    const p = part.trim();
+    const i = p.indexOf("=");
+    if (i > 0) jar.set(p.slice(0, i).trim(), p.slice(i + 1).trim());
+  }
+  return jar;
+}
+
 /** Single HTTP attempt — returns Buffer on success, throws on failure. */
-async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer> {
-  const headers = {
-    ...generateSecurityHeaders(),
-    Accept: "*/*",
-    "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
-    Referer: `${EKAP_BASE}/ekap/search`,
-    Origin: EKAP_BASE,
-  };
+async function attemptDownload(
+  fullUrl: string,
+  isEkap: boolean,
+  isLegacyEkap: boolean,
+  cookie = "",
+): Promise<Buffer> {
+  // The legacy EKAP document host (ekap.kik.gov.tr) is fronted by an F5 WAF that
+  // rejects the EKAP v2 API's signed security headers and ekapv2 Origin with a
+  // 400. It expects a plain browser request carrying the warmed-up session
+  // cookie, which must persist across the 302 → IlanDokumanDownload hop.
+  const headers: Record<string, string> = isLegacyEkap
+    ? {
+        Accept: "*/*",
+        "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+        Referer: `${EKAP_LEGACY_BASE}/EKAP/YeniIhaleArama.aspx`,
+      }
+    : {
+        ...generateSecurityHeaders(),
+        Accept: "*/*",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",
+        Referer: `${EKAP_BASE}/ekap/search`,
+        Origin: EKAP_BASE,
+      };
+  // Legacy host uses a session cookie jar (carried across redirect hops);
+  // non-legacy hosts keep their simple static Cookie header (if any).
+  const cookieJar = isLegacyEkap ? seedCookieJar(cookie) : undefined;
+  if (!isLegacyEkap && cookie) headers.Cookie = cookie;
 
   try {
     const res = await safeAxiosGet(fullUrl, {
       agent: strictAgent,
       responseType: "arraybuffer",
       headers,
+      cookieJar,
     });
     return Buffer.from(res.data);
   } catch (strictErr: any) {
@@ -201,6 +342,7 @@ async function attemptDownload(fullUrl: string, isEkap: boolean): Promise<Buffer
         agent: ekapFallbackAgent,
         responseType: "arraybuffer",
         headers,
+        cookieJar,
       });
       return Buffer.from(res.data);
     }
@@ -240,17 +382,34 @@ export async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
     return null;
   }
 
-  const isEkap = EKAP_HOSTNAME_RE.test(hostname);
+  // Relaxed-TLS fallback is allowed for any *.kik.gov.tr host (v2 API + legacy
+  // document host), both of which present the untrusted government CA.
+  const isEkap = EKAP_TLS_FALLBACK_RE.test(hostname);
+  const isLegacyEkap = EKAP_LEGACY_HOSTNAME_RE.test(hostname);
+
+  // EKAP document flow: warm up a legacy session first so the download is issued
+  // with the anti-bot/session cookies (per the spec's 302 → warmup → retry rule).
+  let cookie = isLegacyEkap ? await getEkapLegacyCookie() : "";
 
   for (let attempt = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
     try {
-      const buffer = await attemptDownload(fullUrl, isEkap);
+      const buffer = await attemptDownload(fullUrl, isEkap, isLegacyEkap, cookie);
       if (buffer.length === 0) {
         console.warn(
           `[document-analyzer] Empty response on attempt ${attempt}/${MAX_DOWNLOAD_ATTEMPTS}: ${fullUrl}`,
         );
         // Treat empty body as a retriable failure.
         throw new Error("empty-response");
+      }
+      // Legacy EKAP answered with its F5/Shape anti-bot JS challenge page rather
+      // than the file. The challenge cannot be solved headlessly, so retrying or
+      // re-warming won't help — stop now (without caching the gate page) and let
+      // the grounding chain fall back to the notice/detail text.
+      if (isLegacyEkap && looksLikeAntiBotHtml(buffer)) {
+        console.warn(
+          `[document-analyzer] EKAP anti-bot gate served instead of document — falling back: ${fullUrl}`,
+        );
+        return null;
       }
       // Cache and return on success.
       downloadCache.set(cacheKey, buffer);
@@ -262,6 +421,9 @@ export async function fetchDocumentBytes(url: string): Promise<Buffer | null> {
         `[document-analyzer] Download ${isLast ? "FAILED" : "error"} (attempt ${attempt}/${MAX_DOWNLOAD_ATTEMPTS}, code=${code}): ${fullUrl}`,
       );
       if (isLast) return null;
+      // A cold legacy request (4xx/302 from the gate) often needs a warmed
+      // session — refresh the cookie before the next attempt.
+      if (isLegacyEkap) cookie = await getEkapLegacyCookie(true);
       // Exponential back-off: 500 ms, 1 000 ms, …
       await sleep(BACKOFF_BASE_MS * attempt);
     }
@@ -712,7 +874,7 @@ async function fetchPageText(url: string): Promise<string> {
   try {
     if (!url || !url.startsWith("http")) return "";
     if (await isUnsafeFetchTarget(url)) return "";
-    const isEkap = EKAP_HOSTNAME_RE.test(new URL(url).hostname);
+    const isEkap = EKAP_TLS_FALLBACK_RE.test(new URL(url).hostname);
     const headers = {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36",

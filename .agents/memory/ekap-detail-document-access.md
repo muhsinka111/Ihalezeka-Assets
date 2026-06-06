@@ -24,12 +24,18 @@ helper in `ekap-client.ts`; do not hardcode or copy any key material.
   legacy `ekap.kik.gov.tr/EKAP/Ortak/VatandasIlanGoruntuleme.aspx?...aramaDownload=true` URL.
 
 ## The binary şartname is NOT downloadable headlessly
-**Why:** the document URL 302-redirects to `IlanDokumanDownload.aspx`, which is behind an
-F5/Shape anti-bot gate — it returns a ~294KB HTML interstitial whose only visible text is
-"Doğrula İşleminiz Devam Ediyor" plus `__VIEWSTATE` and a `TS016e6e46` bot-defense cookie. No
-session warmup or cookie jar gets past it; it requires executing their obfuscated JS. So the
-real PDF/ZIP attachment can't be fetched without a full browser + captcha solver (out of scope).
-The reference `ihale-mcp` repo also only *returns* this URL; it never downloads the file.
+**Why:** the document URL 302-redirects to `IlanDokumanDownload.aspx`, which reads `ihaleId`
+from the ASP.NET session set on the FIRST hop. With plain browser headers (NOT the ekapv2
+`X-Custom-*`/`Origin:ekapv2` security headers — those trip the F5 WAF → 400), a session warmed
+at `ekap.kik.gov.tr/EKAP/YeniIhaleArama.aspx` and the same cookie jar carried across the 302,
+the flow now reaches a terminal **HTTP 200 with a ~294KB body** — but that body is the
+**F5/Shape anti-bot JS challenge**, not the file: only ~335 visible chars ("Doğrula / İşleminiz
+Devam Ediyor"), ~8KB challenge script, plus `__VIEWSTATE` and a `TS…` bot-defense cookie. The
+gate text is buried well past the first 50KB, so detection must scan the whole page. Getting a
+200 does NOT mean you got the document — it requires executing their obfuscated JS, so the real
+PDF/ZIP needs a full browser + captcha solver (out of scope). Treat the gate as a TERMINAL,
+non-retriable condition (re-warming can't solve a JS challenge — don't waste retries). The
+reference `ihale-mcp` repo also only *returns* this URL; it never downloads the file.
 
 **How to apply:** store the resolved URL as a real `documents` entry (a working link for the
 human user, who passes the gate in their own browser) but ground AI analysis on the detail
