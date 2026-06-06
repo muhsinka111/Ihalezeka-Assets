@@ -301,6 +301,23 @@ export async function extractTextFromDocument(
   if (hint.includes("docx") || hint.includes("doc") || hint.includes("word"))
     return extractTextFromDocx(buffer);
   const text = buffer.toString("utf8", 0, Math.min(buffer.length, 50_000));
+  // HTML served in place of a real attachment — most commonly an EKAP anti-bot /
+  // "Doğrula" verification gate returned instead of the binary şartname. Strip to
+  // visible text; if it is a verification interstitial (or carries no real prose)
+  // return "" so the grounding chain falls back to notice/detail text rather than
+  // ingesting raw markup as if it were the document.
+  if (/<!doctype html|<html[\s>]/i.test(text)) {
+    const visible = stripHtml(buffer.toString("utf8"));
+    if (
+      visible.length < 200 ||
+      /İşleminiz Devam Ediyor|Doğrula|verification in progress|are you a human|captcha/i.test(
+        visible,
+      )
+    ) {
+      return "";
+    }
+    return visible;
+  }
   const printableRatio =
     text.replace(/[^\x20-\x7E\u00C0-\u024F\s]/g, "").length / Math.max(text.length, 1);
   if (printableRatio > 0.5) return text;

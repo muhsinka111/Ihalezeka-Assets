@@ -143,88 +143,164 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Minimal strip of HTML to readable plain text (announcement `veriHtml`). */
+function stripHtml(html: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\/(p|div|li|tr|h[1-6]|table)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;|&apos;/gi, "'")
+    .replace(/[ \t\f\v]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export interface EkapResolvedDocument {
+  name: string;
+  url: string;
+  type: string;
+}
+
+interface EkapDetailIlan {
+  baslik?: string;
+  veriHtml?: string;
+}
+
+interface EkapDetailItem {
+  ihaleAdi?: string;
+  ihaleBilgi?: Record<string, unknown>;
+  ilanList?: EkapDetailIlan[];
+  ihaleOzellikList?: Array<{ ihaleOzellik?: string }>;
+}
+
+/** Human-readable Turkish labels for the `ihaleOzellikList` enum codes. */
+const EKAP_OZELLIK_LABELS: Record<string, string> = {
+  "TENDER_DETAIL.E_IHALE": "E-ihale",
+  "TENDER_DETAIL.EKONOMIK_MALI_YETERLIK": "Ekonomik ve mali yeterlik aranıyor",
+  "TENDER_DETAIL.IS_DENEYIM_BELGE": "İş deneyim belgesi aranıyor",
+  "TENDER_DETAIL.MESLEKI_TEKNIK_YETERLIK": "Mesleki ve teknik yeterlik aranıyor",
+  "TENDER_DETAIL.YERLI_ISTEKLI_AVANTAJ": "Yerli istekli avantajı uygulanıyor",
+  "TENDER_DETAIL.YABANCI_ISTEKLI_KATILIM": "Yabancı isteklilere açık",
+};
+
 /**
- * Recursively collect human-readable string values out of an EKAP detail
- * payload, skipping ids/urls/booleans so we end up with the notice prose
- * (ihale adı, idare adı, açıklamalar, şartname metni, …) rather than plumbing.
+ * Fetch the EKAP v2 tender detail for a tender, keyed by its TOP-LEVEL hash id
+ * (`EkapTender.id`, e.g. "f898c0c4…") — NOT the numeric `dokumanListe[].ihaleId`,
+ * which the detail endpoint rejects with 500 "Kayıt Bulunamadı". Reuses the same
+ * AES security headers + TLS-relaxed agent as the search API. Returns `null`
+ * (quietly) on any error so callers degrade gracefully.
  */
-function harvestDetailStrings(value: unknown, out: string[], depth = 0): void {
-  if (depth > 6 || out.length > 400) return;
-  if (typeof value === "string") {
-    const s = value.trim();
-    // Skip urls, guids, pure numbers and trivially short tokens.
-    if (
-      s.length >= 12 &&
-      !/^https?:\/\//i.test(s) &&
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(s) &&
-      !/^[\d.,/\s-]+$/.test(s)
-    ) {
-      out.push(s);
-    }
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const v of value) harvestDetailStrings(v, out, depth + 1);
-    return;
-  }
-  if (value && typeof value === "object") {
-    for (const v of Object.values(value as Record<string, unknown>)) {
-      harvestDetailStrings(v, out, depth + 1);
-    }
+export async function fetchEkapDetail(
+  ihaleIdHash: string,
+): Promise<EkapDetailItem | null> {
+  const id = String(ihaleIdHash ?? "").trim();
+  if (!id) return null;
+  try {
+    const res = await client.post(
+      "/b_ihalearama/api/IhaleDetay/GetByIhaleIdIhaleDetay",
+      { ihaleId: id },
+      { headers: secHeaders() },
+    );
+    const data = res.data;
+    return (data?.item ?? data) as EkapDetailItem;
+  } catch {
+    return null;
   }
 }
 
 /**
- * Best-effort fetch of the EKAP tender detail/announcement text for a given
- * `ihaleId` (taken from `dokumanListe[].ihaleId`). Reuses the same AES security
- * headers and TLS-relaxed agent as the search API.
- *
- * NOTE: as of this writing the public EKAP v2 detail routes are not reachable
- * from outside the portal — `GET /b_ihalearama/api/IhaleDetay/GetByIhaleId`
- * returns 404 and the `/b_ihaleilan` announcement service returns 406 for every
- * route/version (it requires a portal session). This function therefore returns
- * `null` today and the analyzer's grounding chain falls back to metadata. It is
- * wired so that if/when EKAP exposes a usable detail endpoint, enabling it here
- * (and re-running the backfill) immediately upgrades EKAP grounding to "notice"
- * quality with no other changes.
+ * Build notice/spec-level plain text from an EKAP detail item. The
+ * `ilanList[].veriHtml` blocks are the legally-mandated İhale İlanı (and any
+ * Düzeltme İlanı), which carry the scope, dates and qualification (yeterlik)
+ * criteria — i.e. the substance of the tender specification — so this is the
+ * real grounding text the AI analysis needs.
  */
-export async function fetchEkapDetailText(
-  ihaleId: string | number,
-): Promise<string | null> {
-  const id = String(ihaleId).trim();
-  if (!id) return null;
-
-  const attempts: Array<() => Promise<unknown>> = [
-    () =>
-      client
-        .get(`/b_ihalearama/api/IhaleDetay/GetByIhaleId?ihaleId=${id}`, {
-          headers: secHeaders(),
-        })
-        .then((r) => r.data),
-    () =>
-      client
-        .get(`/b_ihaleilan/api/IhaleIlan/GetByIhaleId?ihaleId=${id}`, {
-          headers: secHeaders(),
-        })
-        .then((r) => r.data),
-  ];
-
-  for (const attempt of attempts) {
-    try {
-      const data = await attempt();
-      if (!data) continue;
-      const parts: string[] = [];
-      harvestDetailStrings(data, parts);
-      // De-duplicate while preserving order.
-      const seen = new Set<string>();
-      const text = parts
-        .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
-        .join("\n")
-        .trim();
-      if (text.length >= 200) return text.slice(0, 20_000);
-    } catch {
-      // 404/406/network — try the next shape, then give up quietly.
-    }
+export function buildEkapDetailText(item: EkapDetailItem | null): string {
+  if (!item) return "";
+  const parts: string[] = [];
+  for (const ilan of item.ilanList ?? []) {
+    const t = stripHtml(ilan.veriHtml ?? "");
+    if (t.length >= 40) parts.push(t);
   }
-  return null;
+  const ozellik = (item.ihaleOzellikList ?? [])
+    .map((o) => EKAP_OZELLIK_LABELS[o.ihaleOzellik ?? ""] ?? "")
+    .filter(Boolean);
+  if (ozellik.length > 0) parts.push(`İhale özellikleri: ${ozellik.join("; ")}`);
+  // De-duplicate (the Düzeltme İlanı repeats the idare/header blocks verbatim).
+  const seen = new Set<string>();
+  return parts
+    .filter((p) => (seen.has(p) ? false : (seen.add(p), true)))
+    .join("\n\n")
+    .trim()
+    .slice(0, 30_000);
+}
+
+/**
+ * Resolve the official EKAP tender-document URL for a tender (its hash id).
+ * `islemId` must be "1" (the document-list redirect); passing a document id
+ * returns "Kayıt Bulunamadı". Returns the absolute legacy `ekap.kik.gov.tr`
+ * URL, or `null` on any error.
+ *
+ * NOTE: that URL points at EKAP's document-download page which is protected by
+ * an F5/Shape anti-bot gate ("Doğrula İşleminiz Devam Ediyor"), so the binary
+ * şartname itself is NOT downloadable headlessly. We still store the URL as a
+ * real document entry so the user has a working link to the official documents,
+ * and we ground the AI on the detail/announcement text instead.
+ */
+export async function fetchEkapDocumentUrl(
+  ihaleIdHash: string,
+  islemId = "1",
+): Promise<string | null> {
+  const id = String(ihaleIdHash ?? "").trim();
+  if (!id) return null;
+  try {
+    const res = await client.post(
+      "/b_ihalearama/api/EkapDokumanYonlendirme/GetDokumanUrl",
+      { islemId, ihaleId: id },
+      { headers: secHeaders() },
+    );
+    const url = res.data?.url ?? res.data?.item?.url ?? null;
+    return typeof url === "string" && url.startsWith("http") ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface EkapEnrichment {
+  /** Notice/spec text from the detail announcement(s); "" when unavailable. */
+  detailText: string;
+  /** Resolved official document entries (empty when the URL can't be resolved). */
+  documents: EkapResolvedDocument[];
+}
+
+/**
+ * One-call enrichment for a tender keyed by its hash id: fetch the detail text
+ * and resolve the official document URL. Never throws — fields are empty on
+ * failure so the scraper/backfill degrade to the existing grounding chain.
+ */
+export async function enrichEkapTender(
+  ihaleIdHash: string,
+): Promise<EkapEnrichment> {
+  const detail = await fetchEkapDetail(ihaleIdHash);
+  const detailText = buildEkapDetailText(detail);
+
+  const documents: EkapResolvedDocument[] = [];
+  const docUrl = await fetchEkapDocumentUrl(ihaleIdHash);
+  if (docUrl) {
+    documents.push({
+      name: "İhale Dokümanı (EKAP)",
+      url: docUrl,
+      type: "ekap-belge",
+    });
+  }
+
+  return { detailText, documents };
 }

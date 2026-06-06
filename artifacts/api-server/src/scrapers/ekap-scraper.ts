@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
 import { logger } from "../lib/logger.js";
-import { getAllEkapTendersForDate, formatEkapDate, fetchEkapDetailText } from "./ekap-client.js";
+import { getAllEkapTendersForDate, formatEkapDate, enrichEkapTender } from "./ekap-client.js";
 import {
   mapEkapToTender,
   upsertTender,
@@ -90,27 +90,32 @@ export async function runEkapScraper(
     for (const tender of tenders) {
       try {
         const mapped = mapEkapToTender(tender);
-        // Best-effort enrichment: pull the EKAP detail/announcement text via the
-        // detail endpoint (using dokumanListe[].ihaleId) and store it as the
-        // notice description so the grounding chain can ground on real text
-        // rather than metadata. Falls through quietly when EKAP's detail routes
-        // are unreachable (see fetchEkapDetailText).
-        const docList = (tender.dokumanListe ?? []) as Array<{ ihaleId?: string | number }>;
-        const ihaleId =
-          docList.find((d) => d.ihaleId != null)?.ihaleId ??
-          (tender as unknown as { id?: string | number }).id;
-        if (ihaleId != null) {
-          try {
-            const detailText = await fetchEkapDetailText(ihaleId);
-            if (detailText) mapped.description = detailText;
-          } catch (err) {
-            logger.debug({ tenderId: tender.id, err }, "EKAP detail fetch failed");
-          }
-        }
         const { inserted, tenderId } = await upsertTender(mapped);
         if (inserted) {
           result.inserted++;
           result.newTenderIds!.push(tenderId);
+
+          // Best-effort enrichment (new tenders only): resolve the real EKAP
+          // detail/announcement text + official document URL via the detail
+          // endpoint keyed by the tender's TOP-LEVEL hash id. The announcement
+          // text becomes the notice `description` so the grounding chain grounds
+          // analysis on real spec-level text (yeterlik criteria, scope) instead
+          // of bare metadata. Degrades silently when EKAP is unreachable.
+          try {
+            const { detailText, documents } = await enrichEkapTender(tender.id);
+            const patch: Partial<typeof mapped> = {};
+            if (detailText.length >= 200) patch.description = detailText;
+            if (documents.length > 0) patch.documents = documents;
+            if (Object.keys(patch).length > 0) {
+              await db
+                .update(tendersTable)
+                .set({ ...patch, updatedAt: new Date() })
+                .where(eq(tendersTable.id, tenderId));
+            }
+          } catch (err) {
+            logger.debug({ tenderId: tender.id, err }, "EKAP detail enrichment failed");
+          }
+
           // Every new tender is analyzable: the grounding chain always yields
           // at least a metadata-grounded analysis, so no document-URL gate.
           newTenderIdsForAnalysis.push(tenderId);

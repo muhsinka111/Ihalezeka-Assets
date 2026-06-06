@@ -1,59 +1,101 @@
 import { db, tendersTable } from "@workspace/db";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
-import { fetchEkapDetailText } from "../src/scrapers/ekap-client.js";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { enrichEkapTender } from "../src/scrapers/ekap-client.js";
+import { analyzeTender } from "../src/services/document-analyzer.js";
 
 /**
- * Backfill EKAP `description` from the EKAP detail/announcement endpoint, using
- * `dokumanListe[].ihaleId` (falling back to raw_data.id). Targets the most
- * recent EKAP rows that have no stored description.
+ * Backfill EKAP `description` (notice/spec text) and the official `documents`
+ * URL from the EKAP v2 detail endpoint, keyed by the tender's TOP-LEVEL hash id
+ * (raw_data.id). Then re-run AI analysis so the stored summary reflects the
+ * richer notice text instead of the old metadata-only grounding.
  *
- * NOTE: EKAP's public v2 detail routes are currently unreachable from outside
- * the portal (the detail endpoint 404s, the announcement service 406s — see
- * fetchEkapDetailText), so this will update 0 rows today. It is committed as the
- * required mechanism: once EKAP exposes a usable detail endpoint, re-running
- * this script upgrades EKAP grounding from metadata to notice quality. Until
- * then EKAP tenders are grounded on metadata, which already yields real,
- * non-refusal summaries.
+ * The most recent EKAP rows are targeted (they have live, resolvable detail).
+ * Each step degrades silently: a tender that can't be enriched keeps its
+ * existing description/analysis.
  *
- * Usage: pnpm --filter @workspace/api-server exec tsx scripts/backfill-ekap-descriptions.ts [limit]
+ * Usage: pnpm --filter @workspace/api-server exec tsx scripts/backfill-ekap-descriptions.ts [limit] [--reanalyze]
  */
 async function main() {
-  const limit = Number(process.argv[2] ?? 200);
+  const limit = Number(process.argv[2] ?? 50);
+  const reanalyze = process.argv.includes("--reanalyze");
 
   const rows = await db
-    .select({ id: tendersTable.id, rawData: tendersTable.rawData })
+    .select()
     .from(tendersTable)
-    .where(
-      and(
-        eq(tendersTable.sourceSystem, "ekap"),
-        or(isNull(tendersTable.description), eq(tendersTable.description, "")),
-      ),
-    )
+    .where(eq(tendersTable.sourceSystem, "ekap"))
     .orderBy(desc(tendersTable.lastFetchedAt))
     .limit(limit);
 
-  let updated = 0;
+  let enriched = 0;
+  let docsResolved = 0;
   let unavailable = 0;
+  let reanalyzed = 0;
+  const sourceCounts: Record<string, number> = {};
+
   for (const row of rows) {
     const raw = (row.rawData as Record<string, unknown> | null) ?? {};
-    const docList = (raw.dokumanListe as Array<{ ihaleId?: string | number }> | undefined) ?? [];
-    const ihaleId =
-      docList.find((d) => d?.ihaleId != null)?.ihaleId ??
-      (raw.id as string | number | undefined);
-    if (ihaleId == null) {
+    const hashId = typeof raw.id === "string" ? raw.id : null;
+    if (!hashId) {
       unavailable++;
       continue;
     }
-    const text = await fetchEkapDetailText(ihaleId);
-    if (!text) {
+
+    let description = row.description ?? "";
+    let documents = row.documents;
+    try {
+      const enrichment = await enrichEkapTender(hashId);
+      const patch: Partial<typeof row> = {};
+      if (enrichment.detailText.length >= 200) {
+        description = enrichment.detailText;
+        patch.description = enrichment.detailText;
+      }
+      if (enrichment.documents.length > 0) {
+        documents = enrichment.documents;
+        patch.documents = enrichment.documents;
+        docsResolved++;
+      }
+      if (Object.keys(patch).length > 0) {
+        await db
+          .update(tendersTable)
+          .set({ ...patch, updatedAt: new Date() })
+          .where(eq(tendersTable.id, row.id));
+        enriched++;
+      } else {
+        unavailable++;
+      }
+    } catch (err) {
       unavailable++;
+      console.warn(`  enrich failed id=${row.id}: ${String(err)}`);
       continue;
     }
-    await db
-      .update(tendersTable)
-      .set({ description: text })
-      .where(eq(tendersTable.id, row.id));
-    updated++;
+
+    if (reanalyze) {
+      try {
+        const { analysis, groundingSource } = await analyzeTender({
+          title: row.title,
+          type: row.type,
+          method: row.method,
+          agencyName: row.agencyName,
+          il: row.il,
+          category: row.category,
+          cpvCodes: row.cpvCodes,
+          estimatedValue: row.estimatedValue,
+          deadline: row.deadline,
+          sourceUrl: row.sourceUrl,
+          description,
+          documents: documents as Array<{ name: string; url: string; type: string }> | null,
+          rawData: row.rawData,
+        });
+        await db
+          .update(tendersTable)
+          .set({ aiSummary: analysis, updatedAt: new Date() })
+          .where(eq(tendersTable.id, row.id));
+        sourceCounts[groundingSource] = (sourceCounts[groundingSource] ?? 0) + 1;
+        reanalyzed++;
+      } catch (err) {
+        console.warn(`  reanalyze failed id=${row.id}: ${String(err)}`);
+      }
+    }
   }
 
   const [{ count: withDesc }] = await db
@@ -67,8 +109,12 @@ async function main() {
     );
 
   console.log(
-    `ekap backfill: ${updated} updated, ${unavailable} detail-unavailable (out of ${rows.length} candidates), now ${withDesc} with description`,
+    `ekap backfill: ${enriched} enriched, ${docsResolved} doc-urls resolved, ` +
+      `${unavailable} unavailable (of ${rows.length} candidates), now ${withDesc} with description`,
   );
+  if (reanalyze) {
+    console.log(`re-analyzed ${reanalyzed}; grounding sources:`, sourceCounts);
+  }
   process.exit(0);
 }
 
