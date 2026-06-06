@@ -113,10 +113,14 @@ export async function dispatchSavedSearchAlerts(
 
     if (perBusiness.size === 0) return result;
 
-    // One digest per business, to the address configured in notification prefs.
+    // One digest per business, honoring global notification preferences: email
+    // must be enabled AND an address configured (matches notificationDispatcher).
     const prefs = await db.select().from(notificationPreferencesTable);
     const emailByBusiness = new Map(
-      prefs.map((p) => [p.businessId, p.emailAddress]),
+      prefs.map((p) => [
+        p.businessId,
+        p.emailEnabled && p.emailAddress ? p.emailAddress : null,
+      ]),
     );
 
     for (const [businessId, groups] of perBusiness) {
@@ -124,7 +128,7 @@ export async function dispatchSavedSearchAlerts(
       if (!to) {
         logger.info(
           { businessId },
-          "Saved-search matches found but no destination email configured — skipping digest (alerts not recorded, will retry once email is set)",
+          "Saved-search matches found but email notifications are disabled or no address configured — skipping digest (alerts not recorded, will retry once enabled)",
         );
         continue;
       }
