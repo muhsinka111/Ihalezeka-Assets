@@ -6,6 +6,7 @@ import type { InsertTender } from "@workspace/db";
 
 interface KitTarget {
   agency: string;
+  sourceKey: string;
   il: string;
   url: string;
   rowSelector: string;
@@ -17,6 +18,7 @@ interface KitTarget {
 const KIT_TARGETS: KitTarget[] = [
   {
     agency: "TCDD",
+    sourceKey: "tcdd",
     il: "Ankara",
     // TCDD's ihale page renders content server-side with PHP sessions;
     // many runs return 0 rows because the full HTML is a JS-bootstrap shell.
@@ -29,6 +31,7 @@ const KIT_TARGETS: KitTarget[] = [
   },
   {
     agency: "BOTAŞ",
+    sourceKey: "botas",
     il: "Ankara",
     url: "https://www.botas.gov.tr/index.php/tr/ihale-ilanlar",
     rowSelector: "table tbody tr, .ihale-item, article, li",
@@ -38,6 +41,7 @@ const KIT_TARGETS: KitTarget[] = [
   },
   {
     agency: "TPAO",
+    sourceKey: "tpao",
     il: "Ankara",
     // TPAO ihale sayfası JS ile yükleniyor; HTTP isteği çok az içerik döndürüyor.
     // SKIP: JS-rendered SPA — keeps running but typically fetches 0 rows.
@@ -49,6 +53,7 @@ const KIT_TARGETS: KitTarget[] = [
   },
   {
     agency: "DHMİ",
+    sourceKey: "dhmi",
     il: "Ankara",
     // SKIP: Returns <677 bytes (redirect shell). No scrapeable content.
     url: "https://www.dhmi.gov.tr/ihale-ve-satin-almalar/ihaleler",
@@ -59,10 +64,11 @@ const KIT_TARGETS: KitTarget[] = [
   },
   {
     agency: "TOKİ",
+    sourceKey: "toki",
     il: "Ankara",
     // TOKİ (Toplu Konut İdaresi) publishes tenders on its main site.
     // The /ihale-ilanlar and /ihaleler paths 404 on this IIS host;
-    // we try the news/announcements section which sometimes lists tenders.
+    // we use the news/announcements section which lists tenders.
     url: "https://www.toki.gov.tr/haberler",
     rowSelector: "table tbody tr, .news-item, article, li, .haber-item, .card",
     titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
@@ -71,9 +77,10 @@ const KIT_TARGETS: KitTarget[] = [
   },
   {
     agency: "DSİ",
+    sourceKey: "dsi",
     il: "Ankara",
-    // DSİ (Devlet Su İşleri) publishes tenders via EKAP; their standalone portal
-    // is Cloudflare-protected. We target the public ihaleleri page.
+    // DSİ (Devlet Su İşleri) portal is Cloudflare-protected.
+    // SKIP: Returns Cloudflare challenge page — 0 records expected.
     url: "https://www.dsi.gov.tr/ihaleler",
     rowSelector: "table tbody tr, .ihale-item, article, li, .card",
     titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
@@ -82,8 +89,9 @@ const KIT_TARGETS: KitTarget[] = [
   },
 ];
 
-function slugify(text: string, prefix: string): string {
-  return `${prefix}-${text.trim().toLowerCase().replace(/[^a-z0-9ğüşıöç]+/gi, "-").slice(0, 70)}`;
+function slugify(sourceKey: string, agency: string, title: string): string {
+  const slug = `${agency}-${title}`.trim().toLowerCase().replace(/[^a-z0-9ğüşıöç]+/gi, "-").slice(0, 70);
+  return `${sourceKey}-${slug}`;
 }
 
 async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
@@ -131,7 +139,7 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
       if (!isNaN(parsed.getTime())) deadline = parsed;
     }
 
-    const ikn = slugify(`${target.agency}-${title}`, "kit");
+    const ikn = slugify(target.sourceKey, target.agency, title);
 
     tenders.push({
       ikn,
@@ -146,7 +154,7 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
       status: "active",
       category: "ihale",
       description: [title, `Kurum: ${target.agency}`].filter(Boolean).join("\n"),
-      sourceSystem: "kit",
+      sourceSystem: target.sourceKey,
       sourceUrl,
       procurementMethod: null,
       documents: null,
@@ -160,45 +168,46 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
 
 export async function runKitScraper(): Promise<ScraperResult> {
   const startedAt = new Date();
-  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
+  const aggregate: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
-  try {
-    logger.info("KİT scraper starting");
-    const allTenders: InsertTender[] = [];
+  logger.info("KİT scraper starting");
 
-    for (const target of KIT_TARGETS) {
-      try {
-        const tenders = await retry(() => scrapeKitTarget(target), 2, 2000);
-        logger.info({ agency: target.agency, count: tenders.length }, "KİT target scraped");
-        allTenders.push(...tenders);
-      } catch (err) {
-        logger.warn({ agency: target.agency, err }, "KİT target scrape failed");
-      }
-    }
+  for (const target of KIT_TARGETS) {
+    const agencyStartedAt = new Date();
+    const agencyResult: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
-    result.fetched = allTenders.length;
+    try {
+      const tenders = await retry(() => scrapeKitTarget(target), 2, 2000);
+      logger.info({ agency: target.agency, count: tenders.length }, "KİT target scraped");
+      agencyResult.fetched = tenders.length;
 
-    for (const tender of allTenders) {
-      try {
-        const { inserted, tenderId } = await upsertTender(tender);
-        if (inserted) {
-          result.inserted++;
-          result.newTenderIds!.push(tenderId);
-        } else {
-          result.updated++;
+      for (const tender of tenders) {
+        try {
+          const { inserted, tenderId } = await upsertTender(tender);
+          if (inserted) {
+            agencyResult.inserted++;
+            agencyResult.newTenderIds!.push(tenderId);
+          } else {
+            agencyResult.updated++;
+          }
+        } catch (err) {
+          logger.warn({ ikn: tender.ikn, err }, "Failed to upsert KİT tender");
         }
-      } catch (err) {
-        logger.warn({ ikn: tender.ikn, err }, "Failed to upsert KİT tender");
       }
+    } catch (err) {
+      agencyResult.error = String(err);
+      logger.warn({ agency: target.agency, err }, "KİT target scrape failed");
     }
 
-    logger.info(result, "KİT scraper completed");
-  } catch (err) {
-    result.error = String(err);
-    logger.error({ err }, "KİT scraper failed");
+    await finalizeScraperRun({ source: target.sourceKey, startedAt: agencyStartedAt, result: agencyResult });
+
+    aggregate.fetched += agencyResult.fetched;
+    aggregate.inserted += agencyResult.inserted;
+    aggregate.updated += agencyResult.updated;
+    aggregate.newTenderIds!.push(...(agencyResult.newTenderIds ?? []));
+    if (agencyResult.error && !aggregate.error) aggregate.error = agencyResult.error;
   }
 
-  await finalizeScraperRun({ source: "kit", startedAt, result });
-
-  return result;
+  logger.info(aggregate, "KİT scraper completed");
+  return aggregate;
 }

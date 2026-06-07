@@ -33,10 +33,19 @@ export const SOURCE_LABELS: Record<string, string> = {
   ted: "TED (AB İhaleleri)",
   worldbank: "Dünya Bankası",
   ebrd: "EBRD",
-  kit: "KİT",
+  // KİT public enterprises — each tracked individually in scraper_runs
+  kit: "KİT (Genel)",
+  tcdd: "TCDD",
+  botas: "BOTAŞ",
+  tpao: "TPAO",
+  dhmi: "DHMİ",
+  toki: "TOKİ",
+  dsi: "DSİ",
+  // Grant & support programmes
   tubitak: "TÜBİTAK",
   kosgeb: "KOSGEB",
   kalkinma_ajansi: "Kalkınma Ajansları",
+  // International sources
   ungm: "UNGM (BM Tedarik)",
   adb: "ADB (Asya Kalkınma Bankası)",
   isdb: "IsDB (İslam Kalkınma Bankası)",

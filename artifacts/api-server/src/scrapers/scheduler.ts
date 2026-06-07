@@ -131,6 +131,6 @@ export function startScraperScheduler(): void {
   );
 
   logger.info(
-    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ), World Bank, EBRD, UNGM, ADB, IsDB, TÜBİTAK, KOSGEB; conditional: TED (requires TED_API_KEY); disabled (no stable source): Kalkınma Ajansları",
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT per-agency (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ — each with own scraper_runs row), World Bank, EBRD, UNGM, ADB, IsDB, TÜBİTAK, KOSGEB, Kalkınma Ajansları (BAKA/BEBKA/DOGAKA/MARKA); conditional: TED (requires TED_API_KEY)",
   );
 }
