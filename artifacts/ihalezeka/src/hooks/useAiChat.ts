@@ -20,6 +20,7 @@ export interface AiChatMessage {
   streaming?: boolean;
   cards?: AiTenderCard[];
   notice?: string;
+  toolStatus?: string;
 }
 
 export interface AiChatContext {
@@ -123,6 +124,7 @@ export function useAiChat(
                   proposalPatch?: string;
                   tenders?: AiTenderCard[];
                   action?: { type: string; ok?: boolean; message?: string };
+                  toolStatus?: string;
                 }
               | null = null;
             try {
@@ -133,6 +135,17 @@ export function useAiChat(
 
             if (parsed?.error) {
               throw new Error(parsed.error);
+            }
+            if (parsed?.toolStatus) {
+              // Show transient tool-loading status in the streaming bubble
+              setMessages((prev) => {
+                const next = [...prev];
+                const last = next[next.length - 1];
+                if (last?.streaming) {
+                  next[next.length - 1] = { ...last, toolStatus: parsed!.toolStatus };
+                }
+                return next;
+              });
             }
             if (parsed?.proposalPatch && onProposalPatch) {
               onProposalPatch(parsed.proposalPatch);

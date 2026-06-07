@@ -8,6 +8,21 @@ const router = Router();
 
 const DEFAULT_BIZ = "demo-business";
 
+const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL ?? "gpt-5.1";
+
+// gpt-5+ models: no temperature, use max_completion_tokens
+// gpt-4 and earlier: temperature + max_tokens
+const isLegacyModel =
+  AI_CHAT_MODEL.startsWith("gpt-4") ||
+  AI_CHAT_MODEL.startsWith("gpt-3") ||
+  AI_CHAT_MODEL.startsWith("o1");
+
+function modelParams(maxTokens: number) {
+  return isLegacyModel
+    ? { max_tokens: maxTokens, temperature: 0.7 }
+    : { max_completion_tokens: maxTokens };
+}
+
 interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
@@ -51,21 +66,36 @@ function detectsEditIntent(userMessage: string): boolean {
 }
 
 function buildSystemPrompt(context: ChatContext): string {
-  const base = `Sen İhaleZeka'nın yapay zeka asistanısın. İhaleZeka, Türkiye'deki şirketlerin devlet ihalelerini takip etmesini, teklif hazırlamasını ve rekabet analizleri yapmasını sağlayan bir SaaS platformudur.
+  const base = `Sen İhaleZeka'nın yapay zeka asistanısın — Türkiye kamu ihale mevzuatında uzman, deneyimli bir ihale danışmanısın.
 
-Görevin kullanıcıya ihaleler, başvuru süreçleri, teklifler ve stratejiler konusunda pratik, doğrudan ve uzman tavsiyesi vermektir. Her zaman Türkçe yanıt ver. Kısa ve net ol — gereksiz giriş cümleleri kullanma. Mümkün olduğunda liste ve başlık kullan.
+## Uzmanlık alanların:
+- **4734 Sayılı Kamu İhale Kanunu** ve uygulamaları
+- **EKAP** (Elektronik Kamu Alımları Platformu) — ihale ilanı, doküman ve sonuç takibi
+- **KİK** (Kamu İhale Kurumu) — mevzuat, kararlar, itiraz süreçleri
+- **İhale türleri**: Açık ihale, belli istekliler arasında ihale, pazarlık usulü (Md. 19, 20, 21)
+- **Alım kategorileri**: Mal alımı, hizmet alımı, yapım işleri, danışmanlık hizmetleri
+- **CPV/OKAS kodları** — Avrupa Birleşik Tedarik Sözlüğü ve ihale sınıflandırması
+- **Yaklaşık maliyet**, **geçici teminat** (%3), **kesin teminat** (%6) hesaplamaları
+- **Yeterlik kriterleri**: Mali ve teknik kapasite, iş deneyim belgeleri
+- **İstisna kapsamı**: 3/g, 3/f maddeleri ve doğrudan temin
 
-Sen bir AJAN'sın: Kullanıcı ihale aramak, fırsatlarını görmek, yaklaşan son tarihleri öğrenmek veya bir ihaleyi takip listesine (pipeline) eklemek istediğinde, sana verilen araçları (tools) KULLAN. Tahmin etme — gerçek verileri araçlarla çek. Araç sonuçlarındaki ihaleleri kullanıcıya kısaca özetle; arayüz ihale kartlarını otomatik gösterecek, bu yüzden tüm alanları tekrar yazma.`;
+## Davranış kuralları:
+1. **Her zaman Türkçe yanıt ver.** Kısa, net, doğrudan ol.
+2. **Araçları önce kullan:** Kullanıcı ihale sormadan önce search_tenders veya get_tender_detail aracını çağır — asla tahmin etme.
+3. **Gerçek verilerle yanıtla:** Araç sonuçlarını özetle, arayüz ihale kartlarını otomatik gösterir.
+4. **Bilmediğini kabul et:** Eğer araçtan sonuç gelmezse veya veri yoksa açıkça belirt — asla uydurmayasın.
+5. **Markdown kullan:** Listeler, başlıklar, kalın metin ile okunabilirliği artır.
+6. Gereksiz giriş cümleleri ekleme ("Tabii ki!", "Harika soru!" gibi). Doğrudan cevaba geç.`;
 
   if (context.mode === "general") {
     const matchesSummary =
       context.topMatches && context.topMatches.length > 0
-        ? `\n\nKullanıcının En İyi Fırsatları:\n` +
+        ? `\n\n## Kullanıcının Önerilen Fırsatları (uyum skoruna göre):\n` +
           context.topMatches
             .slice(0, 5)
             .map(
               (m) =>
-                `- ${m.title} (${m.agency}) — Uyum Skoru: %${m.fitScore}${
+                `- ${m.title} (${m.agency}) — Uyum: %${m.fitScore}${
                   m.deadline
                     ? `, Son Tarih: ${new Date(m.deadline).toLocaleDateString("tr-TR")}`
                     : ""
@@ -75,11 +105,11 @@ Sen bir AJAN'sın: Kullanıcı ihale aramak, fırsatlarını görmek, yaklaşan 
         : "";
 
     const companySummary = context.companyName
-      ? `\nŞirket: ${context.companyName}`
+      ? `\n\n## Kullanıcının Firması: ${context.companyName}`
       : "";
 
     const briefSummary = context.aiBrief
-      ? `\n\nFirma Hakkında (kullanıcı tarafından yazılmış):\n${context.aiBrief}`
+      ? `\n\n## Firma Profili (kullanıcı tarafından girilmiş):\n${context.aiBrief}`
       : "";
 
     return `${base}${companySummary}${briefSummary}${matchesSummary}
@@ -90,11 +120,11 @@ Kullanıcı kendi ihaleleri, fırsatları veya platformdaki veriler hakkında so
   if (context.mode === "proposal") {
     const t = context.tender;
     const tenderInfo = t
-      ? `\n\nAktif İhale:\n- Başlık: ${t.title ?? "Belirtilmemiş"}\n- Kurum: ${t.agency ?? "Belirtilmemiş"}\n- Tür: ${t.type ?? "Belirtilmemiş"}\n- Tahmini Bedel: ${t.estimatedValue ? t.estimatedValue.toLocaleString("tr-TR") + " TL" : "Belirtilmemiş"}\n- Son Tarih: ${t.deadline ? new Date(t.deadline).toLocaleDateString("tr-TR") : "Belirtilmemiş"}${t.aiSummary ? `\n- Belge Özeti: ${t.aiSummary}` : ""}`
+      ? `\n\n## Aktif İhale:\n- **Başlık:** ${t.title ?? "Belirtilmemiş"}\n- **Kurum:** ${t.agency ?? "Belirtilmemiş"}\n- **Tür:** ${t.type ?? "Belirtilmemiş"}\n- **Tahmini Bedel:** ${t.estimatedValue ? t.estimatedValue.toLocaleString("tr-TR") + " TL" : "Belirtilmemiş"}\n- **Son Tarih:** ${t.deadline ? new Date(t.deadline).toLocaleDateString("tr-TR") : "Belirtilmemiş"}${t.aiSummary ? `\n\n## Belge / Şartname Özeti:\n${t.aiSummary}` : ""}`
       : "";
 
     const briefSummary = context.aiBrief
-      ? `\n\nFirma Hakkında:\n${context.aiBrief}`
+      ? `\n\n## Firma Profili:\n${context.aiBrief}`
       : "";
 
     return `${base}${briefSummary}
@@ -111,7 +141,7 @@ function buildPatchSystemPrompt(context: ChatContext): string {
     ? `\nAktif İhale: ${t.title ?? ""} — ${t.agency ?? ""}${t.estimatedValue ? ` — ${t.estimatedValue.toLocaleString("tr-TR")} TL` : ""}${t.deadline ? ` — Son Tarih: ${new Date(t.deadline).toLocaleDateString("tr-TR")}` : ""}`
     : "";
 
-  return `Sen profesyonel bir teklif yazarısın. Kullanıcının isteğine göre mevcut teklif taslağını güncelleyeceksin.${tenderInfo}
+  return `Sen profesyonel bir ihale teklif yazarısın. Kullanıcının isteğine göre mevcut teklif taslağını güncelleyeceksin.${tenderInfo}
 
 Kurallar:
 - Mevcut taslağı tamamen koru, yalnızca istenen bölümü değiştir veya ekle.
@@ -138,8 +168,26 @@ const TOOLS = [
           },
           il: { type: "string", description: "İhalenin yapılacağı il (ör. 'Ankara', 'İstanbul')." },
           type: { type: "string", description: "İhale türü: 'Mal', 'Hizmet' veya 'Yapım'." },
-          limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 8)." },
+          limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 8, en fazla 12)." },
         },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_tender_detail",
+      description:
+        "Belirli bir ihalenin tam detaylarını döndürür: açıklama, belgeler, AI özeti, CPV kodları, ihale yöntemi. Kullanıcı belirli bir ihale hakkında detaylı soru sorduğunda ya da ihale ID veya IKN numarası bilindiğinde kullan.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "string",
+            description: "İhalenin sayısal veritabanı ID'si (ör. '142') veya IKN kodu (ör. '2024/123456'). search_tenders sonucundaki id alanından alınabilir.",
+          },
+        },
+        required: ["id"],
       },
     },
   },
@@ -230,6 +278,51 @@ async function runSearchTenders(args: { keyword?: string; il?: string; type?: st
   return rows.map(serializeTender);
 }
 
+async function runGetTenderDetail(args: { id: string }) {
+  let tender: typeof tendersTable.$inferSelect | undefined;
+
+  // Try numeric DB id first
+  const numId = parseInt(args.id, 10);
+  if (!isNaN(numId)) {
+    const rows = await db.select().from(tendersTable).where(eq(tendersTable.id, numId)).limit(1);
+    tender = rows[0];
+  }
+
+  // Fall back to IKN lookup
+  if (!tender) {
+    const rows = await db.select().from(tendersTable).where(eq(tendersTable.ikn, args.id)).limit(1);
+    tender = rows[0];
+  }
+
+  if (!tender) {
+    return { error: `"${args.id}" ID/IKN'si için ihale bulunamadı.` };
+  }
+
+  const docs = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
+
+  return {
+    id: tender.id,
+    ikn: tender.ikn,
+    title: tender.title,
+    agency: tender.agencyName,
+    type: tender.type,
+    method: tender.method,
+    il: tender.il,
+    category: tender.category,
+    estimatedValue: tender.estimatedValue,
+    deadline: tender.deadline?.toISOString() ?? null,
+    status: tender.status,
+    sourceSystem: tender.sourceSystem,
+    sourceUrl: tender.sourceUrl,
+    // Truncate long description/summary to keep context window sane
+    description: tender.description ? tender.description.slice(0, 2500) : null,
+    aiSummary: tender.aiSummary ? tender.aiSummary.slice(0, 2000) : null,
+    cpvCodes: tender.cpvCodes,
+    documentCount: docs.length,
+    documents: docs.slice(0, 5).map((d) => ({ name: d.name, type: d.type })),
+  };
+}
+
 async function runGetTopMatches(args: { limit?: number }) {
   const limit = Math.min(args.limit ?? 6, 10);
   const rows = await db
@@ -289,12 +382,40 @@ async function runAddToPipeline(args: { tenderId: number }) {
   return { ok: true, message: `"${tender.title}" takip listenize (Fırsat Keşfi) eklendi.`, tender: serializeTender(tender) };
 }
 
+const TOOL_STATUS_LABELS: Record<string, string> = {
+  search_tenders: "İhaleler aranıyor…",
+  get_tender_detail: "İhale detayları alınıyor…",
+  get_top_matches: "En iyi eşleşmeler yükleniyor…",
+  get_upcoming_deadlines: "Yaklaşan son tarihler alınıyor…",
+  add_to_pipeline: "Pipeline'a ekleniyor…",
+};
+
 async function executeTool(name: string, args: any, sse: (obj: unknown) => void) {
   switch (name) {
     case "search_tenders": {
       const results = await runSearchTenders(args);
       if (results.length) sse({ tenders: results });
       return { count: results.length, tenders: results };
+    }
+    case "get_tender_detail": {
+      const result = await runGetTenderDetail(args);
+      if (!("error" in result)) {
+        // Emit a tender card so the UI shows it inline, plus pass full detail to the model
+        sse({
+          tenders: [{
+            id: result.id,
+            title: result.title,
+            agency: result.agency,
+            agencyLogoUrl: null,
+            type: result.type,
+            il: result.il,
+            estimatedValue: result.estimatedValue,
+            deadline: result.deadline,
+            sourceSystem: result.sourceSystem,
+          }],
+        });
+      }
+      return result;
     }
     case "get_top_matches": {
       const results = await runGetTopMatches(args);
@@ -397,19 +518,17 @@ router.post("/ai/chat", async (req, res) => {
 
     const { openai } = await import("@workspace/integrations-openai-ai-server");
 
-    // Only the general mode uses the agentic tools. Proposal mode stays focused on writing.
     const useTools = chatContext.mode === "general";
     const MAX_TURNS = 4;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: AI_CHAT_MODEL,
         messages: conversation,
         stream: true,
-        max_tokens: 1024,
-        temperature: 0.7,
+        ...modelParams(1500),
         ...(useTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
-      });
+      } as any);
 
       let assistantText = "";
       const toolAcc: Record<number, AccumulatedToolCall> = {};
@@ -438,7 +557,6 @@ router.post("/ai/chat", async (req, res) => {
       const toolCalls = Object.values(toolAcc).filter((t) => t.name);
 
       if (toolCalls.length === 0) {
-        // No tools requested — the streamed text is the final answer.
         break;
       }
 
@@ -454,6 +572,9 @@ router.post("/ai/chat", async (req, res) => {
       });
 
       for (const call of toolCalls) {
+        // Signal the frontend which tool is running so it can show a status message
+        sse({ toolStatus: TOOL_STATUS_LABELS[call.name] ?? "Veriler yükleniyor…" });
+
         let parsedArgs: any = {};
         try {
           parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
@@ -473,7 +594,6 @@ router.post("/ai/chat", async (req, res) => {
           content: JSON.stringify(result),
         });
       }
-      // Loop again so the model can summarize tool results (and possibly chain tools).
     }
 
     // ── Proposal patch (proposal mode only) ─────────────────────────
@@ -494,12 +614,11 @@ router.post("/ai/chat", async (req, res) => {
         ];
 
         const patchResponse = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: AI_CHAT_MODEL,
           messages: patchMessages as any,
           stream: false,
-          max_tokens: 2048,
-          temperature: 0.4,
-        });
+          ...modelParams(2500),
+        } as any);
 
         const updatedDraft = patchResponse.choices[0]?.message?.content ?? "";
         if (updatedDraft) {

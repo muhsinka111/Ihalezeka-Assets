@@ -513,9 +513,12 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                   {msg.role === "user" ? <IconUser className="h-3.5 w-3.5" /> : <IconRobot className="h-3.5 w-3.5" />}
                 </div>
                 <div className={cn("min-w-0 flex flex-col gap-2", msg.role === "user" ? "items-end max-w-[85%]" : "max-w-[88%]")}>
-                  {(msg.content || msg.streaming) && (
+                  {(msg.content || msg.streaming || msg.toolStatus) && (
                     <div className={cn("px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap",
                       msg.role === "user" ? "bg-primary text-white rounded-tr-none" : "bg-muted text-foreground rounded-tl-none")}>
+                      {msg.toolStatus && !msg.content && (
+                        <span className="italic text-muted-foreground">{msg.toolStatus}</span>
+                      )}
                       {msg.content}
                       {msg.streaming && (
                         <span className="inline-flex gap-0.5 ml-1 align-middle">
