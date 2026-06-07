@@ -32,11 +32,11 @@ async function start() {
   try {
     const result = await db.execute(sql`
       UPDATE tenders
-      SET source_url = 'https://ekapv2.kik.gov.tr/ekap/ihale-detay/' || (raw_data->>'id')
+      SET source_url = 'https://ekapv2.kik.gov.tr/ekap/detay/' || ikn
       WHERE source_system = 'ekap'
         AND (source_url IS NULL OR source_url = '')
-        AND raw_data->>'id' IS NOT NULL
-        AND raw_data->>'id' != ''
+        AND ikn IS NOT NULL
+        AND ikn != ''
     `);
     const count = (result as any).rowCount ?? 0;
     if (count > 0) logger.info({ count }, "Backfilled EKAP sourceUrl for rows with null sourceUrl");

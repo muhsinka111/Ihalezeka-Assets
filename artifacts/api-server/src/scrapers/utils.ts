@@ -189,7 +189,9 @@ export function mapEkapToTender(tender: EkapTender): InsertTender {
     status: mapEkapStatus(tender.ihaleDurum, tender.ihaleDurumAciklama),
     sourceSystem: "ekap",
     category: "ihale",
-    sourceUrl: `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
+    sourceUrl: tender.ikn
+      ? `https://ekapv2.kik.gov.tr/ekap/detay/${tender.ikn}`
+      : `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
     procurementMethod: tender.ihaleUsulAciklama ?? null,
     documents: docs.length > 0 ? docs : null,
     rawData: tender as unknown as Record<string, unknown>,

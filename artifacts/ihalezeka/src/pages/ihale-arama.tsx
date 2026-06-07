@@ -511,18 +511,37 @@ export default function IhaleAramaPage() {
   const hasMore = allItems.length < total;
   const isLoadingMore = isFetching && page > 1;
 
-  // Deduplicate live results — stored DB records take priority over live ones
-  const storedIkns = new Set(allItems.map((t: any) => t.ikn).filter(Boolean));
-  const uniqueLiveItems = liveItems.filter((t: any) => !storedIkns.has(t.ikn));
-  const mergedItems = [...allItems, ...uniqueLiveItems];
-
-  const hasActiveFilters = Object.keys(appliedToCriteria(applied)).length > 0;
-
   const currentSort = applied.sortBy && applied.sortDir
     ? `${applied.sortBy}_${applied.sortDir}`
     : applied.q
       ? "relevance_desc"
       : "deadline_asc";
+
+  // Deduplicate live results — stored DB records take priority over live ones.
+  // Then sort the merged list by the active sort criterion so live results slot
+  // into the correct position rather than always appearing at the end.
+  const storedIkns = new Set(allItems.map((t: any) => t.ikn).filter(Boolean));
+  const uniqueLiveItems = liveItems.filter((t: any) => !storedIkns.has(t.ikn));
+  const mergedItems: any[] = (() => {
+    const raw = [...allItems, ...uniqueLiveItems];
+    if (currentSort.startsWith("deadline")) {
+      return raw.slice().sort((a, b) => {
+        const aMs = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+        const bMs = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+        return currentSort === "deadline_asc" ? aMs - bMs : bMs - aMs;
+      });
+    }
+    if (currentSort.startsWith("estimatedValue")) {
+      return raw.slice().sort((a, b) => {
+        const aV = a.estimatedValue ?? -1;
+        const bV = b.estimatedValue ?? -1;
+        return currentSort === "estimatedValue_desc" ? bV - aV : aV - bV;
+      });
+    }
+    return raw;
+  })();
+
+  const hasActiveFilters = Object.keys(appliedToCriteria(applied)).length > 0;
 
   const handleSortChange = (val: string) => {
     const [sortBy, sortDir] = val.split("_") as [string, string];

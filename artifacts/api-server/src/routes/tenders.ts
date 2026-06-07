@@ -253,7 +253,9 @@ router.get("/tenders/live-search", async (req, res) => {
           method: mapped.method,
           status: mapped.status,
           sourceSystem: "ekap",
-          sourceUrl: `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
+          sourceUrl: mapped.ikn
+            ? `https://ekapv2.kik.gov.tr/ekap/detay/${mapped.ikn}`
+            : `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
           estimatedValue: mapped.estimatedValue,
           category: "ihale",
           _isLive: true,
