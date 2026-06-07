@@ -11,6 +11,7 @@ import { runKosgbScraper } from "./kosgeb-scraper.js";
 import { runKalkinmaScraper } from "./kalkinma-scraper.js";
 import { runUngmScraper } from "./ungm-scraper.js";
 import { runAdbScraper } from "./adb-scraper.js";
+import { runAiibScraper } from "./aiib-scraper.js";
 import { runIsdbScraper } from "./isdb-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
@@ -71,6 +72,7 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
       // International sources (UNGM auto-falls back to UNDP ColdFusion portal when SPA detected)
       runUngmScraper(cfg.intlDaysBack),
       runAdbScraper(),
+      runAiibScraper(cfg.intlDaysBack),
       runIsdbScraper(),
       // Grant programs (30-day cadence; current listings, dedup by IKN)
       runTubitakScraper(),
@@ -80,7 +82,7 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
 
     const sourceNames = [
       "ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd",
-      "ungm", "adb", "isdb",
+      "ungm", "adb", "aiib", "isdb",
       "tubitak", "kosgeb", "kalkinma_ajansi",
     ];
     const allNewIds: number[] = [];
@@ -131,6 +133,6 @@ export function startScraperScheduler(): void {
   );
 
   logger.info(
-    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT per-agency (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ each with own scraper_runs row), Kalkınma Ajansları per-agency (BAKA/BEBKA/DOGAKA/MARKA each with own scraper_runs row), World Bank, EBRD, UNGM (falls back to UNDP ColdFusion portal — inserts records), ADB (SPA/0), IsDB, TÜBİTAK, KOSGEB; conditional: TED (requires TED_API_KEY)",
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT per-agency (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ each with own scraper_runs row), Kalkınma Ajansları per-agency (BAKA/BEBKA/DOGAKA/MARKA each with own scraper_runs row), World Bank, EBRD, UNGM (falls back to UNDP ColdFusion portal), AIIB (static ppo-data-all.js — inserts records), IsDB, TÜBİTAK, KOSGEB; disabled: ADB (SearchStax SPA/no public API); conditional: TED (requires TED_API_KEY)",
   );
 }
