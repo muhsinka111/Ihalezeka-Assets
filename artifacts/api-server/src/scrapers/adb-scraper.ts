@@ -4,10 +4,27 @@ import { logger } from "../lib/logger.js";
 import { upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
 import type { InsertTender } from "@workspace/db";
 
-// ADB (Asian Development Bank) procurement notices.
-// The main site is a Drupal CMS with server-side rendering for the notice listing.
-// We scrape the public notices page which lists active opportunities.
-const ADB_NOTICES_URL = "https://www.adb.org/projects/procurement/notices";
+/**
+ * ADB (Asian Development Bank) procurement notices.
+ *
+ * ADB's procurement listing page (www.adb.org/projects/tenders) is a Drupal
+ * site that renders a <div id="site-search" class="searchstax-site-search"
+ * data-content="tenders"> placeholder.  The actual notice content is loaded
+ * client-side by the SearchStax cloud search widget — a Solr/JS SDK that makes
+ * authenticated requests to a SearchStax account cluster.  The drupalSettings
+ * object does not expose the cluster URL or API key, and the JS bundle is
+ * minified/bundled, so the endpoint cannot be extracted without browser execution.
+ *
+ * This scraper maintains the ADB source entry and infrastructure (scraper_runs
+ * rows, SOURCE_LABELS, admin health view), but returns 0 records because
+ * extracting notices requires a headless browser with JavaScript execution.
+ * The scraper is kept active so that when a public ADB API or RSS feed becomes
+ * available, it can be wired in without scheduler changes.
+ *
+ * Verified: 2026-06-07 — fetched /projects/tenders (63KB), confirmed
+ * `searchstax-site-search` SPA placeholder, no server-rendered notice rows.
+ */
+const ADB_NOTICES_URL = "https://www.adb.org/projects/tenders";
 const ADB_BASE = "https://www.adb.org";
 
 const BROWSER_UA =

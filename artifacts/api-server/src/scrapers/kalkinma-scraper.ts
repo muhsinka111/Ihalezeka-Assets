@@ -7,55 +7,60 @@ import type { InsertTender } from "@workspace/db";
 /**
  * Regional Development Agency (Kalkınma Ajansları) scraper.
  *
- * Targets the announcements / support-program pages of four agencies whose
- * sites are confirmed server-rendered (CMS / Drupal / custom PHP).  Content
- * URL patterns differ per agency; each target declares its own Cheerio selector
- * strategy.
+ * Each agency has its own sourceSystem key and gets its own scraper_runs row
+ * (same pattern as kit-scraper.ts). This lets the admin health view show
+ * per-agency status individually.
  *
- * Agencies that either 404 or are fully JS-rendered are commented out until a
- * working URL is confirmed.
+ * An aggregate "kalkinma_ajansi" scraper_runs row is also written at the end
+ * for backward compatibility.
+ *
+ * Confirmed working agencies (server-rendered CMS/WordPress/Drupal):
+ *   baka    — BAKA  (Batı Akdeniz)
+ *   bebka   — BEBKA (Bursa Eskişehir Bilecik)
+ *   dogaka  — DOGAKA (Doğu Akdeniz)
+ *   marka   — MARKA (Kuzey Marmara)
  */
 
 interface KalkinmaTarget {
   agency: string;
+  /** sourceSystem key — also used for scraper_runs rows */
+  sourceKey: string;
   region: string;
   url: string;
-  /** CSS selector for anchor tags that link to individual announcement pages */
   linkSelector: string;
-  /** Minimum characters for a title to be considered a real tender entry */
   minTitleLen: number;
 }
 
 const KALKINMA_TARGETS: KalkinmaTarget[] = [
   {
     agency: "BAKA",
+    sourceKey: "baka",
     region: "Batı Akdeniz",
     url: "https://baka.gov.tr/duyurular",
-    // BAKA CMS uses /duyuru/<slug> URLs for individual announcements
     linkSelector: "a[href*='/duyuru/']",
     minTitleLen: 8,
   },
   {
     agency: "BEBKA",
+    sourceKey: "bebka",
     region: "Bursa Eskişehir Bilecik",
     url: "https://bebka.org.tr/proje-ihaleleri/",
-    // BEBKA WordPress: post links use /proje-ihaleleri/<post> or /haber/<post>
     linkSelector: "a[href*='/proje-ihaleleri/'], a[href*='/haber/'], .entry-title a, .post-title a, article h2 a, article h3 a",
     minTitleLen: 8,
   },
   {
     agency: "DOGAKA",
+    sourceKey: "dogaka",
     region: "Doğu Akdeniz",
     url: "https://www.dogaka.gov.tr/duyurular",
-    // DOGAKA custom CMS: announcements at /duyuru/<id> or /duyurular/<slug>
     linkSelector: "a[href*='/duyuru'], a[href*='/haber'], .duyuru-baslik a, article a, .news-title a",
     minTitleLen: 8,
   },
   {
     agency: "MARKA",
+    sourceKey: "marka",
     region: "Kuzey Marmara",
     url: "https://www.marka.org.tr/haberler",
-    // MARKA WordPress: post links use /haberler/<slug>
     linkSelector: "a[href*='/haberler/'], a[href*='/duyuru/'], .entry-title a, .post-title a, article h2 a",
     minTitleLen: 8,
   },
@@ -91,7 +96,6 @@ async function scrapeKalkinmaTarget(target: KalkinmaTarget): Promise<InsertTende
     const anchor = $(el);
     const title = anchor.text().trim().replace(/\s+/g, " ");
     if (!title || title.length < target.minTitleLen) return;
-    // Skip navigation/menu links (very common short labels)
     if (title.length > 200) return;
     if (seen.has(title)) return;
     seen.add(title);
@@ -104,7 +108,6 @@ async function scrapeKalkinmaTarget(target: KalkinmaTarget): Promise<InsertTende
     }
     if (!sourceUrl) sourceUrl = target.url;
 
-    // Skip if the resolved URL is the same as the listing page (nav loop)
     const normalizeUrl = (u: string) => u.replace(/\/$/, "");
     if (normalizeUrl(sourceUrl) === normalizeUrl(target.url)) return;
 
@@ -122,8 +125,8 @@ async function scrapeKalkinmaTarget(target: KalkinmaTarget): Promise<InsertTende
       il: target.region.split(" ").pop() ?? "Türkiye",
       status: "active",
       category: "hibe",
-      description: [title, `Kurum: ${target.agency} Kalkınma Ajansı (${target.region})`].filter(Boolean).join("\n"),
-      sourceSystem: "kalkinma_ajansi",
+      description: [title, `Kurum: ${target.agency} Kalkınma Ajansı (${target.region})`].join("\n"),
+      sourceSystem: target.sourceKey,
       sourceUrl,
       procurementMethod: null,
       documents: null,
@@ -137,41 +140,50 @@ async function scrapeKalkinmaTarget(target: KalkinmaTarget): Promise<InsertTende
 
 export async function runKalkinmaScraper(): Promise<ScraperResult> {
   const startedAt = new Date();
-  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
+  const aggregate: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
-  try {
-    logger.info("Kalkınma Ajansları scraper starting");
+  logger.info("Kalkınma Ajansları scraper starting");
 
-    for (const target of KALKINMA_TARGETS) {
-      try {
-        const tenders = await retry(() => scrapeKalkinmaTarget(target), 2, 2000);
-        logger.info({ agency: target.agency, count: tenders.length }, "Kalkınma Ajansı target scraped");
-        result.fetched += tenders.length;
+  for (const target of KALKINMA_TARGETS) {
+    const agencyStart = new Date();
+    const agencyResult: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
-        for (const tender of tenders) {
-          try {
-            const { inserted, tenderId } = await upsertTender(tender);
-            if (inserted) {
-              result.inserted++;
-              result.newTenderIds!.push(tenderId);
-            } else {
-              result.updated++;
-            }
-          } catch (err) {
-            logger.warn({ ikn: tender.ikn, err }, "Failed to upsert Kalkınma tender");
+    try {
+      const tenders = await retry(() => scrapeKalkinmaTarget(target), 2, 2000);
+      logger.info({ agency: target.agency, count: tenders.length }, "Kalkınma Ajansı target scraped");
+      agencyResult.fetched = tenders.length;
+
+      for (const tender of tenders) {
+        try {
+          const { inserted, tenderId } = await upsertTender(tender);
+          if (inserted) {
+            agencyResult.inserted++;
+            agencyResult.newTenderIds!.push(tenderId);
+          } else {
+            agencyResult.updated++;
           }
+        } catch (err) {
+          logger.warn({ ikn: tender.ikn, err }, "Failed to upsert Kalkınma tender");
         }
-      } catch (err) {
-        logger.warn({ agency: target.agency, err }, "Kalkınma target scrape failed");
       }
+    } catch (err) {
+      agencyResult.error = String(err);
+      logger.warn({ agency: target.agency, err }, "Kalkınma target scrape failed");
     }
 
-    logger.info(result, "Kalkınma Ajansları scraper completed");
-  } catch (err) {
-    result.error = String(err);
-    logger.error({ err }, "Kalkınma Ajansları scraper failed");
+    // Write per-agency scraper_runs row
+    await finalizeScraperRun({ source: target.sourceKey, startedAt: agencyStart, result: agencyResult });
+
+    // Accumulate into aggregate
+    aggregate.fetched += agencyResult.fetched;
+    aggregate.inserted += agencyResult.inserted;
+    aggregate.updated += agencyResult.updated;
+    aggregate.newTenderIds!.push(...(agencyResult.newTenderIds ?? []));
   }
 
-  await finalizeScraperRun({ source: "kalkinma_ajansi", startedAt, result });
-  return result;
+  logger.info(aggregate, "Kalkınma Ajansları scraper completed");
+
+  // Write aggregate scraper_runs row for backward compatibility
+  await finalizeScraperRun({ source: "kalkinma_ajansi", startedAt, result: aggregate });
+  return aggregate;
 }

@@ -44,10 +44,14 @@ export const SOURCE_LABELS: Record<string, string> = {
   // Grant & support programmes
   tubitak: "TÜBİTAK",
   kosgeb: "KOSGEB",
-  kalkinma_ajansi: "Kalkınma Ajansları",
+  kalkinma_ajansi: "Kalkınma Ajansları (toplam)",
+  // Kalkınma Ajansları — per-agency keys (each gets its own scraper_runs row)
+  baka: "BAKA (Batı Akdeniz Kalkınma Ajansı)",
+  bebka: "BEBKA (Bursa Eskişehir Bilecik Kalkınma Ajansı)",
+  dogaka: "DOGAKA (Doğu Akdeniz Kalkınma Ajansı)",
+  marka: "MARKA (Kuzey Marmara Kalkınma Ajansı)",
   // International sources
-  ungm: "UNGM (BM Tedarik)",
-  undp: "UNDP (BM Kalkınma Programı)",
+  ungm: "BM Tedarik Bildirimleri (UNGM/UNDP)",
   adb: "ADB (Asya Kalkınma Bankası)",
   isdb: "IsDB (İslam Kalkınma Bankası)",
 };
