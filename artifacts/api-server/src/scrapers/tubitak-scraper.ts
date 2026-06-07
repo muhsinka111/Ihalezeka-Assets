@@ -19,7 +19,9 @@ const TUBITAK_TARGETS = [
   { label: "Sanayi - Ulusal", url: `${BASE_URL}/tr/destekler/sanayi/ulusal-destek-programlari` },
   { label: "Sanayi - Uluslararası", url: `${BASE_URL}/tr/destekler/sanayi/uluslararasi-programlar` },
   { label: "Bilim ve Toplum", url: `${BASE_URL}/tr/destekler/bilim-toplum/ulusal-programlar` },
-  { label: "Açık Çağrılar", url: `${BASE_URL}/tr/duyurular/acik-cagrilar` },
+  // SKIP: /tr/duyurular/acik-cagrilar returns HTTP 400 (server rejects non-session
+  // requests to that path). Replaced with the KOBİ support category below.
+  { label: "Sanayi - KOBİ", url: `${BASE_URL}/tr/destekler/sanayi/kobi` },
   { label: "Girişimcilik", url: `${BASE_URL}/tr/destekler/girisimcilik` },
 ];
 

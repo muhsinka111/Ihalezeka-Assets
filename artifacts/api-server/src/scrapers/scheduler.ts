@@ -9,6 +9,9 @@ import { runKitScraper } from "./kit-scraper.js";
 import { runTubitakScraper } from "./tubitak-scraper.js";
 import { runKosgbScraper } from "./kosgeb-scraper.js";
 import { runKalkinmaScraper } from "./kalkinma-scraper.js";
+import { runUngmScraper } from "./ungm-scraper.js";
+import { runAdbScraper } from "./adb-scraper.js";
+import { runIsdbScraper } from "./isdb-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { dispatchSavedSearchAlerts } from "../lib/savedSearchAlerts.js";
@@ -65,13 +68,21 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
       runWorldBankScraper(cfg.intlDaysBack),
       // International HTML (no date filter — dedup handles staleness)
       runEbrdScraper(),
+      // New international sources
+      runUngmScraper(cfg.intlDaysBack),
+      runAdbScraper(),
+      runIsdbScraper(),
       // Grant programs (30-day cadence; current listings, dedup by IKN)
       runTubitakScraper(),
       runKosgbScraper(),
       runKalkinmaScraper(),
     ]);
 
-    const sourceNames = ["ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd", "tubitak", "kosgeb", "kalkinma_ajansi"];
+    const sourceNames = [
+      "ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd",
+      "ungm", "adb", "isdb",
+      "tubitak", "kosgeb", "kalkinma_ajansi",
+    ];
     const allNewIds: number[] = [];
 
     results.forEach((r, i) => {
@@ -120,6 +131,6 @@ export function startScraperScheduler(): void {
   );
 
   logger.info(
-    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT, World Bank, EBRD, TÜBİTAK, KOSGEB; conditional: TED (requires TED_API_KEY); disabled (no stable source): Kalkınma Ajansları",
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ), World Bank, EBRD, UNGM, ADB, IsDB, TÜBİTAK, KOSGEB; conditional: TED (requires TED_API_KEY); disabled (no stable source): Kalkınma Ajansları",
   );
 }

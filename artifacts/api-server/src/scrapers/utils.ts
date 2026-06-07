@@ -37,6 +37,9 @@ export const SOURCE_LABELS: Record<string, string> = {
   tubitak: "TÜBİTAK",
   kosgeb: "KOSGEB",
   kalkinma_ajansi: "Kalkınma Ajansları",
+  ungm: "UNGM (BM Tedarik)",
+  adb: "ADB (Asya Kalkınma Bankası)",
+  isdb: "IsDB (İslam Kalkınma Bankası)",
 };
 
 export function parseTurkishDate(str: string): Date {

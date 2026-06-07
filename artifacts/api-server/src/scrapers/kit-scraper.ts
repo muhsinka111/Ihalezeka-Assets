@@ -18,10 +18,13 @@ const KIT_TARGETS: KitTarget[] = [
   {
     agency: "TCDD",
     il: "Ankara",
+    // TCDD's ihale page renders content server-side with PHP sessions;
+    // many runs return 0 rows because the full HTML is a JS-bootstrap shell.
+    // We keep the target and let the multi-strategy fallback try its best.
     url: "https://www.tcdd.gov.tr/ihale-ilanlar",
-    rowSelector: "table tbody tr, .ihale-item, article",
-    titleSelector: "td:first-child a, h3, h4, .title",
-    dateSelector: "td:last-child, .date, time",
+    rowSelector: "table tbody tr, .ihale-item, .ihale-row, article, .card",
+    titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a.ihale-baslik",
+    dateSelector: "td:nth-child(3), td:last-child, .date, time",
     linkSelector: "a",
   },
   {
@@ -36,8 +39,10 @@ const KIT_TARGETS: KitTarget[] = [
   {
     agency: "TPAO",
     il: "Ankara",
+    // TPAO ihale sayfası JS ile yükleniyor; HTTP isteği çok az içerik döndürüyor.
+    // SKIP: JS-rendered SPA — keeps running but typically fetches 0 rows.
     url: "https://www.tpao.gov.tr/ihale-ve-tedarik",
-    rowSelector: "table tbody tr, .ihale-item, article, li",
+    rowSelector: "table tbody tr, .ihale-item, article, li, .tender-row",
     titleSelector: "td:first-child a, h3, h4, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
@@ -45,18 +50,33 @@ const KIT_TARGETS: KitTarget[] = [
   {
     agency: "DHMİ",
     il: "Ankara",
+    // SKIP: Returns <677 bytes (redirect shell). No scrapeable content.
     url: "https://www.dhmi.gov.tr/ihale-ve-satin-almalar/ihaleler",
-    rowSelector: "table tbody tr, .ihale-item, article, li",
+    rowSelector: "table tbody tr, .ihale-item, article, li, .tender-row",
     titleSelector: "td:first-child a, h3, h4, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
   },
   {
-    agency: "PTT",
+    agency: "TOKİ",
     il: "Ankara",
-    url: "https://www.ptt.gov.tr/TRK/kurumsal/ihale-ve-satin-alma",
-    rowSelector: "table tbody tr, .ihale-item, article, li",
-    titleSelector: "td:first-child a, h3, h4, a",
+    // TOKİ (Toplu Konut İdaresi) publishes tenders on its main site.
+    // The /ihale-ilanlar and /ihaleler paths 404 on this IIS host;
+    // we try the news/announcements section which sometimes lists tenders.
+    url: "https://www.toki.gov.tr/haberler",
+    rowSelector: "table tbody tr, .news-item, article, li, .haber-item, .card",
+    titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
+    dateSelector: "td:last-child, .date, time, .tarih",
+    linkSelector: "a",
+  },
+  {
+    agency: "DSİ",
+    il: "Ankara",
+    // DSİ (Devlet Su İşleri) publishes tenders via EKAP; their standalone portal
+    // is Cloudflare-protected. We target the public ihaleleri page.
+    url: "https://www.dsi.gov.tr/ihaleler",
+    rowSelector: "table tbody tr, .ihale-item, article, li, .card",
+    titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
   },
