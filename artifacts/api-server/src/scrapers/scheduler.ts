@@ -10,6 +10,7 @@ import { runTubitakScraper } from "./tubitak-scraper.js";
 import { runKosgbScraper } from "./kosgeb-scraper.js";
 import { runKalkinmaScraper } from "./kalkinma-scraper.js";
 import { runUngmScraper } from "./ungm-scraper.js";
+import { runUndpScraper } from "./undp-scraper.js";
 import { runAdbScraper } from "./adb-scraper.js";
 import { runIsdbScraper } from "./isdb-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
@@ -70,6 +71,7 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
       runEbrdScraper(),
       // New international sources
       runUngmScraper(cfg.intlDaysBack),
+      runUndpScraper(),
       runAdbScraper(),
       runIsdbScraper(),
       // Grant programs (30-day cadence; current listings, dedup by IKN)
@@ -80,7 +82,7 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
 
     const sourceNames = [
       "ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd",
-      "ungm", "adb", "isdb",
+      "ungm", "undp", "adb", "isdb",
       "tubitak", "kosgeb", "kalkinma_ajansi",
     ];
     const allNewIds: number[] = [];
@@ -131,6 +133,6 @@ export function startScraperScheduler(): void {
   );
 
   logger.info(
-    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT per-agency (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ — each with own scraper_runs row), World Bank, EBRD, UNGM, ADB, IsDB, TÜBİTAK, KOSGEB, Kalkınma Ajansları (BAKA/BEBKA/DOGAKA/MARKA); conditional: TED (requires TED_API_KEY)",
+    "Scraper scheduler started — active: EKAP, ilan.gov.tr, KİT per-agency (BOTAŞ/TCDD/TPAO/DHMİ/TOKİ/DSİ), World Bank, EBRD, UNGM (SPA/infra), UNDP (server-rendered ColdFusion — inserts records), ADB (SPA/infra), IsDB, TÜBİTAK, KOSGEB, Kalkınma Ajansları (BAKA/BEBKA/DOGAKA/MARKA); conditional: TED (requires TED_API_KEY)",
   );
 }

@@ -47,6 +47,7 @@ export const SOURCE_LABELS: Record<string, string> = {
   kalkinma_ajansi: "Kalkınma Ajansları",
   // International sources
   ungm: "UNGM (BM Tedarik)",
+  undp: "UNDP (BM Kalkınma Programı)",
   adb: "ADB (Asya Kalkınma Bankası)",
   isdb: "IsDB (İslam Kalkınma Bankası)",
 };
