@@ -209,5 +209,10 @@ export async function runKitScraper(): Promise<ScraperResult> {
   }
 
   logger.info(aggregate, "KİT scraper completed");
+
+  // Write an aggregate "kit" run so the admin health view shows a consolidated
+  // KİT status in addition to the per-agency rows written above.
+  await finalizeScraperRun({ source: "kit", startedAt, result: aggregate });
+
   return aggregate;
 }

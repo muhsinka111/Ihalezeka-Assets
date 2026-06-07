@@ -8,22 +8,14 @@ import { runIlanScraper } from "../scrapers/ilan-scraper.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { logger } from "../lib/logger.js";
 import { isScraperRunning } from "../scrapers/scheduler.js";
+import { SOURCE_LABELS } from "../scrapers/utils.js";
 
 const router = Router();
 
 const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 
-const ALL_SOURCES = [
-  "ekap",
-  "ilan_gov",
-  "ted",
-  "worldbank",
-  "ebrd",
-  "kit",
-  "tubitak",
-  "kosgeb",
-  "kalkinma_ajansi",
-] as const;
+/** All known sources — derived from SOURCE_LABELS so new scrapers appear automatically. */
+const ALL_SOURCES = Object.keys(SOURCE_LABELS);
 
 function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
   if (!ADMIN_USER_ID) return false;
@@ -68,7 +60,7 @@ router.get("/admin/scraper/status", async (_req, res) => {
       bySource.set(row.source, list);
     }
 
-    const perSource = ALL_SOURCES.map((source) => {
+    const perSource = ALL_SOURCES.map((source: string) => {
       const runs = bySource.get(source) ?? [];
       if (runs.length === 0) {
         return {
