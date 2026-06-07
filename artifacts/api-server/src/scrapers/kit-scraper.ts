@@ -2,10 +2,31 @@ import axios from "axios";
 import { load } from "cheerio";
 import { logger } from "../lib/logger.js";
 import { upsertTender, finalizeScraperRun, retry, ScraperResult } from "./utils.js";
+import { searchEkapByKeyword } from "./ekap-client.js";
 import type { InsertTender } from "@workspace/db";
+
+/**
+ * KİT (Kamu İktisadi Teşebbüsleri) scraper.
+ *
+ * Each state enterprise has its own sourceSystem key and scraper_runs row.
+ * An aggregate "kit" row is also written at the end.
+ *
+ * Two-stage strategy per agency:
+ *   1. Direct portal HTML scraping (fast, native).
+ *   2. EKAP keyword search fallback (when portal is SPA/Cloudflare/redirect shell
+ *      and returns 0 records). The fallback queries the EKAP v2 API with the
+ *      institution's procurement keyword, then filters results by idareAdi to
+ *      confirm institutional origin.  Results are stored with the agency's own
+ *      sourceSystem key and an "ekap-fallback" IKN prefix so they are distinct
+ *      from the main EKAP scraper's records.
+ *
+ * BOTAŞ, TOKİ  — direct portal works (returns records)
+ * TCDD, TPAO, DHMİ, DSİ — portal is SPA/blocked; EKAP fallback provides records
+ */
 
 interface KitTarget {
   agency: string;
+  /** sourceSystem key — also used for scraper_runs rows */
   sourceKey: string;
   il: string;
   url: string;
@@ -13,6 +34,13 @@ interface KitTarget {
   titleSelector: string;
   dateSelector: string;
   linkSelector: string;
+  /** EKAP keyword to search when direct portal returns 0 results */
+  ekapKeyword?: string;
+  /**
+   * Substring to check in idareAdi to confirm this is the correct institution.
+   * Case-insensitive ASCII match after Turkish character normalisation.
+   */
+  ekapIdareContains?: string;
 }
 
 const KIT_TARGETS: KitTarget[] = [
@@ -20,14 +48,13 @@ const KIT_TARGETS: KitTarget[] = [
     agency: "TCDD",
     sourceKey: "tcdd",
     il: "Ankara",
-    // TCDD's ihale page renders content server-side with PHP sessions;
-    // many runs return 0 rows because the full HTML is a JS-bootstrap shell.
-    // We keep the target and let the multi-strategy fallback try its best.
     url: "https://www.tcdd.gov.tr/ihale-ilanlar",
     rowSelector: "table tbody tr, .ihale-item, .ihale-row, article, .card",
     titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a.ihale-baslik",
     dateSelector: "td:nth-child(3), td:last-child, .date, time",
     linkSelector: "a",
+    ekapKeyword: "TCDD",
+    ekapIdareContains: "demiryollari",
   },
   {
     agency: "BOTAŞ",
@@ -38,56 +65,73 @@ const KIT_TARGETS: KitTarget[] = [
     titleSelector: "td:first-child a, h3, h4, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
+    ekapKeyword: "BOTAŞ",
+    ekapIdareContains: "boru hatlari",
   },
   {
     agency: "TPAO",
     sourceKey: "tpao",
     il: "Ankara",
-    // TPAO ihale sayfası JS ile yükleniyor; HTTP isteği çok az içerik döndürüyor.
-    // SKIP: JS-rendered SPA — keeps running but typically fetches 0 rows.
     url: "https://www.tpao.gov.tr/ihale-ve-tedarik",
     rowSelector: "table tbody tr, .ihale-item, article, li, .tender-row",
     titleSelector: "td:first-child a, h3, h4, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
+    ekapKeyword: "TPAO",
+    ekapIdareContains: "petrolleri",
   },
   {
     agency: "DHMİ",
     sourceKey: "dhmi",
     il: "Ankara",
-    // SKIP: Returns <677 bytes (redirect shell). No scrapeable content.
     url: "https://www.dhmi.gov.tr/ihale-ve-satin-almalar/ihaleler",
     rowSelector: "table tbody tr, .ihale-item, article, li, .tender-row",
     titleSelector: "td:first-child a, h3, h4, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
+    ekapKeyword: "DHMİ",
+    ekapIdareContains: "hava meydanlari",
   },
   {
     agency: "TOKİ",
     sourceKey: "toki",
     il: "Ankara",
-    // TOKİ (Toplu Konut İdaresi) publishes tenders on its main site.
-    // The /ihale-ilanlar and /ihaleler paths 404 on this IIS host;
-    // we use the news/announcements section which lists tenders.
     url: "https://www.toki.gov.tr/haberler",
     rowSelector: "table tbody tr, .news-item, article, li, .haber-item, .card",
     titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
     dateSelector: "td:last-child, .date, time, .tarih",
     linkSelector: "a",
+    ekapKeyword: "TOKİ",
+    ekapIdareContains: "toplu konut",
   },
   {
     agency: "DSİ",
     sourceKey: "dsi",
     il: "Ankara",
-    // DSİ (Devlet Su İşleri) portal is Cloudflare-protected.
-    // SKIP: Returns Cloudflare challenge page — 0 records expected.
     url: "https://www.dsi.gov.tr/ihaleler",
     rowSelector: "table tbody tr, .ihale-item, article, li, .card",
     titleSelector: "td:first-child a, h2 a, h3 a, h4 a, .title a, a",
     dateSelector: "td:last-child, .date, time",
     linkSelector: "a",
+    ekapKeyword: "DSİ",
+    ekapIdareContains: "su isleri",
   },
 ];
+
+/**
+ * Normalise Turkish characters for simple ASCII contains-check.
+ * İ (U+0130, uppercase dotted I) must be replaced BEFORE toLowerCase()
+ * because V8 converts it to "i" + U+0307 (combining dot above), which
+ * breaks substring matching.  Replace it with plain "I" first so
+ * toLowerCase() produces a plain "i".
+ */
+function normalizeTr(s: string): string {
+  return s
+    .replace(/İ/g, "I")  // U+0130 → plain I before case-fold
+    .toLowerCase()
+    .replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ş/g, "s")
+    .replace(/ı/g, "i").replace(/ö/g, "o").replace(/ç/g, "c");
+}
 
 function slugify(sourceKey: string, agency: string, title: string): string {
   const slug = `${agency}-${title}`.trim().toLowerCase().replace(/[^a-z0-9ğüşıöç]+/gi, "-").slice(0, 70);
@@ -166,6 +210,85 @@ async function scrapeKitTarget(target: KitTarget): Promise<InsertTender[]> {
   return tenders;
 }
 
+/**
+ * EKAP keyword-search fallback for KIT agencies whose direct portals are
+ * SPA/Cloudflare/blocked and return 0 records.
+ *
+ * Searches EKAP v2 with the agency keyword, takes the first 30 results
+ * (most recent, per EKAP's default descending-date ordering), and filters by
+ * idareAdi to confirm the tender belongs to this institution.  IKNs are
+ * prefixed with the agency's sourceKey to remain distinct from the main EKAP
+ * scraper's records (which use "ekap-" prefix).
+ */
+async function fetchEkapFallback(target: KitTarget): Promise<InsertTender[]> {
+  if (!target.ekapKeyword) return [];
+
+  logger.info(
+    { agency: target.agency, keyword: target.ekapKeyword },
+    "KİT direct portal returned 0 — trying EKAP keyword fallback",
+  );
+
+  let searchResult;
+  try {
+    searchResult = await searchEkapByKeyword(target.ekapKeyword, 0, 30);
+  } catch (err) {
+    logger.warn({ agency: target.agency, err }, "EKAP fallback search failed");
+    return [];
+  }
+
+  const idareFilter = target.ekapIdareContains ? normalizeTr(target.ekapIdareContains) : "";
+  const tenders: InsertTender[] = [];
+
+  for (const t of searchResult.list) {
+    // Filter to confirm institutional origin
+    if (idareFilter && !normalizeTr(t.idareAdi ?? "").includes(idareFilter)) continue;
+
+    const title = (t.ihaleAdi ?? "").trim();
+    if (!title || title.length < 5) continue;
+
+    // Unique IKN: agency prefix + EKAP IKN (e.g. "tcdd-ekap-2026-123456")
+    const ekapIkn = (t.ikn ?? t.id ?? title).replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60);
+    const ikn = `${target.sourceKey}-ekap-${ekapIkn}`;
+
+    let deadline: Date | null = null;
+    if (t.ihaleTarihSaat) {
+      const d = new Date(t.ihaleTarihSaat);
+      if (!isNaN(d.getTime())) deadline = d;
+    }
+
+    const sourceUrl = `https://ekap.kik.gov.tr/EKAP/ortak/ihaleArama/ihaleArama.jsp?ikn=${t.ikn ?? ""}`;
+
+    tenders.push({
+      ikn,
+      title,
+      agencyName: t.idareAdi?.trim() || target.agency,
+      type: t.ihaleTipAciklama?.trim() || "İhale",
+      method: t.ihaleUsulAciklama?.trim() || "Bilinmiyor",
+      estimatedValue: null,
+      deadline,
+      cpvCodes: [],
+      il: t.ihaleIlAdi?.trim() || target.il,
+      status: "active",
+      category: "ihale",
+      description: [
+        title,
+        `Kurum: ${t.idareAdi?.trim() || target.agency}`,
+        `Kaynak: EKAP v2 (${target.agency} ihale arama fallback)`,
+        t.ikn ? `EKAP İKN: ${t.ikn}` : "",
+      ].filter(Boolean).join("\n"),
+      sourceSystem: target.sourceKey,
+      sourceUrl,
+      procurementMethod: t.ihaleUsulAciklama?.trim() || null,
+      documents: null,
+      rawData: { ekapId: t.id, ekapIkn: t.ikn, idareAdi: t.idareAdi, fallback: "ekap-keyword" } as Record<string, unknown>,
+      lastFetchedAt: new Date(),
+    });
+  }
+
+  logger.info({ agency: target.agency, count: tenders.length }, "EKAP fallback records mapped");
+  return tenders;
+}
+
 export async function runKitScraper(): Promise<ScraperResult> {
   const startedAt = new Date();
   const aggregate: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
@@ -177,8 +300,15 @@ export async function runKitScraper(): Promise<ScraperResult> {
     const agencyResult: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
     try {
-      const tenders = await retry(() => scrapeKitTarget(target), 2, 2000);
+      // Stage 1: Direct portal scraping
+      let tenders = await retry(() => scrapeKitTarget(target), 2, 2000);
       logger.info({ agency: target.agency, count: tenders.length }, "KİT target scraped");
+
+      // Stage 2: EKAP keyword fallback when portal yields nothing
+      if (tenders.length === 0 && target.ekapKeyword) {
+        tenders = await retry(() => fetchEkapFallback(target), 2, 3000);
+      }
+
       agencyResult.fetched = tenders.length;
 
       for (const tender of tenders) {
@@ -210,8 +340,6 @@ export async function runKitScraper(): Promise<ScraperResult> {
 
   logger.info(aggregate, "KİT scraper completed");
 
-  // Write an aggregate "kit" run so the admin health view shows a consolidated
-  // KİT status in addition to the per-agency rows written above.
   await finalizeScraperRun({ source: "kit", startedAt, result: aggregate });
 
   return aggregate;
