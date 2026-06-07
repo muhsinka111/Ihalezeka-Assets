@@ -246,10 +246,12 @@ async function fetchEkapFallback(target: KitTarget): Promise<InsertTender[]> {
     const title = (t.ihaleAdi ?? "").trim();
     if (!title || title.length < 5) continue;
 
-    // Use the canonical EKAP IKN so the upsert merges with any existing EKAP
-    // record for the same tender rather than creating a duplicate row.
-    // Formula matches mapEkapToTender() in utils.ts.
-    const ikn = t.ikn || `ekap-${t.id}`;
+    // Use a non-colliding agency-prefixed IKN so these rows never overwrite the
+    // main EKAP scraper's records (which key on t.ikn without a prefix).
+    // Running EKAP and KİT concurrently with the same IKN causes nondeterministic
+    // sourceSystem / sourceUrl overwrites; prefixed IKNs avoid that race.
+    const ekapIkn = (t.ikn ?? t.id ?? title).replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60);
+    const ikn = `${target.sourceKey}-ekap-${ekapIkn}`;
 
     let deadline: Date | null = null;
     if (t.ihaleTarihSaat) {
