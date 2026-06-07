@@ -171,6 +171,15 @@ function MatchBadge({ score }: { score?: number | null }) {
   );
 }
 
+function LiveBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-violet-100 text-violet-700 border-violet-200">
+      <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+      Canlı
+    </span>
+  );
+}
+
 function StatusBadge({ status }: { status?: string | null }) {
   if (status === "awarded") return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-700 border border-green-200">Sonuçlandı</span>;
   if (status === "cancelled") return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200">İptal</span>;
@@ -345,6 +354,11 @@ export default function IhaleAramaPage() {
   const [allItems, setAllItems] = useState<any[]>([]);
   const [showExpired, setShowExpired] = useState(false);
 
+  // Live search state — ephemeral results from EKAP/İlan APIs (no DB write)
+  const [liveItems, setLiveItems] = useState<any[]>([]);
+  const [liveTotal, setLiveTotal] = useState(0);
+  const [liveLoading, setLiveLoading] = useState(false);
+
   // Resets pagination and accumulated items when filters or showExpired change.
   // We use a version counter so the effect that clears items runs synchronously
   // before the new data arrives.
@@ -425,7 +439,34 @@ export default function IhaleAramaPage() {
     filterVersion.current += 1;
     setPage(1);
     setAllItems([]);
+    setLiveItems([]);
+    setLiveTotal(0);
   }, []);
+
+  // Fire live search whenever the keyword query changes.
+  // Runs in parallel with the DB query; results are merged by IKN to deduplicate.
+  useEffect(() => {
+    const q = applied.q?.trim();
+    if (!q) {
+      setLiveItems([]);
+      setLiveTotal(0);
+      return;
+    }
+    let cancelled = false;
+    setLiveLoading(true);
+    const base = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
+    fetch(`${base}/api/tenders/live-search?q=${encodeURIComponent(q)}&take=20`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        if (!cancelled) {
+          setLiveItems(data.items ?? []);
+          setLiveTotal((data.ekapTotal ?? 0) + (data.ilanTotal ?? 0));
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLiveLoading(false); });
+    return () => { cancelled = true; };
+  }, [applied.q]);
 
   const applyFilters = useCallback((f: Filters) => {
     setApplied(f);
@@ -469,6 +510,11 @@ export default function IhaleAramaPage() {
 
   const hasMore = allItems.length < total;
   const isLoadingMore = isFetching && page > 1;
+
+  // Deduplicate live results — stored DB records take priority over live ones
+  const storedIkns = new Set(allItems.map((t: any) => t.ikn).filter(Boolean));
+  const uniqueLiveItems = liveItems.filter((t: any) => !storedIkns.has(t.ikn));
+  const mergedItems = [...allItems, ...uniqueLiveItems];
 
   const hasActiveFilters = Object.keys(appliedToCriteria(applied)).length > 0;
 
@@ -904,6 +950,14 @@ export default function IhaleAramaPage() {
                   {!showExpired && !applied.deadlineFrom && (
                     <span className="ml-1 text-xs text-muted-foreground">(aktif/yaklaşan)</span>
                   )}
+                  {applied.q && liveTotal > 0 && (
+                    <span className="ml-2 text-xs text-violet-600 font-medium">
+                      + EKAP'ta {liveTotal.toLocaleString("tr-TR")} canlı sonuç
+                    </span>
+                  )}
+                  {applied.q && liveLoading && (
+                    <span className="ml-2 text-xs text-muted-foreground">EKAP'ta aranıyor…</span>
+                  )}
                 </p>
               )}
             </div>
@@ -925,7 +979,7 @@ export default function IhaleAramaPage() {
             <div className="space-y-3">
               {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
             </div>
-          ) : allItems.length === 0 ? (
+          ) : mergedItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
               <IconSearch className="h-10 w-10 text-muted-foreground/30" />
               <p className="text-muted-foreground font-medium">Arama kriterlerinize uygun ihale bulunamadı.</p>
@@ -943,7 +997,7 @@ export default function IhaleAramaPage() {
             </div>
           ) : (
             <div className="space-y-2.5">
-              {allItems.map((tender: any) => {
+              {mergedItems.map((tender: any) => {
                 const hasDeadline = tender.deadline != null;
                 const daysLeft = hasDeadline ? Math.ceil((new Date(tender.deadline).getTime() - Date.now()) / 86400_000) : null;
                 const urgency = !hasDeadline ? "" : daysLeft! < 0 ? "text-destructive font-semibold" : daysLeft! === 0 ? "text-amber-600 font-semibold" : daysLeft! <= 3 ? "text-red-500 font-semibold" : daysLeft! <= 7 ? "text-amber-500 font-semibold" : "";
@@ -959,11 +1013,17 @@ export default function IhaleAramaPage() {
                                 <p className="text-[11px] text-muted-foreground font-mono">{tender.ikn}</p>
                                 <SourceBadge source={tender.sourceSystem} />
                                 <StatusBadge status={tender.status} />
-                                <MatchBadge score={tender.relevance} />
+                                {tender._isLive ? <LiveBadge /> : <MatchBadge score={tender.relevance} />}
                               </div>
-                              <Link href={`/ihale/${tender.id}`}>
-                                <p className="font-semibold text-sm hover:text-primary cursor-pointer transition-colors line-clamp-2">{tender.title}</p>
-                              </Link>
+                              {tender._isLive ? (
+                                <a href={tender.sourceUrl} target="_blank" rel="noopener noreferrer">
+                                  <p className="font-semibold text-sm hover:text-primary cursor-pointer transition-colors line-clamp-2">{tender.title}</p>
+                                </a>
+                              ) : (
+                                <Link href={`/ihale/${tender.id}`}>
+                                  <p className="font-semibold text-sm hover:text-primary cursor-pointer transition-colors line-clamp-2">{tender.title}</p>
+                                </Link>
+                              )}
                             </div>
                             <Badge variant="outline" className="shrink-0 text-xs whitespace-nowrap">{tender.type}</Badge>
                           </div>

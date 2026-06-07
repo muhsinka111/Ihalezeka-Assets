@@ -83,6 +83,53 @@ function formatDate(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+/**
+ * Keyword-based live search against EKAP v2 API.
+ * Uses `searchText` + full scope flags so results span title, announcement,
+ * tech spec, admin spec and all other indexed fields. No date restriction —
+ * returns all matching tenders across EKAP's full history (50 K+).
+ */
+export async function searchEkapByKeyword(
+  text: string,
+  skip = 0,
+  take = 20,
+): Promise<EkapSearchResponse> {
+  const body = {
+    searchText: text,
+    filterType: null,
+    ikNdeAra: true,
+    ihaleAdindaAra: true,
+    ihaleIlanindaAra: true,
+    teknikSartnamedeAra: true,
+    idariSartnamedeAra: true,
+    benzerIsMaddesindeAra: true,
+    isinYapilacagiYerMaddesindeAra: true,
+    nitelikTurMiktarMaddesindeAra: true,
+    ihaleBilgilerindeAra: true,
+    sozlesmeTasarisindaAra: true,
+    teklifCetvelindeAra: true,
+    searchType: "GirdigimGibi",
+    paginationSkip: skip,
+    paginationTake: take,
+    ihaleTipler: [],
+    ihaleUsuller: [],
+    ihaleDurumlar: [],
+    iller: [],
+  };
+
+  const response = await client.post(
+    "/b_ihalearama/api/Ihale/GetListByParameters",
+    body,
+    { headers: secHeaders() },
+  );
+
+  const data = response.data;
+  return {
+    list: data.list ?? [],
+    totalCount: data.totalCount ?? 0,
+  };
+}
+
 export async function searchEkapTenders(
   startDate: string,
   endDate: string,

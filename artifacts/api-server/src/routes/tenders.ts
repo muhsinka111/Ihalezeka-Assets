@@ -13,6 +13,9 @@ import {
   extractTextFromDocument,
   type TenderGroundingInput,
 } from "../services/document-analyzer.js";
+import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
+import { searchIlanByKeyword } from "../scrapers/ilan-client.js";
+import { mapEkapToTender, mapIlanToTender } from "../scrapers/utils.js";
 
 const router = Router();
 
@@ -206,6 +209,91 @@ router.get("/tenders", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * Live real-time search — fans out to EKAP v2 API and İlan.gov.tr in parallel
+ * without any date restriction, surfacing the full 50K+ EKAP catalogue.
+ * Results are ephemeral (not stored) and tagged with `_isLive: true`.
+ *
+ * GET /api/tenders/live-search?q=...&skip=0&take=20&source=ekap|ilan|all
+ */
+router.get("/tenders/live-search", async (req, res) => {
+  const q = String(req.query.q ?? "").trim();
+  if (!q) return res.json({ items: [], ekapTotal: 0, ilanTotal: 0 });
+
+  const skip = Math.max(0, Number(req.query.skip ?? 0));
+  const take = Math.min(50, Math.max(1, Number(req.query.take ?? 20)));
+  const source = String(req.query.source ?? "all");
+
+  try {
+    const [ekapResult, ilanResult] = await Promise.allSettled([
+      source === "ilan"
+        ? Promise.resolve({ list: [] as any[], totalCount: 0 })
+        : searchEkapByKeyword(q, skip, take),
+      source === "ekap"
+        ? Promise.resolve({ ads: [] as any[], numFound: 0 })
+        : searchIlanByKeyword(q, skip, take),
+    ]);
+
+    const items: Record<string, unknown>[] = [];
+
+    if (ekapResult.status === "fulfilled") {
+      for (const tender of ekapResult.value.list) {
+        const mapped = mapEkapToTender(tender);
+        items.push({
+          id: `live-ekap-${tender.id}`,
+          ikn: mapped.ikn,
+          title: mapped.title,
+          agencyName: mapped.agencyName,
+          il: mapped.il,
+          deadline: mapped.deadline?.toISOString() ?? null,
+          type: mapped.type,
+          method: mapped.method,
+          status: mapped.status,
+          sourceSystem: "ekap",
+          sourceUrl: `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
+          estimatedValue: mapped.estimatedValue,
+          category: "ihale",
+          _isLive: true,
+        });
+      }
+    } else {
+      console.error("EKAP live search error:", ekapResult.reason);
+    }
+
+    if (ilanResult.status === "fulfilled") {
+      for (const ad of ilanResult.value.ads) {
+        const mapped = mapIlanToTender(ad);
+        items.push({
+          id: `live-ilan-${ad.id}`,
+          ikn: mapped.ikn,
+          title: mapped.title,
+          agencyName: mapped.agencyName,
+          il: mapped.il,
+          deadline: mapped.deadline?.toISOString() ?? null,
+          type: mapped.type,
+          method: mapped.method,
+          status: "active",
+          sourceSystem: "ilan_gov",
+          sourceUrl: mapped.sourceUrl,
+          estimatedValue: mapped.estimatedValue,
+          category: "ihale",
+          _isLive: true,
+        });
+      }
+    } else {
+      console.error("İlan live search error:", ilanResult.reason);
+    }
+
+    const ekapTotal = ekapResult.status === "fulfilled" ? ekapResult.value.totalCount : 0;
+    const ilanTotal = ilanResult.status === "fulfilled" ? ilanResult.value.numFound : 0;
+
+    res.json({ items, ekapTotal, ilanTotal });
+  } catch (err) {
+    console.error("Live search error:", err);
+    res.status(500).json({ error: "Live search failed", items: [], ekapTotal: 0, ilanTotal: 0 });
   }
 });
 

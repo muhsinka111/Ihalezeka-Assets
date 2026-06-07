@@ -57,6 +57,33 @@ function formatTRDate(d: Date): string {
   return `${day}.${month}.${d.getFullYear()}`;
 }
 
+/**
+ * Keyword-based live search against İlan.gov.tr API.
+ * Uses the `q` key for general full-text search across ad titles and content.
+ * No date restriction — surfaces all matching ads including older ones.
+ */
+export async function searchIlanByKeyword(
+  text: string,
+  skipCount = 0,
+  maxResultCount = 20,
+): Promise<IlanSearchResponse> {
+  const body = {
+    keys: {
+      q: [text],
+      ats: [3, 4, 5],
+    },
+    skipCount,
+    maxResultCount,
+  };
+
+  const response = await client.post("/api/api/services/app/Ad/AdsByFilter", body);
+  const result = response.data?.result;
+  return {
+    ads: result?.ads ?? [],
+    numFound: result?.numFound ?? 0,
+  };
+}
+
 export async function searchIlanAds(
   skipCount = 0,
   maxResultCount = 50,
