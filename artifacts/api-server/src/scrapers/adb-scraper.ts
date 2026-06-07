@@ -4,7 +4,7 @@ import { finalizeScraperRun, ScraperResult } from "./utils.js";
 /**
  * ADB (Asian Development Bank) procurement notices.
  *
- * STATUS: DISABLED — intentionally makes no HTTP requests.
+ * STATUS: INTENTIONALLY DISABLED — makes no HTTP requests.
  *
  * ADB's procurement listing page (www.adb.org/projects/tenders) renders a
  * <div data-content="tenders" class="searchstax-site-search"> placeholder.
@@ -24,21 +24,21 @@ import { finalizeScraperRun, ScraperResult } from "./utils.js";
  * empty HTTP round-trip.
  */
 const DISABLED_REASON =
-  "disabled: ADB procurement page is a SearchStax SPA — no server-rendered rows. " +
-  "Pending public ADB procurement API or RSS feed. (Verified 2026-06-07)";
+  "ADB procurement page is a SearchStax SPA — no server-rendered rows and no " +
+  "public procurement REST/RSS API is available. (Verified 2026-06-07)";
 
 export async function runAdbScraper(): Promise<ScraperResult> {
   const startedAt = new Date();
-  const result: ScraperResult = {
-    fetched: 0,
-    inserted: 0,
-    updated: 0,
-    newTenderIds: [],
-    error: DISABLED_REASON,
-  };
+  const result: ScraperResult = { fetched: 0, inserted: 0, updated: 0, newTenderIds: [] };
 
-  logger.info("ADB scraper: intentionally disabled (SearchStax SPA, no public API). Skipping HTTP request.");
+  logger.info("ADB scraper: intentionally disabled (SearchStax SPA, no public API). Skipping.");
 
-  await finalizeScraperRun({ source: "adb", startedAt, result });
+  await finalizeScraperRun({
+    source: "adb",
+    startedAt,
+    result,
+    disabled: true,
+    reason: DISABLED_REASON,
+  });
   return result;
 }
