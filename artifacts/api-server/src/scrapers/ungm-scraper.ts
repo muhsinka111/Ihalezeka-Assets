@@ -259,7 +259,10 @@ async function fetchFromUndpFallback(publishedFrom: Date): Promise<InsertTender[
     let refNo = "";
     let country = "";
     let process = "";
-    let deadline: Date | null = null;
+    // Capture raw strings inside the closure; parse after the loop so
+    // TypeScript control-flow analysis can correctly infer `deadline` as
+    // `Date | null` rather than narrowing it to `never`.
+    let deadlineRaw = "";
 
     row.find(".vacanciesTable__cell").each((_j, cellEl) => {
       const cell = $(cellEl);
@@ -270,8 +273,10 @@ async function fetchFromUndpFallback(publishedFrom: Date): Promise<InsertTender[
       else if (label.includes("ref")) refNo = value;
       else if (label.includes("country") || label.includes("office")) country = value;
       else if (label.includes("process")) process = value;
-      else if (label.includes("deadline")) deadline = parseUndpDate(cell.find("nobr").text().trim());
+      else if (label.includes("deadline")) deadlineRaw = cell.find("nobr").text().trim();
     });
+
+    const deadline: Date | null = parseUndpDate(deadlineRaw);
 
     if (!title || title.length < 5) return;
     if (seen.has(title)) return;
