@@ -3,6 +3,8 @@ import { db } from "@workspace/db";
 import { matchesTable, tendersTable, companyProfilesTable, pipelineItemsTable } from "@workspace/db";
 import { eq, desc, and, or, gte, isNull, ilike, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
+import { mapEkapToTender } from "../scrapers/utils.js";
 
 const router = Router();
 
@@ -162,7 +164,7 @@ const TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          keyword: {
+          q: {
             type: "string",
             description: "İhale başlığı veya kurum adında aranacak anahtar kelime (ör. 'yazılım', 'inşaat', 'tıbbi cihaz').",
           },
@@ -239,6 +241,7 @@ const TOOLS = [
 function serializeTender(t: typeof tendersTable.$inferSelect) {
   return {
     id: t.id,
+    ikn: t.ikn,
     title: t.title,
     agency: t.agencyName,
     agencyLogoUrl: t.agencyLogoUrl,
@@ -247,35 +250,71 @@ function serializeTender(t: typeof tendersTable.$inferSelect) {
     estimatedValue: t.estimatedValue,
     deadline: t.deadline?.toISOString() ?? null,
     sourceSystem: t.sourceSystem,
+    sourceUrl: t.sourceUrl,
   };
 }
 
-async function runSearchTenders(args: { keyword?: string; il?: string; type?: string; limit?: number }) {
+async function runSearchTenders(args: { q?: string; il?: string; type?: string; limit?: number }) {
   const limit = Math.min(args.limit ?? 8, 12);
   const now = new Date();
   const conditions = [
     or(gte(tendersTable.deadline, now), isNull(tendersTable.deadline))!,
     eq(tendersTable.status, "active"),
   ];
-  if (args.keyword) {
+  if (args.q) {
     conditions.push(
       or(
-        ilike(tendersTable.title, `%${args.keyword}%`),
-        ilike(tendersTable.agencyName, `%${args.keyword}%`)
+        ilike(tendersTable.title, `%${args.q}%`),
+        ilike(tendersTable.agencyName, `%${args.q}%`)
       )!
     );
   }
   if (args.il) conditions.push(ilike(tendersTable.il, `%${args.il}%`));
   if (args.type) conditions.push(ilike(tendersTable.type, `%${args.type}%`));
 
-  const rows = await db
+  const dbRows = await db
     .select()
     .from(tendersTable)
     .where(and(...conditions))
     .orderBy(sql`${tendersTable.deadline} ASC NULLS LAST`)
     .limit(limit);
 
-  return rows.map(serializeTender);
+  const results = dbRows.map(serializeTender);
+
+  // If DB returned fewer than 4 results and a keyword was given, augment with
+  // live EKAP search so the agent can surface tenders not yet scraped.
+  if (args.q && results.length < 4) {
+    try {
+      const live = await searchEkapByKeyword(args.q, 0, limit - results.length);
+      const seenIkns = new Set(results.map((r) => r.ikn));
+      for (const t of live.list) {
+        const mapped = mapEkapToTender(t);
+        if (!seenIkns.has(mapped.ikn)) {
+          seenIkns.add(mapped.ikn);
+          results.push({
+            id: 0, // ephemeral — no DB id for live results
+            ikn: mapped.ikn,
+            title: mapped.title,
+            agency: mapped.agencyName,
+            agencyLogoUrl: null,
+            type: mapped.type,
+            il: mapped.il,
+            estimatedValue: mapped.estimatedValue,
+            deadline: mapped.deadline?.toISOString() ?? null,
+            sourceSystem: "ekap",
+            sourceUrl: mapped.ikn
+              ? `https://ekapv2.kik.gov.tr/ekap/detay/${mapped.ikn}`
+              : null,
+          });
+        }
+        if (results.length >= limit) break;
+      }
+    } catch (err) {
+      logger.warn({ err }, "Live EKAP fallback in search_tenders failed — using DB results only");
+    }
+  }
+
+  return results;
 }
 
 async function runGetTenderDetail(args: { id: string }) {
