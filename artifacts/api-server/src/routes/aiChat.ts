@@ -5,6 +5,7 @@ import { eq, desc, and, or, gte, isNull, ilike, sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { mapEkapToTender } from "../scrapers/utils.js";
+import { getTenderDetailsViaMcp, getTenderAnnouncementsViaMcp } from "../scrapers/ihalemcp-client.js";
 
 const router = Router();
 
@@ -333,7 +334,41 @@ async function runGetTenderDetail(args: { id: string }) {
     tender = rows[0];
   }
 
+  // MCP live fallback: args.id may be an IKN (e.g. "2026/123456") not yet in DB
   if (!tender) {
+    try {
+      const [mcpDetails, mcpAnnouncement] = await Promise.all([
+        getTenderDetailsViaMcp(args.id),
+        getTenderAnnouncementsViaMcp(args.id),
+      ]);
+      const hasData = Object.keys(mcpDetails).length > 0 || mcpAnnouncement.length > 50;
+      if (hasData) {
+        const d = mcpDetails as Record<string, unknown>;
+        return {
+          id: null,
+          ikn: args.id,
+          title: (d.ihaleAdi ?? d.title ?? d.name ?? args.id) as string,
+          agency: (d.idareAdi ?? d.agency ?? "") as string,
+          type: (d.ihaleTipAciklama ?? d.type ?? "") as string,
+          method: (d.ihaleUsulAciklama ?? d.method ?? "") as string,
+          il: (d.ihaleIlAdi ?? d.il ?? "") as string,
+          category: (d.category ?? "ihale") as string,
+          estimatedValue: null,
+          deadline: null,
+          status: (d.ihaleDurumAciklama ?? d.status ?? "active") as string,
+          sourceSystem: "ekap",
+          sourceUrl: `https://ekapv2.kik.gov.tr/ekap/detay/${args.id}`,
+          description: mcpAnnouncement.slice(0, 2500) || null,
+          aiSummary: null,
+          cpvCodes: [],
+          documentCount: 0,
+          documents: [],
+          _source: "ihale-mcp",
+        };
+      }
+    } catch (err) {
+      logger.debug({ id: args.id, err }, "ihale-mcp live lookup failed");
+    }
     return { error: `"${args.id}" ID/IKN'si için ihale bulunamadı.` };
   }
 

@@ -1,8 +1,11 @@
 /**
  * Client for the hosted ihale-mcp MCP server.
- * Endpoint: https://ihalemcp.fastmcp.app/mcp  (public, no auth required)
+ * Endpoint: https://ihalemcp.fastmcp.app/mcp
  * Protocol: JSON-RPC 2.0 over Streamable HTTP (SSE or plain JSON response)
  * Source: https://github.com/saidsurucu/ihale-mcp
+ *
+ * Auth: optional — if IHALEMCP_API_KEY is set, it is sent as
+ * "Authorization: Bearer <key>" on every request.
  */
 
 import axios from "axios";
@@ -32,6 +35,9 @@ async function callMcpTool(
 ): Promise<string> {
   const id = ++_reqId;
 
+  const apiKey = process.env.IHALEMCP_API_KEY;
+  const authHeader = apiKey ? { "Authorization": `Bearer ${apiKey}` } : {};
+
   const res = await axios.post<string>(
     MCP_URL,
     {
@@ -44,6 +50,7 @@ async function callMcpTool(
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
+        ...authHeader,
       },
       timeout: 30_000,
       responseType: "text",

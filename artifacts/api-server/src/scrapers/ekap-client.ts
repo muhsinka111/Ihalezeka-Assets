@@ -6,6 +6,7 @@ import {
   searchTendersViaMcp,
   getRecentTendersViaMcp,
   getTenderAnnouncementsViaMcp,
+  getTenderDetailsViaMcp,
 } from "./ihalemcp-client.js";
 
 const EKAP_BASE = "https://ekapv2.kik.gov.tr";
@@ -328,15 +329,45 @@ const EKAP_OZELLIK_LABELS: Record<string, string> = {
 };
 
 /**
- * Fetch the EKAP v2 tender detail for a tender, keyed by its TOP-LEVEL hash id
- * (`EkapTender.id`, e.g. "f898c0c4…") — NOT the numeric `dokumanListe[].ihaleId`,
- * which the detail endpoint rejects with 500 "Kayıt Bulunamadı". Reuses the same
- * AES security headers + TLS-relaxed agent as the search API. Returns `null`
- * (quietly) on any error so callers degrade gracefully.
+ * Fetch tender detail. Primary path: ihale-mcp `get_tender_announcements` (when
+ * IKN provided) or `get_tender_details`; falls back to direct EKAP hash-id endpoint.
+ * Returns null on all failures — callers degrade gracefully.
  */
 export async function fetchEkapDetail(
   ihaleIdHash: string,
+  ikn?: string,
 ): Promise<EkapDetailItem | null> {
+  // MCP primary path: announcement text → wrap in EkapDetailItem
+  if (ikn) {
+    try {
+      const announcementText = await getTenderAnnouncementsViaMcp(ikn);
+      if (announcementText.length >= 50) {
+        // Wrap Markdown text as a single ilanList entry (veriHtml field)
+        // buildEkapDetailText will strip any residual HTML/markdown markers
+        return {
+          ilanList: [{ baslik: "İhale İlanı (ihale-mcp)", veriHtml: announcementText }],
+        };
+      }
+    } catch (err) {
+      logger.debug({ ikn, err }, "ihale-mcp get_tender_announcements failed");
+    }
+
+    // Secondary MCP path: structured details
+    try {
+      const details = await getTenderDetailsViaMcp(ikn);
+      const text = Object.entries(details)
+        .filter(([, v]) => typeof v === "string" && v.length > 5)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      if (text.length >= 50) {
+        return { ilanList: [{ baslik: "İhale Detayı (ihale-mcp)", veriHtml: text }] };
+      }
+    } catch (err) {
+      logger.debug({ ikn, err }, "ihale-mcp get_tender_details failed");
+    }
+  }
+
+  // Direct EKAP fallback (hash-id based endpoint)
   const id = String(ihaleIdHash ?? "").trim();
   if (!id) return null;
   try {
