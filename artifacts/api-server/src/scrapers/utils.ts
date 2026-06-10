@@ -229,6 +229,38 @@ function mapEkapStatus(
   return "active";
 }
 
+/**
+ * İlan.gov ad details expose attachments via a `files` array. In practice this
+ * is null/empty for the listing types we ingest (verified across all stored ads
+ * and a live GetAdDetail call), so today it yields nothing — but we extract
+ * defensively so any ad that DOES carry downloadable files is captured at
+ * ingest. Only genuine URLs are kept; nothing is fabricated.
+ */
+function extractIlanDocuments(
+  ad: Record<string, unknown>,
+): Array<{ name: string; url: string; type: string }> {
+  const files = ad.files;
+  if (!Array.isArray(files)) return [];
+  const docs: Array<{ name: string; url: string; type: string }> = [];
+  for (const f of files) {
+    if (!f || typeof f !== "object") continue;
+    const o = f as Record<string, unknown>;
+    const urlRaw = [o.url, o.fileUrl, o.path, o.link, o.downloadUrl, o.src].find(
+      (v) => typeof v === "string" && v.trim().length > 0,
+    ) as string | undefined;
+    if (!urlRaw) continue;
+    const url = urlRaw.startsWith("http")
+      ? urlRaw
+      : `https://www.ilan.gov.tr${urlRaw.startsWith("/") ? "" : "/"}${urlRaw}`;
+    const name =
+      ([o.name, o.fileName, o.title, o.fileNameWithExtension].find(
+        (v) => typeof v === "string" && (v as string).trim().length > 0,
+      ) as string | undefined) ?? "İlan Eki";
+    docs.push({ name, url, type: "ilan-belge" });
+  }
+  return docs;
+}
+
 export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
   const detail = ad as IlanAdDetail;
 
@@ -262,6 +294,8 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
       : `https://www.ilan.gov.tr${ad.urlStr}`
     : `https://www.ilan.gov.tr/ilan/${ad.id}`;
 
+  const documents = extractIlanDocuments(ad as unknown as Record<string, unknown>);
+
   return {
     ikn: `ilan-${ad.adNo || ad.id}`,
     title: ad.title ?? "",
@@ -278,7 +312,7 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
     description,
     sourceUrl,
     procurementMethod: null,
-    documents: null,
+    documents: documents.length > 0 ? documents : null,
     contact: deriveContact({
       agencyName: ad.advertiserName,
       description,
