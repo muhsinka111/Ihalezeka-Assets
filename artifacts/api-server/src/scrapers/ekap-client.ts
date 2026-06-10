@@ -187,11 +187,21 @@ export async function getAllEkapTendersForDate(
   startDate: string,
   endDate: string,
 ): Promise<EkapTender[]> {
-  // Try MCP get_recent_tenders for the common case (today's tenders, daysBack=1)
+  // Compute how many days the requested window spans so MCP gets the right range
+  const startMs = Date.parse(startDate);
+  const endMs   = Date.parse(endDate);
+  const daysBack = Number.isFinite(startMs) && Number.isFinite(endMs)
+    ? Math.max(1, Math.ceil((endMs - startMs) / 86_400_000))
+    : 1;
+
+  // Try MCP get_recent_tenders with the computed window
   try {
-    const recent = await getRecentTendersViaMcp(1, 200);
+    const recent = await getRecentTendersViaMcp(daysBack, 500);
     if (recent.list.length > 0) {
-      logger.info({ count: recent.list.length }, "ihale-mcp get_recent_tenders succeeded");
+      logger.info(
+        { count: recent.list.length, daysBack, startDate, endDate },
+        "ihale-mcp get_recent_tenders succeeded",
+      );
       return recent.list;
     }
   } catch (err) {
