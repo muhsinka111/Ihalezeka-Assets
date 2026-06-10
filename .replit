@@ -39,3 +39,6 @@ externalPort = 3000
 
 [userenv.shared]
 OPERATOR_EMAIL = "info@ihalezeka.com"
+
+[userenv.development]
+ENTITLEMENTS_FORCE_PLAN = "pro"
