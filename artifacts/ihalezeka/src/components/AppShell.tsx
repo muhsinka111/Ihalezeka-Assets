@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useUser, useClerk } from "@clerk/react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { AgencyLogo } from "@/components/AgencyLogo";
 import { NotificationPanel, useNotifications } from "@/components/NotificationPanel";
 import { NotificationPrefsModal } from "@/components/NotificationPrefsModal";
-import { useGetDashboardTopMatches, useCreatePipelineItem } from "@workspace/api-client-react";
+import { useGetDashboardTopMatches, useCreatePipelineItem, getGetDashboardTopMatchesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAiChat, type AiTenderCard } from "@/hooks/useAiChat";
 import {
@@ -43,20 +43,25 @@ import {
   IconCalendar,
   IconMapPin,
   IconCurrencyLira,
+  IconLock,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import { startCheckout, openBillingPortal } from "@/lib/billing";
+import { ProLockBadge } from "@/components/PaywallOverlay";
+import { toast } from "sonner";
 
 const NAV_ITEMS = [
   { href: "/ihale-arama", label: "İhale Arama", icon: IconSearch },
-  { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard },
-  { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled },
-  { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails },
-  { href: "/teklif-olusturucu", label: "Teklif Oluşturucu", icon: IconFileText },
+  { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard, pro: true },
+  { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled, pro: true },
+  { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails, pro: true },
+  { href: "/teklif-olusturucu", label: "Teklif Oluşturucu", icon: IconFileText, pro: true },
   { href: "/basvuru-sihirbazi", label: "Başvuru Sihirbazı", icon: IconTruckDelivery },
-  { href: "/rakip-analizi", label: "Rakip Analizi", icon: IconChartBar },
-  { href: "/para-akisi", label: "Para Akışı", icon: IconCash },
+  { href: "/rakip-analizi", label: "Rakip Analizi", icon: IconChartBar, pro: true },
+  { href: "/para-akisi", label: "Para Akışı", icon: IconCash, pro: true },
   { href: "/belgelerim", label: "Belgelerim", icon: IconFileText },
-  { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine },
+  { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
   { href: "/entegrasyonlar", label: "Entegrasyonlar", icon: IconPlug },
   { href: "/pazarlama", label: "Pazarlama", icon: IconSpeakerphone, adminOnly: true },
 ];
@@ -92,6 +97,81 @@ export function AppShell({ children }: AppShellProps) {
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [prefsModalOpen, setPrefsModalOpen] = useState(false);
   const { data: notifData } = useNotifications();
+  const { isPro } = useEntitlement();
+  const qc = useQueryClient();
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  // After returning from Stripe Checkout (`?checkout=success`), poll the
+  // entitlement endpoint until the synced subscription flips the plan to Pro,
+  // then refresh every query so locked content unlocks app-wide.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+
+    params.delete("checkout");
+    const clean = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
+    window.history.replaceState({}, "", clean);
+    toast.success("Ödeme alındı, Pro üyeliğiniz aktifleştiriliyor…");
+
+    let tries = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      tries++;
+      try {
+        const res = await fetch(`${API_BASE}/billing/entitlement?fresh=1`);
+        const data = (await res.json()) as { plan: "free" | "pro" };
+        qc.setQueryData(["/api/billing/entitlement"], data);
+        if (data.plan === "pro") {
+          qc.invalidateQueries();
+          toast.success("Pro üyeliğiniz aktif! Tüm özellikler açıldı. 🎉");
+          return;
+        }
+      } catch {
+        // ignore and retry
+      }
+      if (tries < 6) {
+        timer = setTimeout(poll, 1500);
+      } else {
+        qc.invalidateQueries();
+      }
+    };
+    poll();
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleUpgrade = async () => {
+    if (upgradeLoading) return;
+    setUpgradeLoading(true);
+    try {
+      await startCheckout();
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      toast.error(
+        code === "no_price_configured"
+          ? "Abonelik planı henüz hazır değil. Lütfen daha sonra tekrar deneyin."
+          : "Ödeme başlatılamadı. Lütfen tekrar deneyin.",
+      );
+      setUpgradeLoading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      await openBillingPortal();
+    } catch {
+      toast.error("Abonelik yönetimi açılamadı. Lütfen tekrar deneyin.");
+    }
+  };
+
+  const handleAiAssistant = () => {
+    if (!isPro) {
+      toast.info("AI Asistan Pro'ya özeldir. Hemen yükseltin.");
+      navigate("/fiyatlandirma");
+      return;
+    }
+    togglePanel();
+  };
 
   const toggleDark = () => {
     document.documentElement.classList.toggle("dark");
@@ -113,10 +193,11 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ href, label, icon: Icon, adminOnly }, idx, visibleItems) => {
+        {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ href, label, icon: Icon, adminOnly, pro }, idx, visibleItems) => {
           const active = location === href || location.startsWith(href + "/");
           const prevItem = visibleItems[idx - 1];
           const showDivider = adminOnly && prevItem && !prevItem.adminOnly;
+          const locked = pro && !isPro;
           return (
             <React.Fragment key={href}>
               {showDivider && (
@@ -131,7 +212,8 @@ export function AppShell({ children }: AppShellProps) {
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}>
                   <Icon className="h-4.5 w-4.5 shrink-0 h-[18px] w-[18px]" />
-                  {!collapsed && label}
+                  {!collapsed && <span className="flex-1">{label}</span>}
+                  {!collapsed && locked && <ProLockBadge />}
                 </a>
               </Link>
             </React.Fragment>
@@ -139,28 +221,53 @@ export function AppShell({ children }: AppShellProps) {
         })}
       </nav>
 
-      {/* Premium Plan Card */}
-      {!collapsed && (
+      {/* Plan Card */}
+      {!collapsed && (isPro ? (
+        <div className="mx-3 mb-3 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 p-3 shadow-lg">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="h-6 w-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+              <IconCircleCheck className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="text-xs font-bold text-white">Pro Üyelik Aktif</span>
+          </div>
+          <p className="text-[10px] text-white/70 mb-2.5 leading-relaxed">
+            Tüm özellikler açık. Aboneliğinizi dilediğiniz zaman yönetebilirsiniz.
+          </p>
+          <button
+            onClick={handleManageSubscription}
+            className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+          >
+            Aboneliği Yönet
+          </button>
+        </div>
+      ) : (
         <div className="mx-3 mb-3 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-3 shadow-lg">
           <div className="flex items-center gap-2 mb-1.5">
             <div className="h-6 w-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
               <IconCrown className="h-3.5 w-3.5 text-yellow-300" />
             </div>
-            <span className="text-xs font-bold text-white">Premium Plan</span>
-            <Badge className="text-[9px] px-1 py-0 h-3.5 bg-white/20 border-white/30 text-white ml-auto">PRO</Badge>
+            <span className="text-xs font-bold text-white">Pro'ya Yükseltin</span>
           </div>
           <p className="text-[10px] text-white/70 mb-2.5 leading-relaxed">
-            Daha fazla fırsata erişin ve kazanma oranınızı artırın.
+            Yapay zeka analizi, belgeler ve tüm araçların kilidini açın.
           </p>
-          <button className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+          <button
+            onClick={handleUpgrade}
+            disabled={upgradeLoading}
+            className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+          >
             <IconBolt className="h-3 w-3 text-yellow-300" />
-            Planı Yükselt
+            {upgradeLoading ? "Yönlendiriliyor…" : "Planı Yükselt"}
           </button>
         </div>
-      )}
+      ))}
       {collapsed && (
         <div className="flex justify-center pb-2">
-          <button className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center hover:opacity-90 transition-opacity">
+          <button
+            onClick={isPro ? handleManageSubscription : handleUpgrade}
+            className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center hover:opacity-90 transition-opacity"
+            title={isPro ? "Aboneliği Yönet" : "Planı Yükselt"}
+          >
             <IconCrown className="h-4 w-4 text-yellow-300" />
           </button>
         </div>
@@ -176,7 +283,12 @@ export function AppShell({ children }: AppShellProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.firstName ?? "Mehmet Yılmaz"}</p>
-                <Badge className="text-[9px] px-1 py-0 h-3.5 bg-indigo-500/30 text-indigo-200 border-indigo-500/30">Pro</Badge>
+                <Badge className={cn(
+                  "text-[9px] px-1 py-0 h-3.5",
+                  isPro
+                    ? "bg-indigo-500/30 text-indigo-200 border-indigo-500/30"
+                    : "bg-sidebar-foreground/10 text-sidebar-foreground/60 border-sidebar-foreground/20"
+                )}>{isPro ? "Pro" : "Ücretsiz"}</Badge>
               </div>
               <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.emailAddresses?.[0]?.emailAddress ?? "mehmet@firma.com"}</p>
             </div>
@@ -246,11 +358,15 @@ export function AppShell({ children }: AppShellProps) {
               variant="default"
               size="sm"
               className="gap-2 h-8"
-              onClick={togglePanel}
+              onClick={handleAiAssistant}
             >
               <IconRobot className="h-3.5 w-3.5" />
               AI Asistan
-              <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-white/20 text-white border-0">BETA</Badge>
+              {isPro ? (
+                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-white/20 text-white border-0">BETA</Badge>
+              ) : (
+                <IconLock className="h-3 w-3 text-yellow-300" />
+              )}
             </Button>
 
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleDark}>
@@ -364,7 +480,9 @@ function AiResultCard({
 
 // ── AI Sliding Panel ──────────────────────────────────────────────
 function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { data: topMatches } = useGetDashboardTopMatches();
+  const { data: topMatches } = useGetDashboardTopMatches({
+    query: { queryKey: getGetDashboardTopMatchesQueryKey(), enabled: open },
+  });
   const [input, setInput] = useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();

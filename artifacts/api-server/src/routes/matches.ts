@@ -4,8 +4,12 @@ import { matchesTable, tendersTable, companyProfilesTable } from "@workspace/db"
 import { eq, and, gte, lte, desc, type SQL, count } from "drizzle-orm";
 import { ListMatchesQueryParams, GetMatchParams, UpdateMatchStatusParams, UpdateMatchStatusBody } from "@workspace/api-zod";
 import { computeCriteriaCompliance } from "../services/document-analyzer.js";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: AI-derived matches (fit scores, pros/risks, criteria) are Pro.
+router.use("/matches", requirePro);
 const DEFAULT_BIZ = "demo-business";
 
 interface ResolvedContact {

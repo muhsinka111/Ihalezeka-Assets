@@ -2,8 +2,12 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { competitorsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: competitor analysis (Rakip Analizi) is a Pro power tool.
+router.use("/competitors", requirePro);
 const DEFAULT_BIZ = "demo-business";
 
 router.get("/competitors", async (req, res) => {

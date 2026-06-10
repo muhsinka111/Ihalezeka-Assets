@@ -1,6 +1,10 @@
 import { Router } from "express";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: cash-flow analytics (Para Akışı) is a Pro power tool.
+router.use("/money-flow", requirePro);
 
 router.get("/money-flow/monthly", async (req, res) => {
   const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];

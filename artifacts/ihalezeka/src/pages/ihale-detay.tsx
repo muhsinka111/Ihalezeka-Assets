@@ -1,5 +1,7 @@
 import { useParams, Link } from "wouter";
-import { useGetMatch } from "@workspace/api-client-react";
+import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey } from "@workspace/api-client-react";
+import { useEntitlement } from "@/hooks/useEntitlement";
+import { PaywallCard } from "@/components/PaywallOverlay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import {
   IconChartBar, IconUsers, IconCurrencyLira, IconCalendar, IconAlertTriangle,
   IconBuildingBank, IconMapPin, IconPhone, IconMail, IconUser,
   IconEye, IconSend, IconMessage2, IconThumbUp, IconHelpCircle,
+  IconLock,
 } from "@tabler/icons-react";
 
 type FitVerdict = "uygun" | "dikkat" | "uygun_degil";
@@ -795,7 +798,16 @@ function DocumentChatCard({ tenderId, hasDocs }: { tenderId: number; hasDocs: bo
 export default function IhaleDetayPage() {
   const { id } = useParams<{ id: string }>();
   const tenderId = parseInt(id ?? "0", 10);
-  const { data: match, isLoading } = useGetMatch(tenderId);
+  const { isPro, isLoading: entLoading } = useEntitlement();
+
+  // Pro users load the full match (tender + AI fields + contact). Free users
+  // load only the masked basic tender record. Exactly one request fires.
+  const { data: match, isLoading: matchLoading } = useGetMatch(tenderId, {
+    query: { queryKey: getGetMatchQueryKey(tenderId), enabled: tenderId > 0 && isPro },
+  });
+  const { data: freeTender, isLoading: freeLoading } = useGetTender(tenderId, {
+    query: { queryKey: getGetTenderQueryKey(tenderId), enabled: tenderId > 0 && !isPro },
+  });
 
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -813,9 +825,9 @@ export default function IhaleDetayPage() {
     setAnalysisError(null);
   }, [tenderId, initialAnalysis]);
 
-  // Fetch live MCP announcement + contact whenever the tender changes
+  // Fetch live MCP announcement + contact whenever the tender changes (Pro only)
   useEffect(() => {
-    if (!tenderId) return;
+    if (!tenderId || !isPro) return;
     let cancelled = false;
     setMcpData(null);
     setMcpLoading(true);
@@ -827,7 +839,7 @@ export default function IhaleDetayPage() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setMcpLoading(false); });
     return () => { cancelled = true; };
-  }, [tenderId]);
+  }, [tenderId, isPro]);
 
   async function runAnalysis() {
     if (analysisLoading) return;
@@ -845,19 +857,19 @@ export default function IhaleDetayPage() {
     }
   }
 
-  const tenderAny = (match?.tender as any) ?? null;
+  const tenderAny = (isPro ? (match?.tender as any) : (freeTender as any)) ?? null;
   const documents: Array<{ name: string; url: string; type: string }> = tenderAny?.documents ?? [];
   const hasDocs = documents.some((d) => !!d.url);
 
-  // Auto-trigger the fit verdict once on open when no analysis exists yet.
+  // Auto-trigger the fit verdict once on open when no analysis exists yet (Pro only).
   useEffect(() => {
-    if (!match || analysis || autoTriggered.current) return;
+    if (!isPro || !match || analysis || autoTriggered.current) return;
     if (!analysisLoading) {
       autoTriggered.current = true;
       runAnalysis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match, analysis]);
+  }, [isPro, match, analysis]);
 
   // Merge contact: prefer MCP-sourced fields (richer) over AI-extracted ones
   const baseContact: TenderContact | null = (match as any)?.contact ?? null;
@@ -875,6 +887,8 @@ export default function IhaleDetayPage() {
     };
   })();
 
+  const isLoading = entLoading || (isPro ? matchLoading : freeLoading);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -887,30 +901,30 @@ export default function IhaleDetayPage() {
     );
   }
 
-  if (!match) {
+  if (!tenderAny) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <p className="text-muted-foreground">İhale bulunamadı.</p>
-        <Link href="/firsatlarim">
+        <Link href="/ihale-arama">
           <Button variant="outline" size="sm"><IconArrowLeft className="h-4 w-4 mr-2" />Geri Dön</Button>
         </Link>
       </div>
     );
   }
 
-  const tender = match.tender;
+  const tender = tenderAny;
   const hasDeadline = tender.deadline != null;
   const daysLeft = hasDeadline ? Math.ceil((new Date(tender.deadline as string).getTime() - Date.now()) / 86400_000) : null;
   const deadlineText = !hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti";
   const deadlineColor = !hasDeadline ? "text-muted-foreground" : daysLeft! <= 0 ? "text-destructive" : daysLeft! <= 7 ? "text-amber-500" : "text-emerald-600";
-  const criteria = (match as any).criteriaCompliance ?? [];
+  const criteria = (match as any)?.criteriaCompliance ?? [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/firsatlarim">
+        <Link href={isPro ? "/firsatlarim" : "/ihale-arama"}>
           <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-            <IconArrowLeft className="h-4 w-4" /> Fırsatlarıma Dön
+            <IconArrowLeft className="h-4 w-4" /> {isPro ? "Fırsatlarıma Dön" : "Aramaya Dön"}
           </Button>
         </Link>
       </div>
@@ -938,80 +952,117 @@ export default function IhaleDetayPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: AI summary + details + criteria + documents + chat */}
+        {/* Left: AI summary + details + criteria + documents + chat (Pro) */}
         <div className="lg:col-span-2 space-y-6">
-          <AiSummaryCard
-            analysis={analysis}
-            loading={analysisLoading}
-            error={analysisError}
-            autoRunning={!analysis && !analysisError}
-            fallbackSummary={match.reasoning ?? ""}
-            fallbackPros={match.pros ?? []}
-            fallbackRisks={match.risks ?? []}
-            onRun={runAnalysis}
-          />
+          {isPro ? (
+            <>
+              <AiSummaryCard
+                analysis={analysis}
+                loading={analysisLoading}
+                error={analysisError}
+                autoRunning={!analysis && !analysisError}
+                fallbackSummary={match?.reasoning ?? ""}
+                fallbackPros={match?.pros ?? []}
+                fallbackRisks={match?.risks ?? []}
+                onRun={runAnalysis}
+              />
 
-          {analysis && <AnalysisDetailsCard analysis={analysis} />}
+              {analysis && <AnalysisDetailsCard analysis={analysis} />}
 
-          {/* Criteria Compliance */}
-          {criteria.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <IconClipboardList className="h-5 w-5 text-primary" />
-                  Yeterlilik Kriterleri Uyumu
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {criteria.map((c: any, i: number) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${c.compliant === true ? 'bg-emerald-100 text-emerald-600' : c.compliant === false ? 'bg-rose-100 text-rose-600' : 'bg-muted text-muted-foreground'}`}>
-                        {c.compliant === true ? <IconCheck className="h-3 w-3" /> : c.compliant === false ? <IconX className="h-3 w-3" /> : "?"}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{c.criterion}</p>
-                        {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
+              {/* Criteria Compliance */}
+              {criteria.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <IconClipboardList className="h-5 w-5 text-primary" />
+                      Yeterlilik Kriterleri Uyumu
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {criteria.map((c: any, i: number) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${c.compliant === true ? 'bg-emerald-100 text-emerald-600' : c.compliant === false ? 'bg-rose-100 text-rose-600' : 'bg-muted text-muted-foreground'}`}>
+                            {c.compliant === true ? <IconCheck className="h-3 w-3" /> : c.compliant === false ? <IconX className="h-3 w-3" /> : "?"}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{c.criterion}</p>
+                            {c.note && <p className="text-xs text-muted-foreground mt-0.5">{c.note}</p>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
 
-          {/* İhale İlanı — full EKAP announcement text from MCP */}
-          <AnnouncementCard
-            text={mcpData?.announcement ?? ""}
-            loading={mcpLoading}
-          />
+              {/* İhale İlanı — full EKAP announcement text from MCP */}
+              <AnnouncementCard
+                text={mcpData?.announcement ?? ""}
+                loading={mcpLoading}
+              />
 
-          {/* Documents + viewer */}
-          <DocumentsCard tenderId={tenderId} documents={documents} />
+              {/* Documents + viewer */}
+              <DocumentsCard tenderId={tenderId} documents={documents} />
 
-          {/* Chat with documents */}
-          <DocumentChatCard tenderId={tenderId} hasDocs={hasDocs} />
+              {/* Chat with documents */}
+              <DocumentChatCard tenderId={tenderId} hasDocs={hasDocs} />
 
-          {/* Required Documents (legacy field) */}
-          {(tenderAny.documentsRequired?.length ?? 0) > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <IconFileText className="h-5 w-5 text-primary" />
-                  Gerekli Belgeler
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {(tenderAny.documentsRequired ?? []).map((doc: string, i: number) => (
-                    <li key={i} className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded-lg">
-                      <IconFileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      {doc}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+              {/* Required Documents (legacy field) */}
+              {(tenderAny.documentsRequired?.length ?? 0) > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <IconFileText className="h-5 w-5 text-primary" />
+                      Gerekli Belgeler
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(tenderAny.documentsRequired ?? []).map((doc: string, i: number) => (
+                        <li key={i} className="flex items-center gap-2 text-sm p-2 bg-muted/50 rounded-lg">
+                          <IconFileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          {doc}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Free: basic summary + paywalls for premium intelligence */}
+              {tender.summary && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <IconFileText className="h-5 w-5 text-primary" />
+                      Özet
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{tender.summary}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <PaywallCard
+                icon={IconChartBar}
+                title="Yapay Zeka Uygunluk Analizi"
+                description="Bu ihalenin firmanıza uygunluğunu, artılarını, risklerini ve yeterlilik kriterleri uyumunu yapay zeka ile saniyeler içinde değerlendirin."
+              />
+              <PaywallCard
+                icon={IconFileText}
+                title="İhale İlanı ve Belgeler"
+                description="İhale ilanının tam metnini okuyun; şartname, idari ve teknik belgeleri görüntüleyip indirin."
+              />
+              <PaywallCard
+                icon={IconMessage2}
+                title="Belgelerle Sohbet"
+                description="İhale dokümanları hakkında yapay zekaya soru sorun, anında ve kaynağa dayalı yanıtlar alın."
+              />
+            </>
           )}
         </div>
 
@@ -1019,7 +1070,16 @@ export default function IhaleDetayPage() {
         <div className="space-y-4">
           <Card>
             <CardContent className="pt-6 flex flex-col items-center gap-4">
-              <FitGauge score={match.fitScore} />
+              {isPro ? (
+                <FitGauge score={match!.fitScore} />
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-2">
+                  <div className="h-28 w-28 rounded-full border-4 border-dashed border-muted flex items-center justify-center">
+                    <IconLock className="h-7 w-7 text-muted-foreground" />
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center leading-snug">Uygunluk skoru<br />Pro üyelikte</p>
+                </div>
+              )}
               <div className="w-full space-y-2 text-sm">
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Tahmini Bedel</span>
@@ -1051,10 +1111,18 @@ export default function IhaleDetayPage() {
             </CardContent>
           </Card>
 
-          {(mergedContact || mcpLoading) && (
-            <ContactCard
-              contact={mergedContact ?? { authority: null, address: null, phone: null, email: null, contactPerson: null }}
-              loading={mcpLoading && !mergedContact}
+          {isPro ? (
+            (mergedContact || mcpLoading) && (
+              <ContactCard
+                contact={mergedContact ?? { authority: null, address: null, phone: null, email: null, contactPerson: null }}
+                loading={mcpLoading && !mergedContact}
+              />
+            )
+          ) : (
+            <PaywallCard
+              icon={IconBuildingBank}
+              title="İletişim Bilgileri"
+              description="İhaleyi yapan idarenin yetkili kişi, telefon, e-posta ve adres bilgilerine erişin."
             />
           )}
 

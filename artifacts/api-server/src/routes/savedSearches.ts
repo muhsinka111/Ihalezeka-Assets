@@ -2,13 +2,16 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { savedSearchesTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
-import { getBusinessId } from "../lib/authHelpers.js";
+import { getBusinessId, requirePro } from "../lib/authHelpers.js";
 import {
   CreateSavedSearchBody,
   UpdateSavedSearchBody,
 } from "@workspace/api-zod";
 
 const router = Router();
+
+// GET (listing saved searches) is free; creating/updating/deleting them and
+// their alerts are a Pro feature.
 
 router.get("/saved-searches", async (req, res) => {
   try {
@@ -25,7 +28,7 @@ router.get("/saved-searches", async (req, res) => {
   }
 });
 
-router.post("/saved-searches", async (req, res) => {
+router.post("/saved-searches", requirePro, async (req, res) => {
   try {
     const businessId = getBusinessId(req);
     const parsed = CreateSavedSearchBody.safeParse(req.body);
@@ -51,7 +54,7 @@ router.post("/saved-searches", async (req, res) => {
   }
 });
 
-router.patch("/saved-searches/:id", async (req, res) => {
+router.patch("/saved-searches/:id", requirePro, async (req, res) => {
   try {
     const businessId = getBusinessId(req);
     const id = parseInt(req.params.id, 10);
@@ -92,7 +95,7 @@ router.patch("/saved-searches/:id", async (req, res) => {
   }
 });
 
-router.delete("/saved-searches/:id", async (req, res) => {
+router.delete("/saved-searches/:id", requirePro, async (req, res) => {
   try {
     const businessId = getBusinessId(req);
     const id = parseInt(req.params.id, 10);

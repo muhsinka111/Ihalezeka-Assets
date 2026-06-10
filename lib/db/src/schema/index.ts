@@ -11,3 +11,4 @@ export * from "./notifications";
 export * from "./savedSearches";
 export * from "./socialConnections";
 export * from "./socialPosts";
+export * from "./users";

@@ -26,7 +26,9 @@ import ContentGeneratorPage from "@/pages/pazarlama/content-generator";
 import ContentCalendarPage from "@/pages/pazarlama/content-calendar";
 import BlogAdminPage from "@/pages/pazarlama/blog";
 import SocialConnectionsPage from "@/pages/pazarlama/social-connections";
+import FiyatlandirmaPage from "@/pages/fiyatlandirma";
 import NotFound from "@/pages/not-found";
+import { RequirePro } from "@/components/PaywallOverlay";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -125,6 +127,21 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 //   );
 // }
 
+// Wrap a premium-only page in the Pro full-page gate. Free users see an upgrade
+// screen (inside the AppShell); Pro users see the real page.
+function proGate(
+  Component: React.ComponentType,
+  gate: { title: string; description: string },
+): React.ComponentType {
+  return function GatedPage() {
+    return (
+      <RequirePro title={gate.title} description={gate.description}>
+        <Component />
+      </RequirePro>
+    );
+  };
+}
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
@@ -168,18 +185,20 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
 
-          <Route path="/dashboard"><ProtectedRoute component={DashboardPage} /></Route>
-          <Route path="/firsatlarim"><ProtectedRoute component={FirsatlarimPage} /></Route>
-          <Route path="/ihale/:id"><ProtectedRoute component={IhaleDetayPage} /></Route>
-          <Route path="/basvuru-sihirbazi"><ProtectedRoute component={BasvuruSihirbazPage} /></Route>
-          <Route path="/teklif-olusturucu"><ProtectedRoute component={TeklifOlusturucuPage} /></Route>
           <Route path="/ihale-arama"><ProtectedRoute component={IhaleAramaPage} /></Route>
-          <Route path="/boru-hatti"><ProtectedRoute component={BoruHattiPage} /></Route>
-          <Route path="/rakip-analizi"><ProtectedRoute component={RakipAnaliziPage} /></Route>
-          <Route path="/para-akisi"><ProtectedRoute component={ParaAkisiPage} /></Route>
+          <Route path="/ihale/:id"><ProtectedRoute component={IhaleDetayPage} /></Route>
+          <Route path="/fiyatlandirma"><ProtectedRoute component={FiyatlandirmaPage} /></Route>
           <Route path="/belgelerim"><ProtectedRoute component={BelgelerimPage} /></Route>
-          <Route path="/raporlar"><ProtectedRoute component={RaporlarPage} /></Route>
           <Route path="/entegrasyonlar"><ProtectedRoute component={EntegrasyonlarPage} /></Route>
+          <Route path="/basvuru-sihirbazi"><ProtectedRoute component={BasvuruSihirbazPage} /></Route>
+
+          <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
+          <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
+          <Route path="/teklif-olusturucu"><ProtectedRoute component={proGate(TeklifOlusturucuPage, { title: "Teklif Oluşturucu Pro'ya özeldir", description: "Yapay zeka destekli teklif taslakları oluşturmak için Pro planına geçin." })} /></Route>
+          <Route path="/boru-hatti"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Boru Hattı Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
+          <Route path="/rakip-analizi"><ProtectedRoute component={proGate(RakipAnaliziPage, { title: "Rakip Analizi Pro'ya özeldir", description: "Rakiplerinizin kazandığı ihaleleri ve stratejilerini görmek için Pro'ya geçin." })} /></Route>
+          <Route path="/para-akisi"><ProtectedRoute component={proGate(ParaAkisiPage, { title: "Para Akışı Pro'ya özeldir", description: "Aylık nakit akışı, kategori ve idare bazlı analizler için Pro'ya geçin." })} /></Route>
+          <Route path="/raporlar"><ProtectedRoute component={proGate(RaporlarPage, { title: "Raporlar Pro'ya özeldir", description: "Başvuru performansı ve kategori raporlarınız için Pro planına geçin." })} /></Route>
 
           <Route path="/pazarlama"><ProtectedRoute component={PazarlamaPage} /></Route>
           <Route path="/pazarlama/icerik-uretici"><ProtectedRoute component={ContentGeneratorPage} /></Route>

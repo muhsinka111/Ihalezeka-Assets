@@ -1,6 +1,10 @@
 import { Router } from "express";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: reports & exports (Raporlar) are a Pro power tool.
+router.use("/reports", requirePro);
 
 router.get("/reports/summary", async (req, res) => {
   res.json({

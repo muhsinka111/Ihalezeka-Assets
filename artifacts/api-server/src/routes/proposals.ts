@@ -3,8 +3,12 @@ import { db } from "@workspace/db";
 import { proposalsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { GetProposalParams } from "@workspace/api-zod";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: the proposal builder (Teklif Oluşturucu) is a Pro power tool.
+router.use("/proposals", requirePro);
 const DEFAULT_BIZ = "demo-business";
 
 const fmt = (p: any) => ({

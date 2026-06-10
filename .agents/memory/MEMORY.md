@@ -7,5 +7,6 @@
 - [EKAP document URLs are empty placeholders](ekap-document-urls.md) — search-payload dokumanListe urls are empty; resolve the real official doc URL via GetDokumanUrl (see EKAP detail & document access)
 - [HTML→text backfills](html-strip-backfills.md) — strip stored HTML in JS (exported stripHtml), not Postgres regexp_replace (no lazy quantifiers → greedy match ate real notice text)
 - [React Query invalidation keys](react-query-invalidation-keys.md) — generated hooks key on full `/api/...` path; bare path in invalidateQueries silently no-ops (stale UI after mutation)
+- [Express router-level gate leak](express-router-gate-leak.md) — sub-routers mounted at "/" pass every request through each in turn, so a bare `router.use(requirePro)` gates unrelated siblings; scope to a path prefix or per-route
 - [AI tender scoring silently rule-based](ai-scoring-empty-response.md) — scoreWithAi (gpt-5-mini, max_completion_tokens 512 + json response_format) returns empty content every call → scoreNewTenders always falls back to rule-based; matches still upsert so it looks healthy
 - [İlan.gov has no downloadable documents](ilan-no-documents.md) — GetAdDetail files is null/empty for all ads; extract defensively but expect 0, never fabricate doc entries or write a network backfill

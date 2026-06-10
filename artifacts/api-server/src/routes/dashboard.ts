@@ -2,8 +2,12 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable, matchesTable, pipelineItemsTable } from "@workspace/db";
 import { eq, desc, count, sql, gte, and } from "drizzle-orm";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: the analytics dashboard is a Pro power tool.
+router.use("/dashboard", requirePro);
 
 const DEFAULT_BIZ = "demo-business";
 

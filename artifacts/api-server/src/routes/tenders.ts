@@ -17,6 +17,7 @@ import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { searchIlanByKeyword } from "../scrapers/ilan-client.js";
 import { mapEkapToTender, mapIlanToTender } from "../scrapers/utils.js";
 import { getTenderAnnouncementsViaMcp, getTenderDetailsViaMcp } from "../scrapers/ihalemcp-client.js";
+import { isPro, requirePro, maskTenderForFree } from "../lib/authHelpers.js";
 
 const router = Router();
 
@@ -206,7 +207,12 @@ router.get("/tenders", async (req, res) => {
       db.select({ total: count() }).from(tendersTable).where(where),
     ]);
 
-    res.json({ items, total: Number(totalResult[0]?.total ?? 0), page, limit });
+    // Free tier: project each row through the allowlist so premium fields
+    // (full description, rawData, contact, etc.) never reach the client.
+    const pro = await isPro(req);
+    const projected = pro ? items : items.map((t) => maskTenderForFree(t));
+
+    res.json({ items: projected, total: Number(totalResult[0]?.total ?? 0), page, limit });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -238,6 +244,9 @@ router.get("/tenders/live-search", async (req, res) => {
         : searchIlanByKeyword(q, skip, take),
     ]);
 
+    // Free-tier endpoint: only ever serialize allowlisted, non-premium fields
+    // below (no description/contact/documents/rawData). Keep this in sync with
+    // maskTenderForFree() so live results never leak Pro-only data.
     const items: Record<string, unknown>[] = [];
 
     if (ekapResult.status === "fulfilled") {
@@ -305,13 +314,15 @@ router.get("/tenders/:id", async (req, res) => {
     const { id } = GetTenderParams.parse(req.params);
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
     if (!tender) return res.status(404).json({ error: "Not found" });
-    res.json(tender);
+    // Free tier gets the allowlisted basic summary; Pro gets the full row.
+    const pro = await isPro(req);
+    res.json(pro ? tender : maskTenderForFree(tender));
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/tenders/:id/analyze", async (req, res) => {
+router.post("/tenders/:id/analyze", requirePro, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
@@ -350,7 +361,7 @@ router.post("/tenders/:id/analyze", async (req, res) => {
  * addressed by its index in the tender's stored `documents` array — arbitrary
  * URLs are NOT accepted, which avoids SSRF.
  */
-router.get("/tenders/:id/document", async (req, res) => {
+router.get("/tenders/:id/document", requirePro, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const index = Number.parseInt(String(req.query.i ?? ""), 10);
@@ -394,7 +405,7 @@ router.get("/tenders/:id/document", async (req, res) => {
  * Return extracted plain text for a single tender document. Used by the in-app
  * viewer to display Word/other documents that the browser cannot render inline.
  */
-router.get("/tenders/:id/document-text", async (req, res) => {
+router.get("/tenders/:id/document-text", requirePro, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const index = Number.parseInt(String(req.query.i ?? ""), 10);
@@ -427,7 +438,7 @@ router.get("/tenders/:id/document-text", async (req, res) => {
  * persisted extracted text when available; otherwise extracts on the fly and
  * persists it for next time.
  */
-router.post("/tenders/:id/chat", async (req, res) => {
+router.post("/tenders/:id/chat", requirePro, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const { question, history } = (req.body ?? {}) as {
@@ -496,7 +507,7 @@ router.post("/tenders/:id/chat", async (req, res) => {
  * Uses MCP get_tender_announcements + get_tender_details (by IKN) and falls
  * back to whatever is already stored in the DB. Cached for 10 min via headers.
  */
-router.get("/tenders/:id/mcp-enrichment", async (req, res) => {
+router.get("/tenders/:id/mcp-enrichment", requirePro, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id)).limit(1);

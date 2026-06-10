@@ -3,8 +3,12 @@ import { db } from "@workspace/db";
 import { pipelineItemsTable, tendersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { CreatePipelineItemBody, UpdatePipelineItemParams, UpdatePipelineItemBody, DeletePipelineItemParams } from "@workspace/api-zod";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: the pipeline (Boru Hattı) is a Pro power tool.
+router.use("/pipeline", requirePro);
 const DEFAULT_BIZ = "demo-business";
 
 const formatItem = (item: any, tender: any) => ({

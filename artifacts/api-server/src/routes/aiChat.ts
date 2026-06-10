@@ -6,8 +6,12 @@ import { logger } from "../lib/logger.js";
 import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { mapEkapToTender } from "../scrapers/utils.js";
 import { getTenderDetailsViaMcp, getTenderAnnouncementsViaMcp } from "../scrapers/ihalemcp-client.js";
+import { requirePro } from "../lib/authHelpers.js";
 
 const router = Router();
+
+// Premium-only: the AI assistant is a Pro feature.
+router.use("/ai", requirePro);
 
 const DEFAULT_BIZ = "demo-business";
 

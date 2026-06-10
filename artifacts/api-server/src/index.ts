@@ -4,6 +4,41 @@ import { ensureSearchObjects } from "./lib/search-bootstrap";
 import { db } from "@workspace/db";
 import { tendersTable } from "@workspace/db";
 import { isNull, sql, eq } from "drizzle-orm";
+import { runMigrations } from "stripe-replit-sync";
+import { getStripeSync } from "./lib/stripeClient";
+
+/**
+ * Initialize the synced Stripe schema and kick off a background backfill.
+ * Wrapped by the caller in try/catch: before the Stripe integration is
+ * connected (no credentials) this throws, and the server must still boot —
+ * entitlement then fails closed to "free".
+ */
+async function initStripe() {
+  const databaseUrl = process.env["DATABASE_URL"];
+  if (!databaseUrl) throw new Error("DATABASE_URL is required for Stripe");
+
+  await runMigrations({ databaseUrl });
+  logger.info("Stripe schema ready");
+
+  const stripeSync = await getStripeSync();
+
+  const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
+  if (domain) {
+    const webhookResult = await stripeSync.findOrCreateManagedWebhook(
+      `https://${domain}/api/stripe/webhook`,
+    );
+    logger.info(
+      { url: webhookResult?.url ?? "setup complete" },
+      "Stripe webhook configured",
+    );
+  }
+
+  // Backfill runs in the background so startup is not blocked.
+  stripeSync
+    .syncBackfill()
+    .then(() => logger.info("Stripe data synced"))
+    .catch((err) => logger.error({ err }, "Stripe backfill failed"));
+}
 
 const rawPort = process.env["PORT"];
 
@@ -25,6 +60,16 @@ async function start() {
     logger.info("Search objects ensured (pg_trgm, unaccent, f_unaccent, indexes)");
   } catch (err) {
     logger.error({ err }, "Failed to ensure search objects; fuzzy search may be degraded");
+  }
+
+  // Stripe is optional at boot: before the integration is connected this throws
+  // (missing credentials). Swallow it so the rest of the app still serves;
+  // entitlement then resolves to "free" until Stripe is wired up.
+  try {
+    await initStripe();
+    logger.info("Stripe initialized");
+  } catch (err) {
+    logger.warn({ err }, "Stripe not initialized (integration likely not connected yet)");
   }
 
   // One-time backfill: set sourceUrl for EKAP rows where it is null.

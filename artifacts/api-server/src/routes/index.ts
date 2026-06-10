@@ -16,6 +16,7 @@ import notificationsRouter from "./notifications";
 import savedSearchesRouter from "./savedSearches";
 import marketingRouter from "./marketing";
 import aiChatRouter from "./aiChat";
+import billingRouter from "./billing";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(scraperAdminRouter);
 router.use(notificationsRouter);
 router.use(savedSearchesRouter);
 router.use(marketingRouter);
+router.use(billingRouter);
 
 export default router;
