@@ -47,9 +47,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
+  { href: "/ihale-arama", label: "İhale Arama", icon: IconSearch },
   { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard },
   { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled },
-  { href: "/ihale-arama", label: "İhale Arama", icon: IconSearch },
   { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails },
   { href: "/teklif-olusturucu", label: "Teklif Oluşturucu", icon: IconFileText },
   { href: "/basvuru-sihirbazi", label: "Başvuru Sihirbazı", icon: IconTruckDelivery },
@@ -70,11 +70,12 @@ interface AppShellProps {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export function AppShell({ children }: AppShellProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
   const { isOpen: aiOpen, togglePanel, closePanel } = useAiPanelStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [topSearch, setTopSearch] = useState("");
 
   const { data: adminCheckData } = useQuery<{ isAdmin: boolean }>({
     queryKey: ["admin-check"],
@@ -223,13 +224,22 @@ export function AppShell({ children }: AppShellProps) {
             <IconMenu2 className="h-4 w-4" />
           </Button>
 
-          <div className="relative flex-1 max-w-md">
+          <form
+            className="relative flex-1 max-w-md"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = topSearch.trim();
+              navigate(q ? `/ihale-arama?q=${encodeURIComponent(q)}` : "/ihale-arama");
+            }}
+          >
             <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               className="w-full pl-9 pr-4 py-1.5 text-sm bg-muted/50 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground"
               placeholder="İhale veya idare ara…"
+              value={topSearch}
+              onChange={(e) => setTopSearch(e.target.value)}
             />
-          </div>
+          </form>
 
           <div className="flex items-center gap-1.5 ml-auto">
             <Button

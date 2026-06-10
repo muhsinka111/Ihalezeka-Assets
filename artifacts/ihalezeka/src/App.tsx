@@ -95,11 +95,12 @@ function SignUpPage() {
 function HomeRedirect() {
   const { isLoaded, isSignedIn } = useAuth();
 
-  // Redirect signed-in users to the dashboard once Clerk confirms auth state.
-  // Until then (loading) or for signed-out users, show the public landing page
-  // immediately so the page is never blank in the preview pane.
+  // Redirect signed-in users straight to tender search — the product's hero
+  // experience — once Clerk confirms auth state. Until then (loading) or for
+  // signed-out users, show the public landing page immediately so the page is
+  // never blank in the preview pane.
   if (isLoaded && isSignedIn) {
-    return <Redirect to="/dashboard" />;
+    return <Redirect to="/ihale-arama" />;
   }
 
   return <LandingPage />;

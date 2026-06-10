@@ -5,21 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IconTrash, IconCheck, IconPlus, IconLock, IconPlugConnected, IconWebhook, IconKey } from "@tabler/icons-react";
+import { IconTrash, IconCheck, IconPlus, IconLock, IconKey } from "@tabler/icons-react";
 
 const AI_PROVIDERS = [
   { id: "openai", label: "OpenAI (GPT-4o)", placeholder: "sk-..." },
   { id: "anthropic", label: "Anthropic (Claude)", placeholder: "sk-ant-..." },
   { id: "gemini", label: "Google Gemini", placeholder: "AIza..." },
-];
-
-const DATA_SOURCES = [
-  { id: "ekap", label: "EKAP (Kamu İhale Kurumu)", active: true },
-  { id: "kibis", label: "KİBİS Sistemi", active: false },
-  { id: "turkstat", label: "TÜİK Veri Servisi", active: false },
-  { id: "hazine", label: "Hazine Banka Verileri", active: false },
 ];
 
 export default function EntegrasyonlarPage() {
@@ -53,7 +45,7 @@ export default function EntegrasyonlarPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-heading tracking-tight">Entegrasyonlar</h1>
-        <p className="text-muted-foreground text-sm">Yapay zeka API anahtarları, veri kaynakları ve otomasyon bağlantıları.</p>
+        <p className="text-muted-foreground text-sm">Yapay zeka API anahtarlarınızı yönetin.</p>
       </div>
 
       {/* AI API Keys */}
@@ -103,56 +95,6 @@ export default function EntegrasyonlarPage() {
               </div>
             );
           })}
-        </CardContent>
-      </Card>
-
-      {/* Data Sources */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <IconPlugConnected className="h-5 w-5 text-primary" /> Veri Kaynakları
-          </CardTitle>
-          <CardDescription>İhale verilerinin toplandığı sistemler. EKAP her zaman aktiftir.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {DATA_SOURCES.map((src) => (
-            <div key={src.id} className="flex items-center justify-between p-4 rounded-lg border border-border">
-              <div>
-                <p className="font-medium text-sm">{src.label}</p>
-                <p className="text-xs text-muted-foreground">{src.active ? "Bağlı ve aktif" : "Yakında kullanılabilir"}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                {!src.active && <Badge variant="outline" className="text-xs">Yakında</Badge>}
-                <Switch checked={src.active} disabled={!src.active} />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Webhooks */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <IconWebhook className="h-5 w-5 text-primary" /> Webhook & REST API
-          </CardTitle>
-          <CardDescription>Zapier, Make veya kendi sistemlerinizle entegre edin.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="p-4 bg-muted/50 rounded-lg border border-border flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium">İhaleZeka REST API</p>
-              <p className="text-xs text-muted-foreground mt-0.5 font-mono">https://api.ihalezeka.com/v1</p>
-            </div>
-            <Badge variant="outline">Yakında</Badge>
-          </div>
-          <div className="mt-3 p-4 bg-muted/50 rounded-lg border border-border flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium">Zapier Entegrasyonu</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Yeni ihale eşleşmesinde otomatik akış tetikleyin</p>
-            </div>
-            <Badge variant="outline">Yakında</Badge>
-          </div>
         </CardContent>
       </Card>
     </div>

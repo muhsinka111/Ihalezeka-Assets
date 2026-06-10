@@ -340,12 +340,6 @@ export default function IhaleAramaPage() {
   const [draft, setDraft] = useState<Filters>(initialFilters);
   const [applied, setApplied] = useState<Filters>(initialFilters);
 
-  useEffect(() => {
-    const parsed = parseUrlFilters(rawSearch);
-    setDraft(parsed);
-    setApplied(parsed);
-  }, [rawSearch]);
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -442,6 +436,16 @@ export default function IhaleAramaPage() {
     setLiveItems([]);
     setLiveTotal(0);
   }, []);
+
+  // Sync filter state from the URL (deep links + the global top-bar search).
+  // Reset pagination so a freshly submitted query never accumulates onto the
+  // pages already loaded for the previous query.
+  useEffect(() => {
+    const parsed = parseUrlFilters(rawSearch);
+    setDraft(parsed);
+    setApplied(parsed);
+    resetPagination();
+  }, [rawSearch, resetPagination]);
 
   // Fire live search whenever the keyword query changes.
   // Runs in parallel with the DB query; results are merged by IKN to deduplicate.

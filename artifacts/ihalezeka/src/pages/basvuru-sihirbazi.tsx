@@ -4,11 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { IconCheck, IconArrowRight, IconArrowLeft, IconBuilding, IconChartBar, IconCoin, IconUsers, IconBolt, IconLock, IconBrain } from "@tabler/icons-react";
+import { IconCheck, IconArrowRight, IconArrowLeft, IconBuilding, IconChartBar, IconCoin, IconUsers, IconBolt, IconBrain } from "@tabler/icons-react";
 
 const STEPS = [
   { id: 1, label: "Firma Kimliği", icon: IconBuilding },
@@ -16,8 +14,7 @@ const STEPS = [
   { id: 3, label: "Mali Yeterlilik", icon: IconCoin },
   { id: 4, label: "Deneyim & Personel", icon: IconUsers },
   { id: 5, label: "Teklif Stratejisi", icon: IconBolt },
-  { id: 6, label: "Otomasyon Yetkisi", icon: IconLock },
-  { id: 7, label: "AI Bağlamı", icon: IconBrain },
+  { id: 6, label: "AI Bağlamı", icon: IconBrain },
 ];
 
 export default function BasvuruSihirbazPage() {
@@ -34,7 +31,7 @@ export default function BasvuruSihirbazPage() {
     setSaving(true);
     await mutation.mutateAsync({ data: { ...data, completionStep: step } });
     setSaving(false);
-    if (step < 7) setStep(step + 1);
+    if (step < 6) setStep(step + 1);
   };
 
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-48 w-full" /></div>;
@@ -43,7 +40,7 @@ export default function BasvuruSihirbazPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-heading tracking-tight">Başvuru Sihirbazı</h1>
-        <p className="text-muted-foreground text-sm">Firma profilinizi tamamlayarak otomasyon başvuru sistemini etkinleştirin.</p>
+        <p className="text-muted-foreground text-sm">Firma profilinizi tamamlayarak yapay zeka destekli ihale eşleştirmesini etkinleştirin.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -167,21 +164,6 @@ export default function BasvuruSihirbazPage() {
 
               {step === 6 && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                    <strong>Yasal Uyarı:</strong> Otomatik e-imza özelliği mevzuat gereği şu an devre dışıdır. Bu özellik yalnızca ilgili mevzuat çerçevesinde ve kurum onayıyla aktif edilebilir.
-                  </div>
-                  <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-                    <div>
-                      <p className="font-medium text-sm">Otomatik Başvuru Yetkisi</p>
-                      <p className="text-xs text-muted-foreground">Uyumlu ihaleler için otomatik başvuru</p>
-                    </div>
-                    <Switch checked={false} disabled />
-                  </div>
-                </div>
-              )}
-
-              {step === 7 && (
-                <div className="space-y-4">
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
                     <strong>Bu bilgi neden önemli?</strong> Yazdığınız özet, yapay zeka asistanımızın her sohbette firmanızı tanımasını sağlar. Sektörünüzü, güçlü yönlerinizi ve geçmiş deneyimlerinizi ekleyin.
                   </div>
@@ -216,8 +198,8 @@ export default function BasvuruSihirbazPage() {
               <IconArrowLeft className="h-4 w-4" /> Önceki
             </Button>
             <Button onClick={save} disabled={saving} className="gap-2">
-              {saving ? "Kaydediliyor…" : step === 7 ? "Tamamla" : "Kaydet ve Devam Et"}
-              {step < 7 && <IconArrowRight className="h-4 w-4" />}
+              {saving ? "Kaydediliyor…" : step === 6 ? "Tamamla" : "Kaydet ve Devam Et"}
+              {step < 6 && <IconArrowRight className="h-4 w-4" />}
             </Button>
           </div>
         </div>
