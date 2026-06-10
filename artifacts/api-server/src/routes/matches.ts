@@ -12,28 +12,33 @@ interface ResolvedContact {
   authority: string | null;
   address: string | null;
   phone: string | null;
+  fax: string | null;
   email: string | null;
   contactPerson: string | null;
   sourceUrl: string | null;
 }
 
 /**
- * Merge contact details from the AI document extraction (aiSummary.contact)
- * with structured fields already present in the scraped raw data, preferring
- * extracted values and falling back to raw data / tender columns.
+ * Resolve a tender's contact for display, preferring the persisted `contact`
+ * column (populated at ingest / by the backfill from real source data), then
+ * the AI document extraction (aiSummary.contact), then structured raw-data
+ * fields / tender columns. Live MCP details (richer) are overlaid by the
+ * frontend on top of this.
  */
 function buildContact(tender: any, aiSummary: any): ResolvedContact {
   const raw = (tender?.rawData as Record<string, any>) ?? {};
+  const stored = (tender?.contact as Record<string, any>) ?? {};
   const c = aiSummary?.contact ?? {};
   const pick = (...vals: any[]) =>
     vals.find((v) => typeof v === "string" && v.trim().length > 0)?.trim() ?? null;
 
   return {
-    authority: pick(c.authority, raw.idareAdi, raw.advertiserName, tender?.agencyName),
-    address: pick(c.address, raw.addressCityName),
-    phone: pick(c.phone),
-    email: pick(c.email),
-    contactPerson: pick(c.contactPerson),
+    authority: pick(stored.authority, c.authority, raw.idareAdi, raw.advertiserName, tender?.agencyName),
+    address: pick(stored.address, c.address, raw.adres, raw.addressCityName),
+    phone: pick(stored.phone, c.phone),
+    fax: pick(stored.fax, c.fax),
+    email: pick(stored.email, c.email),
+    contactPerson: pick(stored.contactPerson, c.contactPerson),
     sourceUrl: pick(tender?.sourceUrl, raw.link, raw.url),
   };
 }

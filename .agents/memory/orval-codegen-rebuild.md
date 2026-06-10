@@ -24,3 +24,9 @@ Related: the spec/generated set can drift — the committed generated files may
 contain query params (e.g. tenders `category`) that no longer exist in
 `openapi.yaml`. Re-running codegen drops them. If a route/frontend still uses the
 param, ADD it to `openapi.yaml` before regenerating, don't just regenerate.
+
+Same mechanism applies to `lib/db` (also `composite` + `emitDeclarationOnly`):
+after changing an EXPORTED type in `lib/db/src/schema` (e.g. adding `fax` to
+`TenderContact`), run `tsc -b lib/db --force` or consumers typecheck against
+stale `lib/db/dist/*.d.ts`. Runtime is unaffected — tsx resolves `@workspace/db`
+to src via package.json `exports` — so only `tsc` sees the stale shape.

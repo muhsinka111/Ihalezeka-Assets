@@ -517,16 +517,19 @@ router.get("/tenders/:id/mcp-enrichment", async (req, res) => {
     }
 
     const d = details;
+    const stored = (tender.contact as Record<string, unknown> | null) ?? {};
     const pick = (...vals: unknown[]) =>
       (vals.find((v) => typeof v === "string" && (v as string).trim().length > 0) as string)?.trim() ?? null;
 
+    // Live MCP details are richest; fall back to the persisted contact column
+    // (populated at ingest / backfill) and finally the tender's agency name.
     const contact = {
-      authority: pick(d.idareAdi, tender.agencyName),
-      address: pick(d.adres),
-      phone: pick(d.telefon),
-      fax: pick(d.faks),
-      email: pick(d.eposta),
-      contactPerson: pick(d.irtibatKisi),
+      authority: pick(d.idareAdi, stored.authority, tender.agencyName),
+      address: pick(d.adres, stored.address),
+      phone: pick(d.telefon, stored.phone),
+      fax: pick(d.faks, stored.fax),
+      email: pick(d.eposta, stored.email),
+      contactPerson: pick(d.irtibatKisi, stored.contactPerson),
       sourceUrl: tender.sourceUrl ?? null,
     };
 

@@ -7,6 +7,7 @@ import type { IlanAd, IlanAdDetail } from "./ilan-client.js";
 import { logger } from "../lib/logger.js";
 import { sendEmail, buildSourceHealthEmailHtml } from "../lib/emailService.js";
 import { stripHtml } from "../services/document-analyzer.js";
+import { deriveContact } from "../lib/contact.js";
 
 export interface ScraperResult {
   fetched: number;
@@ -212,6 +213,7 @@ export function mapEkapToTender(tender: EkapTender): InsertTender {
       : `https://ekapv2.kik.gov.tr/ekap/ihale-detay/${tender.id}`,
     procurementMethod: tender.ihaleUsulAciklama ?? null,
     documents: docs.length > 0 ? docs : null,
+    contact: deriveContact({ agencyName: tender.idareAdi, rawData: raw }),
     rawData: tender as unknown as Record<string, unknown>,
     lastFetchedAt: new Date(),
   };
@@ -277,6 +279,11 @@ export function mapIlanToTender(ad: IlanAd | IlanAdDetail): InsertTender {
     sourceUrl,
     procurementMethod: null,
     documents: null,
+    contact: deriveContact({
+      agencyName: ad.advertiserName,
+      description,
+      rawData: ad as unknown as Record<string, unknown>,
+    }),
     rawData: ad as unknown as Record<string, unknown>,
     lastFetchedAt: new Date(),
   };

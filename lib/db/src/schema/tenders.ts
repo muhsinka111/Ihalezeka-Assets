@@ -6,6 +6,7 @@ export interface TenderContact {
   authority: string | null;
   address: string | null;
   phone: string | null;
+  fax: string | null;
   email: string | null;
   contactPerson: string | null;
 }
@@ -66,6 +67,7 @@ export const tendersTable = pgTable("tenders", {
   sourceUrl: text("source_url"),
   procurementMethod: text("procurement_method"),
   documents: jsonb("documents").$type<Array<{ name: string; url: string; type: string }>>(),
+  contact: jsonb("contact").$type<TenderContact>(),
   rawData: jsonb("raw_data"),
   aiSummary: jsonb("ai_summary").$type<AiAnalysis>(),
   lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),

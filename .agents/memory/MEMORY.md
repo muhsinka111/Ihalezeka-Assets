@@ -1,6 +1,7 @@
 - [Replit port routing quirks](replit-port-routing.md) — ports not in `.replit` [[ports]] can't be detected by workflow monitor; fix by serving frontend from api-server (port 8080) and updating artifact.toml localPort to 8080 via verifyAndReplaceArtifactToml
 - [Tender search (Postgres FTS + trigram)](tender-search.md) — no built-in Turkish FTS stemmer; normalize with IMMUTABLE f_unaccent(lower()), trigram word_similarity, startup bootstrap + isFuzzySearchReady() ILIKE fallback
-- [Orval codegen → rebuild api-zod declarations](orval-codegen-rebuild.md) — after orval regen, run `tsc -b lib/api-zod --force` or consumers read stale dist .d.ts; watch for spec/generated drift dropping params
+- [Orval codegen → rebuild api-zod declarations](orval-codegen-rebuild.md) — after orval regen, run `tsc -b lib/api-zod --force` or consumers read stale dist .d.ts; same for lib/db after schema type edits
+- [Tender contact block not in API spec](tender-contact-block.md) — contact/fax response field is ad-hoc (not openapi/api-zod); frontend has own TenderContact; extend freely, no orval regen
 - [EKAP detail & document access](ekap-detail-document-access.md) — use top-level hash `id` for detail/doc-url APIs; binary şartname is F5/anti-bot gated (200 returns JS challenge, not the file) — ground on notice text instead
 - [EKAP document URLs are empty placeholders](ekap-document-urls.md) — search-payload dokumanListe urls are empty; resolve the real official doc URL via GetDokumanUrl (see EKAP detail & document access)
 - [HTML→text backfills](html-strip-backfills.md) — strip stored HTML in JS (exported stripHtml), not Postgres regexp_replace (no lazy quantifiers → greedy match ate real notice text)
