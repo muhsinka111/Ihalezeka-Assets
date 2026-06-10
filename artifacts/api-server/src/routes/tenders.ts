@@ -16,6 +16,7 @@ import {
 import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { searchIlanByKeyword } from "../scrapers/ilan-client.js";
 import { mapEkapToTender, mapIlanToTender } from "../scrapers/utils.js";
+import { getTenderAnnouncementsViaMcp, getTenderDetailsViaMcp } from "../scrapers/ihalemcp-client.js";
 
 const router = Router();
 
@@ -487,6 +488,53 @@ router.post("/tenders/:id/chat", async (req, res) => {
   } catch (err) {
     console.error("Tender chat error:", err);
     res.status(500).json({ error: "Chat failed" });
+  }
+});
+
+/**
+ * Fetch live MCP announcement text + structured contact details for a tender.
+ * Uses MCP get_tender_announcements + get_tender_details (by IKN) and falls
+ * back to whatever is already stored in the DB. Cached for 10 min via headers.
+ */
+router.get("/tenders/:id/mcp-enrichment", async (req, res) => {
+  try {
+    const { id } = GetTenderParams.parse(req.params);
+    const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id)).limit(1);
+    if (!tender) return res.status(404).json({ error: "Not found" });
+
+    const ikn = tender.ikn ?? "";
+    let announcement = tender.description ?? "";
+    let details: Record<string, unknown> = {};
+
+    if (ikn) {
+      const [mcpText, mcpDetails] = await Promise.all([
+        getTenderAnnouncementsViaMcp(ikn).catch(() => ""),
+        getTenderDetailsViaMcp(ikn).catch(() => ({})),
+      ]);
+      // Discard if MCP returned an error JSON string (EKAP upstream failure)
+      if (mcpText.length > 50 && !mcpText.trimStart().startsWith("{")) announcement = mcpText;
+      if (Object.keys(mcpDetails).length > 0) details = mcpDetails as Record<string, unknown>;
+    }
+
+    const d = details;
+    const pick = (...vals: unknown[]) =>
+      (vals.find((v) => typeof v === "string" && (v as string).trim().length > 0) as string)?.trim() ?? null;
+
+    const contact = {
+      authority: pick(d.idareAdi, tender.agencyName),
+      address: pick(d.adres),
+      phone: pick(d.telefon),
+      fax: pick(d.faks),
+      email: pick(d.eposta),
+      contactPerson: pick(d.irtibatKisi),
+      sourceUrl: tender.sourceUrl ?? null,
+    };
+
+    res.setHeader("Cache-Control", "private, max-age=600");
+    res.json({ ikn, announcement, contact, details });
+  } catch (err) {
+    console.error("MCP enrichment error:", err);
+    res.status(500).json({ error: "MCP enrichment failed" });
   }
 });
 

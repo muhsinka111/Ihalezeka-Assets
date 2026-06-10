@@ -25,9 +25,17 @@ interface TenderContact {
   authority: string | null;
   address: string | null;
   phone: string | null;
+  fax?: string | null;
   email: string | null;
   contactPerson: string | null;
   sourceUrl?: string | null;
+}
+
+interface McpEnrichment {
+  ikn: string;
+  announcement: string;
+  contact: TenderContact & { fax?: string | null };
+  details: Record<string, unknown>;
 }
 
 interface AiAnalysis {
@@ -391,15 +399,16 @@ function AnalysisDetailsCard({ analysis }: { analysis: AiAnalysis }) {
 }
 
 // ── Contracting authority contact card ─────────────────────────────
-function ContactCard({ contact }: { contact: TenderContact }) {
-  const rows: Array<{ icon: typeof IconUser; label: string; value: string }> = [];
+function ContactCard({ contact, loading }: { contact: TenderContact; loading?: boolean }) {
+  const rows: Array<{ icon: typeof IconUser; label: string; value: string; href?: string }> = [];
   if (contact.authority) rows.push({ icon: IconBuildingBank, label: "İdare", value: contact.authority });
   if (contact.contactPerson) rows.push({ icon: IconUser, label: "İrtibat Kişisi", value: contact.contactPerson });
   if (contact.address) rows.push({ icon: IconMapPin, label: "Adres", value: contact.address });
-  if (contact.phone) rows.push({ icon: IconPhone, label: "Telefon", value: contact.phone });
-  if (contact.email) rows.push({ icon: IconMail, label: "E-posta", value: contact.email });
+  if (contact.phone) rows.push({ icon: IconPhone, label: "Telefon", value: contact.phone, href: `tel:${contact.phone}` });
+  if (contact.fax) rows.push({ icon: IconPhone, label: "Faks", value: contact.fax });
+  if (contact.email) rows.push({ icon: IconMail, label: "E-posta", value: contact.email, href: `mailto:${contact.email}` });
 
-  if (rows.length === 0 && !contact.sourceUrl) return null;
+  if (!loading && rows.length === 0 && !contact.sourceUrl) return null;
 
   return (
     <Card>
@@ -407,18 +416,24 @@ function ContactCard({ contact }: { contact: TenderContact }) {
         <CardTitle className="flex items-center gap-2 text-base">
           <IconBuildingBank className="h-5 w-5 text-primary" />
           İdare İletişim Bilgileri
+          {loading && <IconLoader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-1" />}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {loading && rows.length === 0 && (
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
+          </div>
+        )}
         {rows.map((r, i) => (
           <div key={i} className="flex items-start gap-3">
             <r.icon className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">{r.label}</p>
-              {r.label === "Telefon" ? (
-                <a href={`tel:${r.value}`} className="text-sm font-medium hover:text-primary break-words">{r.value}</a>
-              ) : r.label === "E-posta" ? (
-                <a href={`mailto:${r.value}`} className="text-sm font-medium hover:text-primary break-words">{r.value}</a>
+              {r.href ? (
+                <a href={r.href} className="text-sm font-medium hover:text-primary break-words">{r.value}</a>
               ) : (
                 <p className="text-sm font-medium break-words">{r.value}</p>
               )}
@@ -433,10 +448,57 @@ function ContactCard({ contact }: { contact: TenderContact }) {
             </Button>
           </a>
         )}
-        {rows.length === 0 && (
+        {!loading && rows.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Detaylı iletişim bilgisi bulunamadı. Resmi ilan sayfasını kontrol edebilirsiniz.
           </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Full EKAP announcement text from MCP ──────────────────────────
+function AnnouncementCard({ text, loading }: { text: string; loading: boolean }) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!loading && !text) return null;
+
+  const preview = text.slice(0, 600);
+  const hasMore = text.length > 600;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <IconFileText className="h-5 w-5 text-primary" />
+          İhale İlanı
+          {loading && <IconLoader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-1" />}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading && !text && (
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        )}
+        {text && (
+          <>
+            <pre className="text-sm whitespace-pre-wrap break-words font-sans leading-relaxed text-foreground">
+              {expanded ? text : preview}
+            </pre>
+            {hasMore && (
+              <button
+                onClick={() => setExpanded((e) => !e)}
+                className="mt-3 text-xs text-primary hover:underline font-medium"
+              >
+                {expanded ? "Daha az göster ▲" : "Tamamını göster ▼"}
+              </button>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
@@ -740,6 +802,9 @@ export default function IhaleDetayPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const autoTriggered = useRef(false);
 
+  const [mcpData, setMcpData] = useState<McpEnrichment | null>(null);
+  const [mcpLoading, setMcpLoading] = useState(false);
+
   const initialAnalysis: AiAnalysis | null = (match as any)?.aiSummary ?? null;
 
   useEffect(() => {
@@ -747,6 +812,22 @@ export default function IhaleDetayPage() {
     autoTriggered.current = false;
     setAnalysisError(null);
   }, [tenderId, initialAnalysis]);
+
+  // Fetch live MCP announcement + contact whenever the tender changes
+  useEffect(() => {
+    if (!tenderId) return;
+    let cancelled = false;
+    setMcpData(null);
+    setMcpLoading(true);
+    fetch(`/api/tenders/${tenderId}/mcp-enrichment`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: McpEnrichment | null) => {
+        if (!cancelled && data) setMcpData(data);
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMcpLoading(false); });
+    return () => { cancelled = true; };
+  }, [tenderId]);
 
   async function runAnalysis() {
     if (analysisLoading) return;
@@ -769,9 +850,6 @@ export default function IhaleDetayPage() {
   const hasDocs = documents.some((d) => !!d.url);
 
   // Auto-trigger the fit verdict once on open when no analysis exists yet.
-  // Falls back to a title/metadata-grounded verdict when documents are
-  // unavailable; becomes document-grounded once real document URLs exist.
-  // Result is persisted, so repeat visits do not re-burn AI credits.
   useEffect(() => {
     if (!match || analysis || autoTriggered.current) return;
     if (!analysisLoading) {
@@ -780,6 +858,22 @@ export default function IhaleDetayPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match, analysis]);
+
+  // Merge contact: prefer MCP-sourced fields (richer) over AI-extracted ones
+  const baseContact: TenderContact | null = (match as any)?.contact ?? null;
+  const mergedContact: TenderContact | null = (() => {
+    const mcp = mcpData?.contact ?? null;
+    if (!mcp && !baseContact) return null;
+    return {
+      authority:     mcp?.authority     || baseContact?.authority     || null,
+      address:       mcp?.address       || baseContact?.address       || null,
+      phone:         mcp?.phone         || baseContact?.phone         || null,
+      fax:           mcp?.fax           || null,
+      email:         mcp?.email         || baseContact?.email         || null,
+      contactPerson: mcp?.contactPerson || baseContact?.contactPerson || null,
+      sourceUrl:     baseContact?.sourceUrl || mcp?.sourceUrl         || null,
+    };
+  })();
 
   if (isLoading) {
     return (
@@ -810,7 +904,6 @@ export default function IhaleDetayPage() {
   const deadlineText = !hasDeadline ? "Tarih belirtilmemiş" : daysLeft! > 0 ? `${daysLeft} gün kaldı` : "Süresi geçti";
   const deadlineColor = !hasDeadline ? "text-muted-foreground" : daysLeft! <= 0 ? "text-destructive" : daysLeft! <= 7 ? "text-amber-500" : "text-emerald-600";
   const criteria = (match as any).criteriaCompliance ?? [];
-  const contact: TenderContact | null = (match as any).contact ?? null;
 
   return (
     <div className="space-y-6">
@@ -887,6 +980,12 @@ export default function IhaleDetayPage() {
             </Card>
           )}
 
+          {/* İhale İlanı — full EKAP announcement text from MCP */}
+          <AnnouncementCard
+            text={mcpData?.announcement ?? ""}
+            loading={mcpLoading}
+          />
+
           {/* Documents + viewer */}
           <DocumentsCard tenderId={tenderId} documents={documents} />
 
@@ -952,7 +1051,12 @@ export default function IhaleDetayPage() {
             </CardContent>
           </Card>
 
-          {contact && <ContactCard contact={contact} />}
+          {(mergedContact || mcpLoading) && (
+            <ContactCard
+              contact={mergedContact ?? { authority: null, address: null, phone: null, email: null, contactPerson: null }}
+              loading={mcpLoading && !mergedContact}
+            />
+          )}
 
           {tenderAny.sourceUrl && (
             <a href={tenderAny.sourceUrl} target="_blank" rel="noopener noreferrer">
