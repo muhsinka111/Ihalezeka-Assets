@@ -102,7 +102,7 @@ export async function runEkapScraper(
           // analysis on real spec-level text (yeterlik criteria, scope) instead
           // of bare metadata. Degrades silently when EKAP is unreachable.
           try {
-            const { detailText, documents } = await enrichEkapTender(tender.id);
+            const { detailText, documents } = await enrichEkapTender(tender.id, tender.ikn);
             const patch: Partial<typeof mapped> = {};
             if (detailText.length >= 200) patch.description = detailText;
             if (documents.length > 0) patch.documents = documents;

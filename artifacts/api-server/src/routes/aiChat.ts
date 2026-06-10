@@ -293,13 +293,13 @@ async function runSearchTenders(args: { q?: string; il?: string; type?: string; 
           seenIkns.add(mapped.ikn);
           results.push({
             id: 0, // ephemeral — no DB id for live results
-            ikn: mapped.ikn,
+            ikn: mapped.ikn ?? "",
             title: mapped.title,
             agency: mapped.agencyName,
             agencyLogoUrl: null,
             type: mapped.type,
-            il: mapped.il,
-            estimatedValue: mapped.estimatedValue,
+            il: mapped.il ?? "",
+            estimatedValue: mapped.estimatedValue ?? null,
             deadline: mapped.deadline?.toISOString() ?? null,
             sourceSystem: "ekap",
             sourceUrl: mapped.ikn
@@ -355,7 +355,7 @@ async function runGetTenderDetail(args: { id: string }) {
     sourceUrl: tender.sourceUrl,
     // Truncate long description/summary to keep context window sane
     description: tender.description ? tender.description.slice(0, 2500) : null,
-    aiSummary: tender.aiSummary ? tender.aiSummary.slice(0, 2000) : null,
+    aiSummary: tender.aiSummary ? ((tender.aiSummary as unknown as { summary?: string }).summary?.slice(0, 2000) ?? null) : null,
     cpvCodes: tender.cpvCodes,
     documentCount: docs.length,
     documents: docs.slice(0, 5).map((d) => ({ name: d.name, type: d.type })),

@@ -1,6 +1,12 @@
 import axios, { AxiosInstance } from "axios";
 import https from "https";
 import crypto from "crypto";
+import { logger } from "../lib/logger.js";
+import {
+  searchTendersViaMcp,
+  getRecentTendersViaMcp,
+  getTenderAnnouncementsViaMcp,
+} from "./ihalemcp-client.js";
 
 const EKAP_BASE = "https://ekapv2.kik.gov.tr";
 const AES_KEY = Buffer.from("Qm2LtXR0aByP69vZNKef4wMJ");
@@ -84,16 +90,21 @@ function formatDate(d: Date): string {
 }
 
 /**
- * Keyword-based live search against EKAP v2 API.
- * Uses `searchText` + full scope flags so results span title, announcement,
- * tech spec, admin spec and all other indexed fields. No date restriction —
- * returns all matching tenders across EKAP's full history (50 K+).
+ * Keyword-based live search. Tries ihale-mcp first; falls back to direct EKAP.
  */
 export async function searchEkapByKeyword(
   text: string,
   skip = 0,
   take = 20,
 ): Promise<EkapSearchResponse> {
+  try {
+    const res = await searchTendersViaMcp({ searchText: text, skip, take });
+    if (res.list.length > 0 || res.totalCount > 0) return res;
+  } catch (err) {
+    logger.debug({ err }, "ihale-mcp searchEkapByKeyword failed, falling back to direct");
+  }
+
+  // Direct EKAP fallback
   const body = {
     searchText: text,
     filterType: null,
@@ -116,25 +127,128 @@ export async function searchEkapByKeyword(
     ihaleDurumlar: [],
     iller: [],
   };
-
   const response = await client.post(
     "/b_ihalearama/api/Ihale/GetListByParameters",
     body,
     { headers: secHeaders() },
   );
-
   const data = response.data;
-  return {
-    list: data.list ?? [],
-    totalCount: data.totalCount ?? 0,
-  };
+  return { list: data.list ?? [], totalCount: data.totalCount ?? 0 };
 }
 
+/**
+ * Date-range search. Tries ihale-mcp first; falls back to direct EKAP.
+ */
 export async function searchEkapTenders(
   startDate: string,
   endDate: string,
   skip = 0,
   take = 50,
+): Promise<EkapSearchResponse> {
+  try {
+    const res = await searchTendersViaMcp({
+      announcementDateStart: startDate,
+      announcementDateEnd: endDate,
+      skip,
+      take,
+    });
+    if (res.list.length > 0 || res.totalCount > 0) return res;
+  } catch (err) {
+    logger.debug({ err }, "ihale-mcp searchEkapTenders failed, falling back to direct");
+  }
+
+  // Direct EKAP fallback
+  const body = {
+    ilanTarihSaatBaslangic: startDate,
+    ilanTarihSaatBitis: endDate,
+    paginationSkip: skip,
+    paginationTake: take,
+    ihaleTipler: [],
+    ihaleUsuller: [],
+    ihaleDurumlar: [],
+    iller: [],
+  };
+  const response = await client.post(
+    "/b_ihalearama/api/Ihale/GetListByParameters",
+    body,
+    { headers: secHeaders() },
+  );
+  const data = response.data;
+  return { list: data.list ?? [], totalCount: data.totalCount ?? 0 };
+}
+
+/**
+ * Fetch all tenders for a date window — used by the daily scraper.
+ * Tries ihale-mcp `get_recent_tenders` first; paginates via MCP search if needed;
+ * falls back to direct EKAP pagination.
+ */
+export async function getAllEkapTendersForDate(
+  startDate: string,
+  endDate: string,
+): Promise<EkapTender[]> {
+  // Try MCP get_recent_tenders for the common case (today's tenders, daysBack=1)
+  try {
+    const recent = await getRecentTendersViaMcp(1, 200);
+    if (recent.list.length > 0) {
+      logger.info({ count: recent.list.length }, "ihale-mcp get_recent_tenders succeeded");
+      return recent.list;
+    }
+  } catch (err) {
+    logger.debug({ err }, "ihale-mcp get_recent_tenders failed, trying date-range search");
+  }
+
+  // Try MCP date-range search with pagination
+  try {
+    const firstPage = await searchTendersViaMcp({
+      announcementDateStart: startDate,
+      announcementDateEnd: endDate,
+      skip: 0,
+      take: 50,
+    });
+    if (firstPage.list.length > 0) {
+      const allTenders: EkapTender[] = [...firstPage.list];
+      const total = firstPage.totalCount;
+      let skip = 50;
+      while (allTenders.length < total && allTenders.length < 1000) {
+        await delay(400);
+        const page = await searchTendersViaMcp({
+          announcementDateStart: startDate,
+          announcementDateEnd: endDate,
+          skip,
+          take: 50,
+        });
+        if (page.list.length === 0) break;
+        allTenders.push(...page.list);
+        skip += 50;
+      }
+      logger.info({ count: allTenders.length }, "ihale-mcp date-range search succeeded");
+      return allTenders;
+    }
+  } catch (err) {
+    logger.debug({ err }, "ihale-mcp date-range search failed, falling back to direct EKAP");
+  }
+
+  // Direct EKAP pagination fallback
+  const firstPage = await searchEkapTendersDirectly(startDate, endDate, 0, 50);
+  const allTenders: EkapTender[] = [...firstPage.list];
+  const total = firstPage.totalCount;
+  let skip = 50;
+  while (allTenders.length < total) {
+    await delay(300);
+    const page = await searchEkapTendersDirectly(startDate, endDate, skip, 50);
+    if (page.list.length === 0) break;
+    allTenders.push(...page.list);
+    skip += 50;
+  }
+  return allTenders;
+}
+
+/** Direct EKAP call used as final fallback by `getAllEkapTendersForDate`. */
+async function searchEkapTendersDirectly(
+  startDate: string,
+  endDate: string,
+  skip: number,
+  take: number,
 ): Promise<EkapSearchResponse> {
   const body = {
     ilanTarihSaatBaslangic: startDate,
@@ -146,38 +260,13 @@ export async function searchEkapTenders(
     ihaleDurumlar: [],
     iller: [],
   };
-
   const response = await client.post(
     "/b_ihalearama/api/Ihale/GetListByParameters",
     body,
     { headers: secHeaders() },
   );
-
   const data = response.data;
-  return {
-    list: data.list ?? [],
-    totalCount: data.totalCount ?? 0,
-  };
-}
-
-export async function getAllEkapTendersForDate(
-  startDate: string,
-  endDate: string,
-): Promise<EkapTender[]> {
-  const firstPage = await searchEkapTenders(startDate, endDate, 0, 50);
-  const allTenders: EkapTender[] = [...firstPage.list];
-  const total = firstPage.totalCount;
-
-  let skip = 50;
-  while (allTenders.length < total) {
-    await delay(300);
-    const page = await searchEkapTenders(startDate, endDate, skip, 50);
-    if (page.list.length === 0) break;
-    allTenders.push(...page.list);
-    skip += 50;
-  }
-
-  return allTenders;
+  return { list: data.list ?? [], totalCount: data.totalCount ?? 0 };
 }
 
 export function formatEkapDate(daysBack = 1): { start: string; end: string } {
@@ -329,24 +418,43 @@ export interface EkapEnrichment {
 }
 
 /**
- * One-call enrichment for a tender keyed by its hash id: fetch the detail text
- * and resolve the official document URL. Never throws — fields are empty on
- * failure so the scraper/backfill degrade to the existing grounding chain.
+ * One-call enrichment for a tender.
+ *
+ * When an IKN is provided (preferred path), fetches announcement text via
+ * ihale-mcp `get_tender_announcements` — cleaner, no AES headers needed.
+ * Falls back to the direct EKAP detail endpoint (keyed by hash id) when the
+ * MCP call fails or no IKN is available.
+ *
+ * Never throws — fields are empty on failure so the scraper degrades gracefully.
  */
 export async function enrichEkapTender(
   ihaleIdHash: string,
+  ikn?: string,
 ): Promise<EkapEnrichment> {
+  const documents: EkapResolvedDocument[] = [];
+
+  // IKN path: use ihale-mcp for announcement text (higher quality, no bot-gate)
+  if (ikn) {
+    try {
+      const announcementText = await getTenderAnnouncementsViaMcp(ikn);
+      if (announcementText.length >= 100) {
+        // Build a sourceUrl document entry so the user has a working link
+        const sourceUrl = `https://ekapv2.kik.gov.tr/ekap/detay/${ikn}`;
+        documents.push({ name: "İhale Dokümanı (EKAP)", url: sourceUrl, type: "ekap-belge" });
+        return { detailText: announcementText.slice(0, 30_000), documents };
+      }
+    } catch (err) {
+      logger.debug({ ikn, err }, "ihale-mcp announcement fetch failed, falling back to direct");
+    }
+  }
+
+  // Hash-id path: direct EKAP detail endpoint (existing fallback)
   const detail = await fetchEkapDetail(ihaleIdHash);
   const detailText = buildEkapDetailText(detail);
 
-  const documents: EkapResolvedDocument[] = [];
   const docUrl = await fetchEkapDocumentUrl(ihaleIdHash);
   if (docUrl) {
-    documents.push({
-      name: "İhale Dokümanı (EKAP)",
-      url: docUrl,
-      type: "ekap-belge",
-    });
+    documents.push({ name: "İhale Dokümanı (EKAP)", url: docUrl, type: "ekap-belge" });
   }
 
   return { detailText, documents };
