@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useListTenders, useGetTenderFacets } from "@workspace/api-client-react";
+import { useListTenders, useGetTenderFacets, useCreatePipelineItem } from "@workspace/api-client-react";
 import type { SavedSearchCriteria } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import {
   IconSearch, IconFilter, IconMapPin, IconCalendar, IconBuilding,
   IconRefresh, IconX, IconChevronDown, IconChevronUp, IconArrowsSort,
   IconCurrencyLira, IconClock, IconAdjustmentsHorizontal, IconSparkles,
+  IconLayoutKanban, IconCheck,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
@@ -133,6 +135,14 @@ function appliedToCriteria(f: Filters): SavedSearchCriteria {
   if (f.category) c.category = f.category as SavedSearchCriteria["category"];
   return c;
 }
+
+const PIPELINE_STAGES = [
+  { id: "discovery", label: "Fırsat Keşfi" },
+  { id: "preparation", label: "Teklif Hazırlığı" },
+  { id: "applied", label: "Başvuru Yapıldı" },
+  { id: "evaluation", label: "Değerlendirme" },
+  { id: "won", label: "Kazanıldı" },
+];
 
 const SOURCE_META: Record<string, { label: string; className: string }> = {
   ekap:            { label: "EKAP",           className: "bg-blue-100 text-blue-700 border-blue-200" },
@@ -334,6 +344,10 @@ function SectionHeader({ title, open, onToggle }: { title: string; open: boolean
 export default function IhaleAramaPage() {
   const rawSearch = useSearch();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const createPipeline = useCreatePipelineItem();
+  const [pipelinePopover, setPipelinePopover] = useState<number | null>(null);
+  const [pipelineSuccessIds, setPipelineSuccessIds] = useState<Set<number>>(new Set());
 
   const initialFilters = parseUrlFilters(rawSearch);
 
@@ -424,6 +438,23 @@ export default function IhaleAramaPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
+
+  useEffect(() => {
+    if (pipelinePopover == null) return;
+    const handler = () => setPipelinePopover(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [pipelinePopover]);
+
+  const addToPipelineStage = useCallback(async (tenderId: number, stage: string) => {
+    setPipelinePopover(null);
+    try {
+      await createPipeline.mutateAsync({ data: { tenderId, stage: stage as any } });
+      setPipelineSuccessIds((prev) => new Set(prev).add(tenderId));
+      queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
+    } catch {
+    }
+  }, [createPipeline, queryClient]);
 
   const { lastRunAt, perSource, loading: statusLoading } = useScraperStatus(
     useCallback(() => { refetch(); }, [refetch])
@@ -1048,7 +1079,41 @@ export default function IhaleAramaPage() {
                                 </Link>
                               )}
                             </div>
-                            <Badge variant="outline" className="shrink-0 text-xs whitespace-nowrap">{tender.type}</Badge>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <Badge variant="outline" className="text-xs whitespace-nowrap">{tender.type}</Badge>
+                              {!tender._isLive && typeof tender.id === "number" && (
+                                <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                  {pipelineSuccessIds.has(tender.id) ? (
+                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-medium border border-emerald-200">
+                                      <IconCheck className="h-3 w-3" /> Eklendi
+                                    </div>
+                                  ) : (
+                                    <button
+                                      title="Boru Hattına Ekle"
+                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPipelinePopover(pipelinePopover === tender.id ? null : tender.id); }}
+                                      className="flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-colors"
+                                    >
+                                      <IconLayoutKanban className="h-3.5 w-3.5" />
+                                      <span className="hidden sm:inline">Boru Hattı</span>
+                                    </button>
+                                  )}
+                                  {pipelinePopover === tender.id && (
+                                    <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border bg-card shadow-lg py-1">
+                                      <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Aşama Seç</div>
+                                      {PIPELINE_STAGES.map((s) => (
+                                        <button
+                                          key={s.id}
+                                          onClick={() => addToPipelineStage(tender.id, s.id)}
+                                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                                        >
+                                          {s.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
                             <span className="flex items-center gap-1 text-xs text-muted-foreground truncate max-w-[180px]">

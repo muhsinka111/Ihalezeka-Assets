@@ -1,5 +1,6 @@
 import { useParams, Link } from "wouter";
-import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey } from "@workspace/api-client-react";
+import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey, useCreatePipelineItem } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { PaywallCard } from "@/components/PaywallOverlay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import {
   IconChartBar, IconUsers, IconCurrencyLira, IconCalendar, IconAlertTriangle,
   IconBuildingBank, IconMapPin, IconPhone, IconMail, IconUser,
   IconEye, IconSend, IconMessage2, IconThumbUp, IconHelpCircle,
-  IconLock,
+  IconLock, IconLayoutKanban, IconChevronDown,
 } from "@tabler/icons-react";
 
 type FitVerdict = "uygun" | "dikkat" | "uygun_degil";
@@ -795,10 +796,23 @@ function DocumentChatCard({ tenderId, hasDocs }: { tenderId: number; hasDocs: bo
   );
 }
 
+const PIPELINE_STAGES = [
+  { id: "discovery", label: "Fırsat Keşfi" },
+  { id: "preparation", label: "Teklif Hazırlığı" },
+  { id: "applied", label: "Başvuru Yapıldı" },
+  { id: "evaluation", label: "Değerlendirme" },
+  { id: "won", label: "Kazanıldı" },
+];
+
 export default function IhaleDetayPage() {
   const { id } = useParams<{ id: string }>();
   const tenderId = parseInt(id ?? "0", 10);
   const { isPro, isLoading: entLoading } = useEntitlement();
+  const queryClient = useQueryClient();
+  const createPipeline = useCreatePipelineItem();
+  const [pipelineOpen, setPipelineOpen] = useState(false);
+  const [pipelineAdded, setPipelineAdded] = useState(false);
+  const [pipelineStage, setPipelineStage] = useState("");
 
   // Pro users load the full match (tender + AI fields + contact). Free users
   // load only the masked basic tender record. Exactly one request fires.
@@ -1142,6 +1156,48 @@ export default function IhaleDetayPage() {
             <Link href="/teklif-olusturucu">
               <Button variant="outline" className="w-full" size="lg">Teklif Taslağı Oluştur</Button>
             </Link>
+            {pipelineAdded ? (
+              <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
+                <IconCheck className="h-4 w-4" />
+                Boru Hattına eklendi: {PIPELINE_STAGES.find(s => s.id === pipelineStage)?.label}
+              </div>
+            ) : (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => setPipelineOpen((o) => !o)}
+                >
+                  <IconLayoutKanban className="h-4 w-4" />
+                  Boru Hattına Ekle
+                  <IconChevronDown className="h-3.5 w-3.5 ml-auto" />
+                </Button>
+                {pipelineOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-30 rounded-lg border bg-card shadow-lg py-1">
+                    <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Aşama Seç
+                    </div>
+                    {PIPELINE_STAGES.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={async () => {
+                          setPipelineOpen(false);
+                          try {
+                            await createPipeline.mutateAsync({ data: { tenderId, stage: s.id as any } });
+                            setPipelineStage(s.id);
+                            setPipelineAdded(true);
+                            queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
+                          } catch {}
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

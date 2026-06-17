@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import { useGetMoneyFlowMonthly, useGetMoneyFlowCategories, useGetMoneyFlowTopAgencies } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,10 +10,96 @@ import {
 
 const COLORS = ["#2C46D8", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
+const TYPE_COLOR: Record<string, string> = {
+  yapim: "text-blue-400",
+  hizmet: "text-amber-400",
+  mal: "text-emerald-400",
+  danismanlik: "text-violet-400",
+};
+
+function typeColor(type: string) {
+  const lower = type.toLowerCase();
+  for (const key of Object.keys(TYPE_COLOR)) {
+    if (lower.includes(key)) return TYPE_COLOR[key];
+  }
+  return "text-slate-300";
+}
+
 function fmt(n: number) {
   if (n >= 1_000_000) return `₺${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `₺${(n / 1_000).toFixed(0)}K`;
   return `₺${n.toLocaleString("tr-TR")}`;
+}
+
+interface TickerItem {
+  id: number;
+  title: string;
+  agencyName: string;
+  estimatedValue: number;
+  type: string;
+}
+
+function LiveTicker() {
+  const [items, setItems] = useState<TickerItem[]>([]);
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const base = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
+    fetch(`${base}/api/money-flow/recent-ticker`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: TickerItem[]) => setItems(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || items.length === 0) return;
+    let frame: number;
+    let offset = 0;
+    const speed = 0.4;
+
+    function tick() {
+      offset += speed;
+      const halfWidth = el!.scrollWidth / 2;
+      if (offset >= halfWidth) offset -= halfWidth;
+      el!.style.transform = `translateX(-${offset}px)`;
+      frame = requestAnimationFrame(tick);
+    }
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [items]);
+
+  if (items.length === 0) return null;
+
+  const doubled = [...items, ...items];
+
+  return (
+    <div className="w-full overflow-hidden bg-slate-900 border border-slate-700 rounded-xl px-0 py-2.5">
+      <div className="flex items-center gap-0">
+        <div className="shrink-0 flex items-center gap-2 px-4 pr-5 border-r border-slate-700 mr-2">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest whitespace-nowrap">
+            Canlı
+          </span>
+        </div>
+        <div className="flex-1 overflow-hidden">
+          <div ref={trackRef} className="flex gap-8 will-change-transform" style={{ width: "max-content" }}>
+            {doubled.map((item, i) => (
+              <div key={`${item.id}-${i}`} className="flex items-center gap-2 shrink-0">
+                <span className={`text-[11px] font-semibold font-mono ${typeColor(item.type)}`}>
+                  {fmt(item.estimatedValue)}
+                </span>
+                <span className="text-[11px] text-slate-300 max-w-[240px] truncate">{item.title}</span>
+                <span className="text-[10px] text-slate-500 max-w-[140px] truncate">{item.agencyName}</span>
+                <span className="text-slate-700 text-xs">·</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ParaAkisiPage() {
@@ -27,8 +114,9 @@ export default function ParaAkisiPage() {
         <p className="text-muted-foreground text-sm">Kamu harcamaları, idare bazlı bütçe dağılımı ve kategori analizi.</p>
       </div>
 
+      <LiveTicker />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Monthly Trend */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Aylık Harcama Trendi</CardTitle>
@@ -54,7 +142,6 @@ export default function ParaAkisiPage() {
           </CardContent>
         </Card>
 
-        {/* Category Donut */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Kategorilere Göre</CardTitle>
@@ -77,7 +164,6 @@ export default function ParaAkisiPage() {
         </Card>
       </div>
 
-      {/* Top Agencies */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">En Fazla Harcama Yapan İdareler</CardTitle>
