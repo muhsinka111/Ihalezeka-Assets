@@ -394,7 +394,15 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
       bidderCount: r.bidder_count ?? null,
     }));
 
-    res.json({ company, items, total: items.length });
+    res.json({
+      company,
+      items,
+      total: items.length,
+      proxyBasis:
+        "EKAP'ta yalnızca ihaleyi kazanan firma yayımlanır; bireysel katılımcı listesi alınamaz. " +
+        "Listelenen ihaleler, bu hesabın fırsatlar akışında yer alan (matches.business_id ile eşleşen) " +
+        "ve bu rakip firma tarafından kazanılmış ihalelerdir — kullanıcı karşılaşması için en yakın vekil.",
+    });
   } catch (err) {
     logger.error({ err }, "GET /competitors/:company/head-to-head failed");
     res.status(500).json({ error: "Internal server error" });

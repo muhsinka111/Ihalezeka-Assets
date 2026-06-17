@@ -38,6 +38,12 @@ const PRICE_RE = [
   /(?:sözleşme\s+imzalanmıştır)\s*[^₺\d]*([\d.,]+)\s*(?:TL|₺)/i,
 ];
 
+// Estimated value (yaklaşık maliyet) — from award notice text
+const ESTIMATED_VALUE_RE = [
+  /yaklaşık\s+(?:mal[iy]et(?:i)?|bedel(?:i)?)\s*[:\s]+(?:₺|TL\s*)?([\d.,]+)/i,
+  /(?:yaklaşık\s+mal[iy]eti?|yaklaşık\s+değer(?:i)?)\s*:?\s*(?:₺|TL\s*)?([\d.,]+)/i,
+];
+
 const BIDDER_RE = [
   /(?:İhaleye\s+(?:teklif\s+veren|katılan)\s+(?:istekli\s+)?sayısı|Teklif\s+(?:sayısı|veren\s+sayısı)|İstekli\s+sayısı)\s*[:\s]+(\d+)/i,
   /(\d+)\s+(?:istekli|firma)\s+teklif\s+vermiş/i,
@@ -70,6 +76,7 @@ function firstMatch(text: string, patterns: RegExp[]): string | null {
 interface ParsedAward {
   awardedCompany: string | null;
   awardedPrice: number | null;
+  estimatedValue: number | null;
   bidderCount: number | null;
   agencyName: string | null;
   category: string | null;
@@ -78,9 +85,11 @@ interface ParsedAward {
 function parseAwardText(text: string): ParsedAward {
   const priceStr = firstMatch(text, PRICE_RE);
   const bidderStr = firstMatch(text, BIDDER_RE);
+  const estStr = firstMatch(text, ESTIMATED_VALUE_RE);
   return {
     awardedCompany: firstMatch(text, WINNER_RE),
     awardedPrice: priceStr ? parseTrPrice(priceStr) : null,
+    estimatedValue: estStr ? parseTrPrice(estStr) : null,
     bidderCount: bidderStr ? parseInt(bidderStr, 10) : null,
     agencyName: firstMatch(text, AGENCY_RE),
     category: firstMatch(text, CATEGORY_RE),
@@ -157,20 +166,25 @@ async function searchForAwardCandidates(daysBack = 120): Promise<EkapTender[]> {
 }
 
 /**
- * Fetch any concluded tenders already in our DB that haven't been processed.
- * Returns their IKNs so we can attempt enrichment.
+ * Fetch EKAP tenders whose deadline has passed (≥7 days ago) that haven't
+ * been processed into award_results yet. These are the best locally-available
+ * source of concluded tenders — we already have their estimated_value, which
+ * is crucial for the avgDiscountRate metric.
+ *
+ * We no longer filter by status='awarded' because the EKAP scraper only
+ * stores 'active' tenders; concluded status is only set by this scraper.
  */
 async function getPendingFromDb(): Promise<{ ikn: string; estimated_value: number | null; category: string; il: string; agency_name: string }[]> {
   const rows = await db.execute<{ ikn: string; estimated_value: number | null; category: string; il: string; agency_name: string }>(
     sql`
       SELECT t.ikn, t.estimated_value, t.category, t.il, t.agency_name
       FROM tenders t
-      WHERE t.status = 'awarded'
+      WHERE t.deadline < NOW() - INTERVAL '7 days'
         AND t.source_system = 'ekap'
         AND NOT EXISTS (
           SELECT 1 FROM award_results ar WHERE ar.ikn = t.ikn OR ar.original_ikn = t.ikn
         )
-      ORDER BY t.created_at DESC
+      ORDER BY t.deadline DESC
       LIMIT 40
     `,
   );
@@ -199,7 +213,7 @@ async function upsertAwardResult(
       awardedCompany: parsed.awardedCompany ?? undefined,
       awardedPrice: parsed.awardedPrice ?? undefined,
       bidderCount: parsed.bidderCount ?? undefined,
-      estimatedValue: meta.estimatedValue ?? undefined,
+      estimatedValue: parsed.estimatedValue ?? meta.estimatedValue ?? undefined,
       awardDate: new Date(),
       category: parsed.category ?? meta.category ?? undefined,
       il: meta.il ?? undefined,
@@ -265,9 +279,22 @@ export async function runAwardScraper(): Promise<ScraperResult> {
         }
 
         const parsed = parseAwardText(text);
+        // Look up estimatedValue from tenders table — critical for discount metric
+        const tMeta = await db.execute<{
+          estimated_value: number | null;
+          category: string | null;
+          il: string | null;
+          agency_name: string | null;
+        }>(sql`
+          SELECT estimated_value, category, il, agency_name
+          FROM tenders WHERE ikn = ${tender.ikn} LIMIT 1
+        `);
+        const tm = tMeta.rows[0] ?? null;
         await upsertAwardResult(tender.ikn, parsed, {
-          estimatedValue: null,
-          il: tender.ihaleIlAdi || null,
+          estimatedValue: tm?.estimated_value ?? null,
+          il: tender.ihaleIlAdi || tm?.il || null,
+          category: tm?.category ?? null,
+          agencyName: parsed.agencyName ?? tm?.agency_name ?? null,
           rawText: text,
         });
 
@@ -285,20 +312,32 @@ export async function runAwardScraper(): Promise<ScraperResult> {
       await new Promise((r) => setTimeout(r, 150));
     }
 
-    // --- Source 2: Already-concluded DB tenders (opportunistic enrichment) ---
+    // --- Source 2: Past-deadline DB tenders (primary award candidate pool) ---
+    // These are tenders whose deadline has passed ≥7 days ago and whose
+    // estimated_value is already stored — giving us the data needed for the
+    // avgDiscountRate metric even before winner text is available via MCP.
+    // We create a stub record immediately (preserving estimatedValue) and
+    // optionally enrich with winner/price from MCP text when available.
     const dbPending = await getPendingFromDb();
+    logger.info({ count: dbPending.length }, "Award scraper: past-deadline DB tenders pending enrichment");
+
     if (dbPending.length > 0) {
-      logger.info({ count: dbPending.length }, "Award scraper: enriching concluded DB tenders");
       for (const row of dbPending.slice(0, 20)) {
         try {
           if (await alreadyProcessed(row.ikn)) continue;
-          const text = await getTenderAnnouncementsViaMcp(row.ikn);
+          let text: string | null = null;
+          try {
+            text = await getTenderAnnouncementsViaMcp(row.ikn);
+          } catch {
+            // MCP unavailable — fall through to stub-only upsert
+          }
           const parsed = parseAwardText(text ?? "");
+          // Always upsert — even without text, preserves estimatedValue from DB
           await upsertAwardResult(row.ikn, parsed, {
             estimatedValue: row.estimated_value,
             category: row.category,
             il: row.il,
-            agencyName: row.agency_name,
+            agencyName: parsed.agencyName ?? row.agency_name,
             rawText: text?.slice(0, 2000),
           });
           if (parsed.awardedCompany) result.inserted++;
@@ -306,8 +345,15 @@ export async function runAwardScraper(): Promise<ScraperResult> {
         } catch (err) {
           logger.debug({ ikn: row.ikn, err }, "Award scraper: DB tender enrichment failed");
         }
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => setTimeout(r, 50));
       }
+    }
+
+    const totalProcessed = result.inserted + result.updated;
+    if (totalProcessed === 0) {
+      logger.warn(
+        "Award scraper: 0 records processed — ISI search found no candidates and DB has no past-deadline tenders pending. Check IHALEMCP_API_KEY and EKAP connectivity.",
+      );
     }
 
     logger.info(result, "Award scraper completed");

@@ -845,6 +845,7 @@ export const GetCompetitorHeadToHeadParams = zod.object({
 export const GetCompetitorHeadToHeadResponse = zod.object({
   "company": zod.string(),
   "total": zod.number(),
+  "proxyBasis": zod.string().describe('Explains how \"head-to-head\" is approximated. EKAP only exposes the winner; individual participant lists are not available. Items are tenders surfaced to this business (by business_id in matches) where the competitor won — closest available proxy for user-vs-competitor encounters.\n'),
   "items": zod.array(zod.object({
   "ikn": zod.string(),
   "agencyName": zod.string().nullish(),

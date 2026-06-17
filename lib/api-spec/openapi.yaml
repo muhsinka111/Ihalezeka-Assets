@@ -1521,12 +1521,20 @@ components:
 
     CompetitorHeadToHead:
       type: object
-      required: [company, items, total]
+      required: [company, items, total, proxyBasis]
       properties:
         company:
           type: string
         total:
           type: integer
+        proxyBasis:
+          type: string
+          description: >
+            Explains how "head-to-head" is approximated. EKAP only exposes the
+            winner; individual participant lists are not available. Items are
+            tenders surfaced to this business (by business_id in matches) where
+            the competitor won — closest available proxy for user-vs-competitor
+            encounters.
         items:
           type: array
           items:

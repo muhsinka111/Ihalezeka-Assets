@@ -514,6 +514,9 @@ export interface HeadToHeadItem {
 export interface CompetitorHeadToHead {
   company: string;
   total: number;
+  /** Explains how "head-to-head" is approximated. EKAP only exposes the winner; individual participant lists are not available. Items are tenders surfaced to this business (by business_id in matches) where the competitor won — closest available proxy for user-vs-competitor encounters.
+   */
+  proxyBasis: string;
   items: HeadToHeadItem[];
 }
 
