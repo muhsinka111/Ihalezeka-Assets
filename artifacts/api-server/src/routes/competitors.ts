@@ -1,24 +1,36 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { awardResultsTable, tendersTable, companyProfilesTable } from "@workspace/db";
-import { eq, sql, and, isNotNull, ne } from "drizzle-orm";
-import { requirePro } from "../lib/authHelpers.js";
-import { getAuth } from "@clerk/express";
+import { awardResultsTable, companyProfilesTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
 
+/**
+ * Build a parameterized province filter fragment:
+ *   (ar.il IS NULL OR ar.il = '' OR ar.il = ANY(ARRAY[$1, $2, ...]))
+ * Using ARRAY[] syntax avoids the Drizzle pitfall of expanding an array
+ * into a row expression ANY(($1,$2)) which Postgres rejects.
+ */
+function ilFilter(provinces: string[]) {
+  const arr = sql.join(
+    provinces.map((p) => sql`${p}`),
+    sql`, `,
+  );
+  return sql`(ar.il IS NULL OR ar.il = '' OR ar.il = ANY(ARRAY[${arr}]))`;
+}
+
 router.use("/competitors", requirePro);
 
-/** Load company profile for the authenticated user. Returns null when none exists. */
-async function loadProfile(req: Parameters<typeof getAuth>[0]) {
+/** Load company profile for the current business scope. */
+async function loadProfile(req: Parameters<typeof getBusinessId>[0]) {
   try {
-    const { userId } = getAuth(req);
-    if (!userId) return null;
+    const businessId = getBusinessId(req);
     const [profile] = await db
       .select()
       .from(companyProfilesTable)
-      .where(eq(companyProfilesTable.businessId, userId))
+      .where(eq(companyProfilesTable.businessId, businessId))
       .limit(1);
     return profile ?? null;
   } catch {
@@ -28,52 +40,53 @@ async function loadProfile(req: Parameters<typeof getAuth>[0]) {
 
 // ── GET /competitors ─────────────────────────────────────────────────────────
 // Returns competitors ranked by win count with avg discount rate and encounter count.
-// Scoped to categories/regions matching the user's profile when available.
+// Scoped to provinces matching the user's profile when available.
+// encounters = tenders won by this competitor that also exist in user's tender feed.
 router.get("/competitors", async (req, res) => {
   try {
     const profile = await loadProfile(req);
     const userCompany = profile?.companyName?.trim().toLowerCase() ?? null;
 
-    // Build category/region filter conditions based on user profile
-    const conditions: string[] = [
-      `ar.awarded_company IS NOT NULL`,
-      `ar.awarded_company <> ''`,
+    // Build individual SQL filter fragments (parameterized)
+    const filters: ReturnType<typeof sql>[] = [
+      sql`ar.awarded_company IS NOT NULL`,
+      sql`ar.awarded_company <> ''`,
     ];
     if (userCompany) {
-      conditions.push(`LOWER(ar.awarded_company) <> '${userCompany.replace(/'/g, "''")}'`);
+      filters.push(sql`LOWER(ar.awarded_company) <> ${userCompany}`);
     }
     if (profile?.preferredProvinces?.length) {
-      const ils = profile.preferredProvinces.map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
-      conditions.push(`(ar.il IS NULL OR ar.il = '' OR ar.il IN (${ils}))`);
+      filters.push(ilFilter(profile.preferredProvinces));
     }
 
-    const whereClause = conditions.join(" AND ");
+    // Combine filters with AND
+    const whereClause = filters.reduce((acc, f) => sql`${acc} AND ${f}`);
 
     const rows = await db.execute<{
       company: string;
       won_tenders: string;
+      encounters: string;
       avg_discount: string | null;
-      il_list: string | null;
-      category_list: string | null;
     }>(
-      sql.raw(`
+      sql`
         SELECT
           ar.awarded_company AS company,
-          COUNT(*) AS won_tenders,
+          COUNT(*)::text AS won_tenders,
+          SUM(
+            CASE WHEN EXISTS (SELECT 1 FROM tenders t WHERE t.ikn = ar.ikn) THEN 1 ELSE 0 END
+          )::text AS encounters,
           AVG(
             CASE
               WHEN ar.awarded_price > 0 AND ar.estimated_value > 0
               THEN (1.0 - ar.awarded_price / ar.estimated_value) * 100
             END
-          ) AS avg_discount,
-          STRING_AGG(DISTINCT ar.il, ', ' ORDER BY ar.il) FILTER (WHERE ar.il IS NOT NULL AND ar.il <> '') AS il_list,
-          STRING_AGG(DISTINCT ar.category, ', ' ORDER BY ar.category) FILTER (WHERE ar.category IS NOT NULL AND ar.category <> '') AS category_list
+          )::text AS avg_discount
         FROM award_results ar
         WHERE ${whereClause}
         GROUP BY ar.awarded_company
         ORDER BY COUNT(*) DESC
         LIMIT 30
-      `),
+      `,
     );
 
     const competitors = rows.rows.map((r, idx) => ({
@@ -81,7 +94,7 @@ router.get("/competitors", async (req, res) => {
       name: r.company,
       wonTenders: parseInt(r.won_tenders, 10),
       avgDiscountRate: r.avg_discount != null ? Math.max(0, parseFloat(r.avg_discount)) : 0,
-      encounters: parseInt(r.won_tenders, 10),
+      encounters: parseInt(r.encounters, 10),
     }));
 
     res.json(competitors);
@@ -92,40 +105,59 @@ router.get("/competitors", async (req, res) => {
 });
 
 // ── GET /competitors/insights ────────────────────────────────────────────────
-// AI-generated insight paragraph + category win-rate chart data.
+// AI-generated insight paragraph + category performance data.
+// winRate = user's own win rate per category (wins where awarded_company = user's company).
 router.get("/competitors/insights", async (req, res) => {
   try {
-    // Category win rate data: average discount per category from award_results
+    const profile = await loadProfile(req);
+    const userCompany = profile?.companyName?.trim() ?? null;
+
+    // Category performance: user win rate per category
+    // applications = total concluded tenders in this category
+    // wins         = concluded tenders in this category that user's company won
+    // winRate      = wins / applications * 100
     const catRows = await db.execute<{
       category: string;
-      total: string;
-      with_price: string;
-      avg_discount: string | null;
+      applications: string;
+      wins: string;
+      win_rate: string | null;
     }>(
-      sql`
-        SELECT
-          ar.category,
-          COUNT(*) AS total,
-          COUNT(ar.awarded_price) FILTER (WHERE ar.awarded_price IS NOT NULL AND ar.estimated_value IS NOT NULL AND ar.estimated_value > 0) AS with_price,
-          AVG(
-            CASE
-              WHEN ar.awarded_price > 0 AND ar.estimated_value > 0
-              THEN (1.0 - ar.awarded_price / ar.estimated_value) * 100
-            END
-          ) AS avg_discount
-        FROM award_results ar
-        WHERE ar.category IS NOT NULL AND ar.category <> ''
-        GROUP BY ar.category
-        ORDER BY COUNT(*) DESC
-        LIMIT 8
-      `,
+      userCompany
+        ? sql`
+            SELECT
+              ar.category,
+              COUNT(*)::text AS applications,
+              COUNT(*) FILTER (WHERE LOWER(ar.awarded_company) = LOWER(${userCompany}))::text AS wins,
+              (
+                COUNT(*) FILTER (WHERE LOWER(ar.awarded_company) = LOWER(${userCompany}))
+                * 100.0
+                / NULLIF(COUNT(*), 0)
+              )::text AS win_rate
+            FROM award_results ar
+            WHERE ar.category IS NOT NULL AND ar.category <> ''
+            GROUP BY ar.category
+            ORDER BY COUNT(*) DESC
+            LIMIT 8
+          `
+        : sql`
+            SELECT
+              ar.category,
+              COUNT(*)::text AS applications,
+              '0'::text AS wins,
+              '0'::text AS win_rate
+            FROM award_results ar
+            WHERE ar.category IS NOT NULL AND ar.category <> ''
+            GROUP BY ar.category
+            ORDER BY COUNT(*) DESC
+            LIMIT 8
+          `,
     );
 
     const categoryWinRates = catRows.rows.map((r) => ({
       category: r.category,
-      applications: parseInt(r.total, 10),
-      wins: parseInt(r.with_price, 10),
-      winRate: r.avg_discount != null ? Math.max(0, Math.min(100, parseFloat(r.avg_discount))) : 0,
+      applications: parseInt(r.applications, 10),
+      wins: parseInt(r.wins, 10),
+      winRate: r.win_rate != null ? Math.max(0, Math.min(100, parseFloat(r.win_rate))) : 0,
     }));
 
     // Top competitors for AI insight
@@ -133,13 +165,13 @@ router.get("/competitors/insights", async (req, res) => {
       sql`
         SELECT
           awarded_company AS company,
-          COUNT(*) AS wins,
+          COUNT(*)::text AS wins,
           AVG(
             CASE
               WHEN awarded_price > 0 AND estimated_value > 0
               THEN (1.0 - awarded_price / estimated_value) * 100
             END
-          ) AS avg_discount
+          )::text AS avg_discount
         FROM award_results
         WHERE awarded_company IS NOT NULL AND awarded_company <> ''
         GROUP BY awarded_company
@@ -149,7 +181,7 @@ router.get("/competitors/insights", async (req, res) => {
     );
 
     const totalAwards = await db.execute<{ cnt: string }>(
-      sql`SELECT COUNT(*) AS cnt FROM award_results`,
+      sql`SELECT COUNT(*)::text AS cnt FROM award_results`,
     );
     const total = parseInt(totalAwards.rows[0]?.cnt ?? "0", 10);
 
@@ -159,13 +191,12 @@ router.get("/competitors/insights", async (req, res) => {
       aiInsight =
         "İhale sonuç verileri henüz toplanıyor. İlk veri işlendikten sonra rakip analizi ve kategori kırım oranları burada görünecektir.";
     } else if (topRows.rows.length === 0) {
-      aiInsight =
-        `${total} ihale sonuç kaydı analiz edildi. Profil kategorilerinizde rakip firma bulunamadı. Profil bilgilerinizi güncelleyerek sektör odaklı analiz yapabilirsiniz.`;
+      aiInsight = `${total} ihale sonuç kaydı analiz edildi. Profil kategorilerinizde rakip firma bulunamadı. Profil bilgilerinizi güncelleyerek sektör odaklı analiz yapabilirsiniz.`;
     } else {
-      // Generate AI insight from real data
       const topList = topRows.rows
         .map((r) => {
-          const disc = r.avg_discount != null ? `%${parseFloat(r.avg_discount).toFixed(1)} kırım oranıyla` : "";
+          const disc =
+            r.avg_discount != null ? `%${parseFloat(r.avg_discount).toFixed(1)} kırım oranıyla` : "";
           return `${r.company} (${r.wins} ihale kazandı${disc ? ", " + disc : ""})`;
         })
         .join("; ");
@@ -203,19 +234,20 @@ router.get("/competitors/insights", async (req, res) => {
 });
 
 // ── GET /competitors/:company/head-to-head ───────────────────────────────────
-// Tenders where this competitor won, optionally filtered to the user's sectors.
+// Tenders where this competitor won AND the tender also appeared in the user's feed.
+// This gives the true "where you could have met this competitor" view.
 router.get("/competitors/:company/head-to-head", async (req, res) => {
   try {
     const company = decodeURIComponent(req.params.company);
     const profile = await loadProfile(req);
 
-    const conditions: string[] = [
-      `LOWER(ar.awarded_company) = LOWER('${company.replace(/'/g, "''")}')`,
+    const baseFilters: ReturnType<typeof sql>[] = [
+      sql`LOWER(ar.awarded_company) = LOWER(${company})`,
     ];
     if (profile?.preferredProvinces?.length) {
-      const ils = profile.preferredProvinces.map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
-      conditions.push(`(ar.il IS NULL OR ar.il = '' OR ar.il IN (${ils}))`);
+      baseFilters.push(ilFilter(profile.preferredProvinces));
     }
+    const whereClause = baseFilters.reduce((acc, f) => sql`${acc} AND ${f}`);
 
     const rows = await db.execute<{
       ikn: string;
@@ -225,8 +257,10 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
       awarded_price: number | null;
       estimated_value: number | null;
       award_date: string | null;
+      bidder_count: number | null;
+      in_feed: boolean;
     }>(
-      sql.raw(`
+      sql`
         SELECT
           ar.ikn,
           ar.agency_name,
@@ -234,12 +268,14 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
           ar.il,
           ar.awarded_price,
           ar.estimated_value,
-          ar.award_date
+          ar.award_date,
+          ar.bidder_count,
+          EXISTS(SELECT 1 FROM tenders t WHERE t.ikn = ar.ikn) AS in_feed
         FROM award_results ar
-        WHERE ${conditions.join(" AND ")}
+        WHERE ${whereClause}
         ORDER BY ar.award_date DESC NULLS LAST
         LIMIT 25
-      `),
+      `,
     );
 
     const items = rows.rows.map((r) => ({
@@ -254,6 +290,8 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
           ? (1 - r.awarded_price / r.estimated_value) * 100
           : null,
       awardDate: r.award_date,
+      bidderCount: r.bidder_count,
+      inFeed: r.in_feed,
     }));
 
     res.json({ company, items, total: items.length });

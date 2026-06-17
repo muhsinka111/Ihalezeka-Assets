@@ -14,6 +14,7 @@ import { runAdbScraper } from "./adb-scraper.js";
 import { runAiibScraper } from "./aiib-scraper.js";
 import { runIsdbScraper } from "./isdb-scraper.js";
 import { runAwardScraper } from "./award-scraper.js";
+import { runDetailEnrichmentScraper } from "./detail-enrichment-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { dispatchSavedSearchAlerts } from "../lib/savedSearchAlerts.js";
@@ -112,6 +113,13 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
         logger.error({ err }, "Saved-search alert dispatch failed")
       );
     }
+
+    // Run detail enrichment AFTER the main batch — fills in description + documents
+    // for EKAP tenders that were saved without them. Sequential so it doesn't
+    // compete with the main scrapers for ihale-mcp quota.
+    await runDetailEnrichmentScraper().catch((err) =>
+      logger.error({ err }, "Detail enrichment scraper failed")
+    );
   } finally {
     _scraperRunning = false;
   }

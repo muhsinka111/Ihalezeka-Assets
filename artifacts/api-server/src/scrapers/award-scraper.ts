@@ -87,10 +87,18 @@ function parseAwardText(text: string): ParsedAward {
   };
 }
 
-/** Check if an IKN is already stored (or was attempted) in award_results. */
+/**
+ * Check if an IKN has already been successfully enriched (awarded_company is known).
+ * Stubs (no awarded_company) are NOT considered processed — they can be retried.
+ */
 async function alreadyProcessed(ikn: string): Promise<boolean> {
   const rows = await db.execute<{ cnt: string }>(
-    sql`SELECT COUNT(*) AS cnt FROM award_results WHERE ikn = ${ikn} OR original_ikn = ${ikn}`,
+    sql`
+      SELECT COUNT(*) AS cnt
+      FROM award_results
+      WHERE (ikn = ${ikn} OR original_ikn = ${ikn})
+        AND awarded_company IS NOT NULL
+    `,
   );
   return parseInt(rows.rows[0]?.cnt ?? "0", 10) > 0;
 }

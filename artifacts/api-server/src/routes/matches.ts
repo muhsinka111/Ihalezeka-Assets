@@ -103,15 +103,54 @@ router.get("/matches", async (req, res) => {
 router.get("/matches/:tenderId", async (req, res) => {
   try {
     const { tenderId } = GetMatchParams.parse(req.params);
+
+    // Try the full match row first (has fit score, pros/risks, AI summary)
     const [row] = await db
       .select()
       .from(matchesTable)
       .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
       .where(and(eq(matchesTable.tenderId, tenderId), eq(matchesTable.businessId, DEFAULT_BIZ)));
-    if (!row) return res.status(404).json({ error: "Not found" });
 
-    const match = formatMatch(row.matches, row.tenders);
-    const tenderAny = row.tenders as any;
+    let tenderRow: typeof tendersTable.$inferSelect;
+    let matchPayload: ReturnType<typeof formatMatch>;
+
+    if (row) {
+      matchPayload = formatMatch(row.matches, row.tenders);
+      tenderRow = row.tenders;
+    } else {
+      // No match record yet — fall back to the raw tender so the detail page
+      // can still render (documents, description, deadline, etc.).
+      const [tender] = await db
+        .select()
+        .from(tendersTable)
+        .where(eq(tendersTable.id, tenderId));
+      if (!tender) return res.status(404).json({ error: "Not found" });
+
+      // Inject EKAP portal URL when documents are empty (same as GET /tenders/:id)
+      const storedDocs = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
+      const finalTender =
+        storedDocs.length === 0 && tender.sourceSystem === "ekap" && tender.ikn
+          ? {
+              ...tender,
+              documents: [
+                {
+                  name: "İhale Dokümanı (EKAP Portal)",
+                  url: tender.sourceUrl ?? `https://ekapv2.kik.gov.tr/ekap/detay/${tender.ikn}`,
+                  type: "ekap-portal",
+                },
+              ],
+            }
+          : tender;
+
+      tenderRow = finalTender as typeof tendersTable.$inferSelect;
+      // Return a match-shaped response with null fit-score fields
+      matchPayload = formatMatch(
+        { id: null, fitScore: null, reasoning: null, pros: null, risks: null, status: "pending", createdAt: null },
+        tenderRow,
+      );
+    }
+
+    const tenderAny = tenderRow as any;
     const aiSummary = tenderAny.aiSummary ?? null;
     const contact = buildContact(tenderAny, aiSummary);
 
@@ -129,8 +168,8 @@ router.get("/matches/:tenderId", async (req, res) => {
         experienceCeiling: profile?.experienceCeiling ?? null,
         personnelCount: profile?.personnelCount ?? null,
       });
-    } else if (row.tenders.qualificationCriteria?.length > 0) {
-      criteriaCompliance = (row.tenders.qualificationCriteria || []).map((c: string) => ({
+    } else if ((tenderRow as any).qualificationCriteria?.length > 0) {
+      criteriaCompliance = ((tenderRow as any).qualificationCriteria || []).map((c: string) => ({
         criterion: c,
         compliant: null as any,
         note: "Belge analizi yapılmadı — kesin uyum bilinmiyor",
@@ -139,7 +178,7 @@ router.get("/matches/:tenderId", async (req, res) => {
       criteriaCompliance = [];
     }
 
-    res.json({ ...match, criteriaCompliance, aiSummary, contact });
+    res.json({ ...matchPayload, criteriaCompliance, aiSummary, contact });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal server error" });

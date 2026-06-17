@@ -11,3 +11,5 @@
 - [AI tender scoring silently rule-based](ai-scoring-empty-response.md) — scoreWithAi (gpt-5-mini, max_completion_tokens 512 + json response_format) returns empty content every call → scoreNewTenders always falls back to rule-based; matches still upsert so it looks healthy
 - [İlan.gov has no downloadable documents](ilan-no-documents.md) — GetAdDetail files is null/empty for all ads; extract defensively but expect 0, never fabricate doc entries or write a network backfill
 - [EKAP ISI access limitations](ekap-isi-access.md) — ihaleDurumlar codes for "concluded" and ISI endpoint both return 0; ihale-mcp doesn't index ISIs; award_results populates when access is resolved
+- [Matches endpoint tender fallback](matches-tender-fallback.md) — GET /matches/:tenderId inner-joins matchesTable; tenders without match records return 404; fix: fall back to raw tender query when no match row exists
+- [Drizzle array in ANY() pitfall](drizzle-array-any.md) — sql`ANY(${jsArray})` generates invalid row expression; use sql`ANY(ARRAY[${sql.join(arr.map(v => sql`${v}`), sql`, `)}])` instead
