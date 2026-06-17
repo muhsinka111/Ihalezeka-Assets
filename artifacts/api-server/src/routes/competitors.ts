@@ -101,6 +101,11 @@ async function deriveUserCategories(businessId: string, userCompany: string | nu
 // Returns competitors ranked by win count, scoped to the user's active provinces
 // AND categories (derived from their own win/match history). Includes sectors
 // (unique categories) and regions (unique provinces) per competitor.
+//
+// encounters = tenders this competitor won that are also in the current
+// business's match feed (matched via matches.business_id). This is the proxy
+// for "tenders where user could have competed," since EKAP only exposes the
+// winner — individual participant data is not available.
 router.get("/competitors", async (req, res) => {
   try {
     const profile = await loadProfile(req);
@@ -137,7 +142,11 @@ router.get("/competitors", async (req, res) => {
           ar.awarded_company AS company,
           COUNT(*)::text AS won_tenders,
           SUM(
-            CASE WHEN EXISTS (SELECT 1 FROM tenders t WHERE t.ikn = ar.ikn) THEN 1 ELSE 0 END
+            CASE WHEN EXISTS (
+              SELECT 1 FROM tenders t
+              JOIN matches m ON m.tender_id = t.id
+              WHERE t.ikn = ar.ikn AND m.business_id = ${businessId}
+            ) THEN 1 ELSE 0 END
           )::text AS encounters,
           AVG(
             CASE
@@ -321,12 +330,14 @@ router.get("/competitors/insights", async (req, res) => {
 });
 
 // ── GET /competitors/:company/head-to-head ───────────────────────────────────
-// Returns tenders where this competitor won AND the tender exists in the
-// user's feed (tenders table). These are true "you could have bid but this
-// company won" encounters — not the full competitor award history.
+// Returns tenders where this competitor won AND the tender is in the current
+// business's match feed (matches.business_id). This is the closest proxy for
+// "tenders where the user competed and lost to this company" — EKAP only
+// exposes the winner, so exact participant lists are unavailable.
 router.get("/competitors/:company/head-to-head", async (req, res) => {
   try {
     const company = decodeURIComponent(req.params.company);
+    const businessId = getBusinessId(req);
     const profile = await loadProfile(req);
 
     const baseFilters: ReturnType<typeof sql>[] = [
@@ -337,8 +348,8 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
     }
     const whereClause = baseFilters.reduce((acc, f) => sql`${acc} AND ${f}`);
 
-    // INNER JOIN with tenders ensures we only return tenders that are in the
-    // user's feed — true head-to-head encounters, not the competitor's full history.
+    // INNER JOIN through matches scopes results to this business's feed.
+    // Only tenders surfaced to this user (m.business_id) where competitor won.
     const rows = await db.execute<{
       ikn: string;
       agency_name: string | null;
@@ -361,6 +372,7 @@ router.get("/competitors/:company/head-to-head", async (req, res) => {
           ar.bidder_count
         FROM award_results ar
         INNER JOIN tenders t ON t.ikn = ar.ikn
+        INNER JOIN matches m ON m.tender_id = t.id AND m.business_id = ${businessId}
         WHERE ${whereClause}
         ORDER BY ar.award_date DESC NULLS LAST
         LIMIT 25
