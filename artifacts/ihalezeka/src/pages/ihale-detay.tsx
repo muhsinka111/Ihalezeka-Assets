@@ -1,5 +1,5 @@
 import { useParams, Link } from "wouter";
-import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey, useCreatePipelineItem } from "@workspace/api-client-react";
+import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey, useCreatePipelineItem, useListPipelineItems } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { PaywallCard } from "@/components/PaywallOverlay";
@@ -810,9 +810,22 @@ export default function IhaleDetayPage() {
   const { isPro, isLoading: entLoading } = useEntitlement();
   const queryClient = useQueryClient();
   const createPipeline = useCreatePipelineItem();
+  const { data: pipelineItems } = useListPipelineItems();
+  const existingPipelineItem = (pipelineItems as any[])?.find((item: any) => item.tender?.id === tenderId);
   const [pipelineOpen, setPipelineOpen] = useState(false);
   const [pipelineAdded, setPipelineAdded] = useState(false);
   const [pipelineStage, setPipelineStage] = useState("");
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (existingPipelineItem) {
+      setPipelineAdded(true);
+      setPipelineStage(existingPipelineItem.stage ?? "");
+    } else {
+      setPipelineAdded(false);
+      setPipelineStage("");
+    }
+  }, [existingPipelineItem?.id, existingPipelineItem?.stage]);
 
   // Pro users load the full match (tender + AI fields + contact). Free users
   // load only the masked basic tender record. Exactly one request fires.
@@ -1156,10 +1169,23 @@ export default function IhaleDetayPage() {
             <Link href="/teklif-olusturucu">
               <Button variant="outline" className="w-full" size="lg">Teklif Taslağı Oluştur</Button>
             </Link>
+            {pipelineError && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                {pipelineError}
+              </div>
+            )}
             {pipelineAdded ? (
-              <div className="flex items-center justify-center gap-2 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
-                <IconCheck className="h-4 w-4" />
-                Boru Hattına eklendi: {PIPELINE_STAGES.find(s => s.id === pipelineStage)?.label}
+              <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
+                <div className="flex items-center gap-2">
+                  <IconCheck className="h-4 w-4 shrink-0" />
+                  <span>{PIPELINE_STAGES.find(s => s.id === pipelineStage)?.label ?? "Boru Hattında"}</span>
+                </div>
+                <button
+                  onClick={() => { setPipelineAdded(false); setPipelineError(null); }}
+                  className="text-[11px] text-emerald-600 hover:text-emerald-800 underline shrink-0"
+                >
+                  Taşı
+                </button>
               </div>
             ) : (
               <div className="relative">
@@ -1182,12 +1208,15 @@ export default function IhaleDetayPage() {
                         key={s.id}
                         onClick={async () => {
                           setPipelineOpen(false);
+                          setPipelineError(null);
                           try {
                             await createPipeline.mutateAsync({ data: { tenderId, stage: s.id as any } });
                             setPipelineStage(s.id);
                             setPipelineAdded(true);
                             queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
-                          } catch {}
+                          } catch {
+                            setPipelineError("Eklenemedi — lütfen tekrar deneyin.");
+                          }
                         }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors"
                       >

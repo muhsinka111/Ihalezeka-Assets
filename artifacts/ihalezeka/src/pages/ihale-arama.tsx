@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useListTenders, useGetTenderFacets, useCreatePipelineItem } from "@workspace/api-client-react";
+import { useListTenders, useGetTenderFacets, useCreatePipelineItem, useListPipelineItems } from "@workspace/api-client-react";
 import type { SavedSearchCriteria } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -346,8 +346,14 @@ export default function IhaleAramaPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const createPipeline = useCreatePipelineItem();
+  const { data: pipelineItems } = useListPipelineItems();
+  const pipelineTenderMap: Record<number, string> = {};
+  ((pipelineItems as any[]) ?? []).forEach((item: any) => {
+    if (item.tender?.id != null) pipelineTenderMap[item.tender.id] = item.stage;
+  });
   const [pipelinePopover, setPipelinePopover] = useState<number | null>(null);
   const [pipelineSuccessIds, setPipelineSuccessIds] = useState<Set<number>>(new Set());
+  const [pipelineErrorId, setPipelineErrorId] = useState<number | null>(null);
 
   const initialFilters = parseUrlFilters(rawSearch);
 
@@ -448,11 +454,14 @@ export default function IhaleAramaPage() {
 
   const addToPipelineStage = useCallback(async (tenderId: number, stage: string) => {
     setPipelinePopover(null);
+    setPipelineErrorId(null);
     try {
       await createPipeline.mutateAsync({ data: { tenderId, stage: stage as any } });
       setPipelineSuccessIds((prev) => new Set(prev).add(tenderId));
       queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
     } catch {
+      setPipelineErrorId(tenderId);
+      setTimeout(() => setPipelineErrorId((cur) => (cur === tenderId ? null : cur)), 3000);
     }
   }, [createPipeline, queryClient]);
 
@@ -1081,38 +1090,71 @@ export default function IhaleAramaPage() {
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <Badge variant="outline" className="text-xs whitespace-nowrap">{tender.type}</Badge>
-                              {!tender._isLive && typeof tender.id === "number" && (
-                                <div className="relative" onClick={(e) => e.stopPropagation()}>
-                                  {pipelineSuccessIds.has(tender.id) ? (
-                                    <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[11px] font-medium border border-emerald-200">
-                                      <IconCheck className="h-3 w-3" /> Eklendi
-                                    </div>
-                                  ) : (
-                                    <button
-                                      title="Boru Hattına Ekle"
-                                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPipelinePopover(pipelinePopover === tender.id ? null : tender.id); }}
-                                      className="flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-colors"
-                                    >
-                                      <IconLayoutKanban className="h-3.5 w-3.5" />
-                                      <span className="hidden sm:inline">Boru Hattı</span>
-                                    </button>
-                                  )}
-                                  {pipelinePopover === tender.id && (
-                                    <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border bg-card shadow-lg py-1">
-                                      <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Aşama Seç</div>
-                                      {PIPELINE_STAGES.map((s) => (
+                              {!tender._isLive && typeof tender.id === "number" && (() => {
+                                const existingStage = pipelineTenderMap[tender.id];
+                                const isAdded = pipelineSuccessIds.has(tender.id) || existingStage != null;
+                                const stageLabel = PIPELINE_STAGES.find(s => s.id === (existingStage ?? ""))?.label;
+                                const hasError = pipelineErrorId === tender.id;
+                                return (
+                                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                                    {hasError ? (
+                                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[11px] font-medium border border-rose-200">
+                                        Hata
+                                      </div>
+                                    ) : isAdded ? (
+                                      <>
                                         <button
-                                          key={s.id}
-                                          onClick={() => addToPipelineStage(tender.id, s.id)}
-                                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                                          title="Aşamayı değiştir"
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPipelinePopover(pipelinePopover === tender.id ? null : tender.id); }}
+                                          className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px] font-medium border border-emerald-200 hover:bg-emerald-100 transition-colors"
                                         >
-                                          {s.label}
+                                          <IconCheck className="h-3 w-3" />
+                                          <span className="hidden sm:inline">{stageLabel ?? "Eklendi"}</span>
                                         </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                        {pipelinePopover === tender.id && (
+                                          <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border bg-card shadow-lg py-1">
+                                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Aşamayı Taşı</div>
+                                            {PIPELINE_STAGES.map((s) => (
+                                              <button
+                                                key={s.id}
+                                                onClick={() => addToPipelineStage(tender.id, s.id)}
+                                                className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors", s.id === existingStage && "font-semibold text-primary")}
+                                              >
+                                                {s.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <button
+                                          title="Boru Hattına Ekle"
+                                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPipelinePopover(pipelinePopover === tender.id ? null : tender.id); }}
+                                          className="flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-colors"
+                                        >
+                                          <IconLayoutKanban className="h-3.5 w-3.5" />
+                                          <span className="hidden sm:inline">Boru Hattı</span>
+                                        </button>
+                                        {pipelinePopover === tender.id && (
+                                          <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border bg-card shadow-lg py-1">
+                                            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Aşama Seç</div>
+                                            {PIPELINE_STAGES.map((s) => (
+                                              <button
+                                                key={s.id}
+                                                onClick={() => addToPipelineStage(tender.id, s.id)}
+                                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors"
+                                              >
+                                                {s.label}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
