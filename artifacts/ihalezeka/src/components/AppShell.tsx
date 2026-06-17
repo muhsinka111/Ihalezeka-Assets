@@ -44,6 +44,7 @@ import {
   IconMapPin,
   IconCurrencyLira,
   IconLock,
+  IconSettings,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
@@ -64,6 +65,7 @@ const NAV_ITEMS = [
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
   { href: "/entegrasyonlar", label: "Entegrasyonlar", icon: IconPlug },
   { href: "/pazarlama", label: "Pazarlama", icon: IconSpeakerphone, adminOnly: true },
+  { href: "/admin", label: "Yönetim", icon: IconSettings, adminOnly: true },
 ];
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");

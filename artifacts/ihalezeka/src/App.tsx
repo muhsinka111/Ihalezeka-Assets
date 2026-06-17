@@ -27,6 +27,7 @@ import ContentCalendarPage from "@/pages/pazarlama/content-calendar";
 import BlogAdminPage from "@/pages/pazarlama/blog";
 import SocialConnectionsPage from "@/pages/pazarlama/social-connections";
 import FiyatlandirmaPage from "@/pages/fiyatlandirma";
+import AdminPage from "@/pages/admin";
 import NotFound from "@/pages/not-found";
 import { RequirePro } from "@/components/PaywallOverlay";
 
@@ -205,6 +206,8 @@ function ClerkProviderWithRoutes() {
           <Route path="/pazarlama/takvim"><ProtectedRoute component={ContentCalendarPage} /></Route>
           <Route path="/pazarlama/blog"><ProtectedRoute component={BlogAdminPage} /></Route>
           <Route path="/pazarlama/baglantilar"><ProtectedRoute component={SocialConnectionsPage} /></Route>
+
+          <Route path="/admin"><ProtectedRoute component={AdminPage} /></Route>
 
           <Route component={NotFound} />
         </Switch>
