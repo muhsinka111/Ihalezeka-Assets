@@ -472,6 +472,10 @@ export interface Competitor {
   avgDiscountRate: number;
   /** How many times this competitor appeared in same tenders */
   encounters: number;
+  /** Unique tender categories/sectors this competitor has won in */
+  sectors: string[];
+  /** Unique provinces/regions this competitor has won tenders in */
+  regions: string[];
 }
 
 export interface CategoryPerformance {
@@ -485,6 +489,32 @@ export interface CompetitorInsights {
   /** AI-generated competitor analysis text */
   aiInsight: string;
   categoryWinRates: CategoryPerformance[];
+}
+
+export interface HeadToHeadItem {
+  ikn: string;
+  /** @nullable */
+  agencyName?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  il?: string | null;
+  /** @nullable */
+  awardedPrice?: number | null;
+  /** @nullable */
+  estimatedValue?: number | null;
+  /** @nullable */
+  discountRate?: number | null;
+  /** @nullable */
+  awardDate?: string | null;
+  /** @nullable */
+  bidderCount?: number | null;
+}
+
+export interface CompetitorHeadToHead {
+  company: string;
+  total: number;
+  items: HeadToHeadItem[];
 }
 
 export interface CategorySpend {

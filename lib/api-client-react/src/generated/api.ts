@@ -28,6 +28,7 @@ import type {
   CompanyProfile,
   CompanyProfileInput,
   Competitor,
+  CompetitorHeadToHead,
   CompetitorInsights,
   DashboardStats,
   Document,
@@ -2192,6 +2193,83 @@ export function useGetCompetitorInsights<TData = Awaited<ReturnType<typeof getCo
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetCompetitorInsightsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetCompetitorHeadToHeadUrl = (company: string,) => {
+
+
+
+
+  return `/api/competitors/${company}/head-to-head`
+}
+
+/**
+ * @summary Get tenders where this competitor won from the user's tender feed
+ */
+export const getCompetitorHeadToHead = async (company: string, options?: RequestInit): Promise<CompetitorHeadToHead> => {
+
+  return customFetch<CompetitorHeadToHead>(getGetCompetitorHeadToHeadUrl(company),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCompetitorHeadToHeadQueryKey = (company: string,) => {
+    return [
+    `/api/competitors/${company}/head-to-head`
+    ] as const;
+    }
+
+
+export const getGetCompetitorHeadToHeadQueryOptions = <TData = Awaited<ReturnType<typeof getCompetitorHeadToHead>>, TError = ErrorType<unknown>>(company: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompetitorHeadToHead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCompetitorHeadToHeadQueryKey(company);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompetitorHeadToHead>>> = ({ signal }) => getCompetitorHeadToHead(company, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(company), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompetitorHeadToHead>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCompetitorHeadToHeadQueryResult = NonNullable<Awaited<ReturnType<typeof getCompetitorHeadToHead>>>
+export type GetCompetitorHeadToHeadQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get tenders where this competitor won from the user's tender feed
+ */
+
+export function useGetCompetitorHeadToHead<TData = Awaited<ReturnType<typeof getCompetitorHeadToHead>>, TError = ErrorType<unknown>>(
+ company: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompetitorHeadToHead>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCompetitorHeadToHeadQueryOptions(company,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

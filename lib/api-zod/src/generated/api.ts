@@ -814,7 +814,9 @@ export const ListCompetitorsResponseItem = zod.object({
   "name": zod.string(),
   "wonTenders": zod.number(),
   "avgDiscountRate": zod.number().describe('Average discount (kırım) percentage'),
-  "encounters": zod.number().describe('How many times this competitor appeared in same tenders')
+  "encounters": zod.number().describe('How many times this competitor appeared in same tenders'),
+  "sectors": zod.array(zod.string()).describe('Unique tender categories\/sectors this competitor has won in'),
+  "regions": zod.array(zod.string()).describe('Unique provinces\/regions this competitor has won tenders in')
 })
 export const ListCompetitorsResponse = zod.array(ListCompetitorsResponseItem)
 
@@ -829,6 +831,30 @@ export const GetCompetitorInsightsResponse = zod.object({
   "applications": zod.number(),
   "wins": zod.number(),
   "winRate": zod.number()
+}))
+})
+
+
+/**
+ * @summary Get tenders where this competitor won from the user's tender feed
+ */
+export const GetCompetitorHeadToHeadParams = zod.object({
+  "company": zod.coerce.string()
+})
+
+export const GetCompetitorHeadToHeadResponse = zod.object({
+  "company": zod.string(),
+  "total": zod.number(),
+  "items": zod.array(zod.object({
+  "ikn": zod.string(),
+  "agencyName": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "il": zod.string().nullish(),
+  "awardedPrice": zod.number().nullish(),
+  "estimatedValue": zod.number().nullish(),
+  "discountRate": zod.number().nullish(),
+  "awardDate": zod.string().nullish(),
+  "bidderCount": zod.number().nullish()
 }))
 })
 

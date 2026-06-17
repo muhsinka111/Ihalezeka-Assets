@@ -14,4 +14,8 @@ export interface Competitor {
   avgDiscountRate: number;
   /** How many times this competitor appeared in same tenders */
   encounters: number;
+  /** Unique tender categories/sectors this competitor has won in */
+  sectors: string[];
+  /** Unique provinces/regions this competitor has won tenders in */
+  regions: string[];
 }

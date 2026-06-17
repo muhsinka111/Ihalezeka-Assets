@@ -685,6 +685,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/CompetitorInsights"
 
+  /competitors/{company}/head-to-head:
+    get:
+      operationId: getCompetitorHeadToHead
+      tags: [competitors]
+      summary: Get tenders where this competitor won from the user's tender feed
+      parameters:
+        - name: company
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Head-to-head results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorHeadToHead"
+
   # ─── Money Flow ───────────────────────────────────────────────────────────────
   /money-flow/monthly:
     get:
@@ -1463,7 +1482,7 @@ components:
     # ─── Competitors ─────────────────────────────────────────────────────────────
     Competitor:
       type: object
-      required: [id, name, wonTenders, avgDiscountRate, encounters]
+      required: [id, name, wonTenders, avgDiscountRate, encounters, sectors, regions]
       properties:
         id:
           type: integer
@@ -1477,6 +1496,16 @@ components:
         encounters:
           type: integer
           description: How many times this competitor appeared in same tenders
+        sectors:
+          type: array
+          items:
+            type: string
+          description: Unique tender categories/sectors this competitor has won in
+        regions:
+          type: array
+          items:
+            type: string
+          description: Unique provinces/regions this competitor has won tenders in
 
     CompetitorInsights:
       type: object
@@ -1489,6 +1518,42 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CategoryPerformance"
+
+    CompetitorHeadToHead:
+      type: object
+      required: [company, items, total]
+      properties:
+        company:
+          type: string
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeadToHeadItem"
+
+    HeadToHeadItem:
+      type: object
+      required: [ikn]
+      properties:
+        ikn:
+          type: string
+        agencyName:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        il:
+          type: ["string", "null"]
+        awardedPrice:
+          type: ["number", "null"]
+        estimatedValue:
+          type: ["number", "null"]
+        discountRate:
+          type: ["number", "null"]
+        awardDate:
+          type: ["string", "null"]
+        bidderCount:
+          type: ["integer", "null"]
 
     # ─── Money Flow ──────────────────────────────────────────────────────────────
     CategorySpend:
