@@ -51,6 +51,8 @@ export const SOURCE_LABELS: Record<string, string> = {
   bebka: "BEBKA (Bursa Eskişehir Bilecik Kalkınma Ajansı)",
   dogaka: "DOGAKA (Doğu Akdeniz Kalkınma Ajansı)",
   marka: "MARKA (Kuzey Marmara Kalkınma Ajansı)",
+  // Award results enrichment
+  award_results: "İhale Sonuç Verileri",
   // International sources
   ungm: "BM Tedarik Bildirimleri (UNGM/UNDP)",
   adb: "ADB (Asya Kalkınma Bankası)",

@@ -12,3 +12,4 @@ export * from "./savedSearches";
 export * from "./socialConnections";
 export * from "./socialPosts";
 export * from "./users";
+export * from "./awardResults";

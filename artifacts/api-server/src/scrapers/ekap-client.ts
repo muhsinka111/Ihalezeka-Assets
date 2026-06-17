@@ -451,6 +451,88 @@ export async function fetchEkapDocumentUrl(
   }
 }
 
+/**
+ * Search EKAP directly for concluded/awarded tenders using the `ihaleDurumlar`
+ * filter. Tries multiple candidate status codes and also the ISI-specific
+ * endpoint, returning the first non-empty batch found.
+ *
+ * Uses a wider announcement-date window (daysBack) so that tenders announced
+ * months ago (and now concluded) are included.
+ */
+export async function searchEkapAwardedTenders(daysBack = 120): Promise<EkapTender[]> {
+  const end = formatDate(new Date());
+  const past = new Date(Date.now() - daysBack * 86_400_000);
+  const start = formatDate(past);
+
+  // Candidate ihaleDurumlar codes for "concluded / award issued"
+  // EKAP uses a mix of Turkish text labels and numeric strings — try them all.
+  const CONCLUDED_STATUS_CANDIDATES = [
+    ["SONUCLANDI"],
+    ["IHALE_YAPILDI"],
+    ["sonuclandi"],
+    ["3"],
+    ["2"],
+    ["SONUCILAN"],
+  ];
+
+  for (const ihaleDurumlar of CONCLUDED_STATUS_CANDIDATES) {
+    try {
+      const body = {
+        ilanTarihSaatBaslangic: start,
+        ilanTarihSaatBitis: end,
+        paginationSkip: 0,
+        paginationTake: 50,
+        ihaleTipler: [],
+        ihaleUsuller: [],
+        ihaleDurumlar,
+        iller: [],
+      };
+      const res = await client.post(
+        "/b_ihalearama/api/Ihale/GetListByParameters",
+        body,
+        { headers: secHeaders(), timeout: 8000 },
+      );
+      const list: EkapTender[] = res.data?.list ?? [];
+      // Only accept results where the status actually looks concluded (safety check)
+      const concluded = list.filter((t) => {
+        const d = (t.ihaleDurum ?? t.ihaleDurumAciklama ?? "").toLowerCase();
+        return d.includes("sonuç") || d.includes("yapıldı") || d.includes("tamamlandı") || d.includes("sonuclandi");
+      });
+      if (concluded.length > 0) {
+        logger.info({ statusCode: ihaleDurumlar, count: concluded.length }, "EKAP concluded tenders fetched");
+        return concluded;
+      }
+    } catch (err) {
+      logger.debug({ ihaleDurumlar, err }, "EKAP ihaleDurumlar search failed");
+    }
+  }
+
+  // Try ISI-specific endpoint
+  try {
+    const body = {
+      ilanTarihSaatBaslangic: start,
+      ilanTarihSaatBitis: end,
+      paginationSkip: 0,
+      paginationTake: 50,
+    };
+    const res = await client.post(
+      "/b_ihalearama/api/IhaleSonucIlan/GetListByParameters",
+      body,
+      { headers: secHeaders(), timeout: 8000 },
+    );
+    const list: EkapTender[] = res.data?.list ?? [];
+    if (list.length > 0) {
+      logger.info({ count: list.length }, "EKAP ISI endpoint returned results");
+      return list;
+    }
+  } catch (err) {
+    logger.debug({ err }, "EKAP ISI endpoint failed");
+  }
+
+  logger.debug("searchEkapAwardedTenders: no concluded tenders found via any strategy");
+  return [];
+}
+
 export interface EkapEnrichment {
   /** Notice/spec text from the detail announcement(s); "" when unavailable. */
   detailText: string;

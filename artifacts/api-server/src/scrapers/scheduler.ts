@@ -13,6 +13,7 @@ import { runUngmScraper } from "./ungm-scraper.js";
 import { runAdbScraper } from "./adb-scraper.js";
 import { runAiibScraper } from "./aiib-scraper.js";
 import { runIsdbScraper } from "./isdb-scraper.js";
+import { runAwardScraper } from "./award-scraper.js";
 import { formatEkapDate } from "./ekap-client.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { dispatchSavedSearchAlerts } from "../lib/savedSearchAlerts.js";
@@ -78,12 +79,15 @@ async function runAllScrapers(cfg: ScraperConfig): Promise<void> {
       runTubitakScraper(),
       runKosgbScraper(),
       runKalkinmaScraper(),
+      // Award results enrichment — parses winner/price from concluded EKAP tenders
+      runAwardScraper(),
     ]);
 
     const sourceNames = [
       "ekap", "ilan_gov", "kit", "ted", "worldbank", "ebrd",
       "ungm", "adb", "aiib", "isdb",
       "tubitak", "kosgeb", "kalkinma_ajansi",
+      "award_results",
     ];
     const allNewIds: number[] = [];
 
