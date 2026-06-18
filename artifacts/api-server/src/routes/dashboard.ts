@@ -2,39 +2,39 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { tendersTable, matchesTable, pipelineItemsTable } from "@workspace/db";
 import { eq, desc, count, sql, gte, and } from "drizzle-orm";
-import { requirePro } from "../lib/authHelpers.js";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
 
 // Premium-only: the analytics dashboard is a Pro power tool.
 router.use("/dashboard", requirePro);
 
-const DEFAULT_BIZ = "demo-business";
-
 router.get("/dashboard/stats", async (req, res) => {
   try {
+    const businessId = getBusinessId(req);
+
     const [activeMatchesRes] = await db
       .select({ count: count() })
       .from(matchesTable)
-      .where(eq(matchesTable.businessId, DEFAULT_BIZ));
+      .where(eq(matchesTable.businessId, businessId));
 
     const [pipelineRes] = await db
       .select({ count: count() })
       .from(pipelineItemsTable)
-      .where(eq(pipelineItemsTable.businessId, DEFAULT_BIZ));
+      .where(eq(pipelineItemsTable.businessId, businessId));
 
     const pipelineItems = await db
       .select({ tender: tendersTable })
       .from(pipelineItemsTable)
       .innerJoin(tendersTable, eq(pipelineItemsTable.tenderId, tendersTable.id))
-      .where(eq(pipelineItemsTable.businessId, DEFAULT_BIZ));
+      .where(eq(pipelineItemsTable.businessId, businessId));
 
     const totalValue = pipelineItems.reduce((sum, p) => sum + (p.tender.estimatedValue || 0), 0);
 
     const matches = await db
       .select({ fitScore: matchesTable.fitScore })
       .from(matchesTable)
-      .where(eq(matchesTable.businessId, DEFAULT_BIZ));
+      .where(eq(matchesTable.businessId, businessId));
 
     const avgFitScore = matches.length > 0
       ? matches.reduce((s, m) => s + m.fitScore, 0) / matches.length
@@ -43,12 +43,12 @@ router.get("/dashboard/stats", async (req, res) => {
     const wonItems = await db
       .select({ count: count() })
       .from(pipelineItemsTable)
-      .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, "won")));
+      .where(and(eq(pipelineItemsTable.businessId, businessId), eq(pipelineItemsTable.stage, "won")));
 
     const totalApplied = await db
       .select({ count: count() })
       .from(pipelineItemsTable)
-      .where(eq(pipelineItemsTable.businessId, DEFAULT_BIZ));
+      .where(eq(pipelineItemsTable.businessId, businessId));
 
     const winRate = totalApplied[0].count > 0
       ? (wonItems[0].count / totalApplied[0].count) * 100
@@ -80,7 +80,7 @@ router.get("/dashboard/top-matches", async (req, res) => {
       .select()
       .from(matchesTable)
       .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
-      .where(eq(matchesTable.businessId, DEFAULT_BIZ))
+      .where(eq(matchesTable.businessId, getBusinessId(req)))
       .orderBy(desc(matchesTable.fitScore))
       .limit(8);
 
@@ -133,15 +133,16 @@ router.get("/dashboard/pipeline-summary", async (req, res) => {
     const stages = ["discovery", "preparation", "applied", "evaluation", "won", "lost"];
     const results = await Promise.all(
       stages.map(async (stage) => {
+        const bizId = getBusinessId(req);
         const [{ count: cnt }] = await db
           .select({ count: count() })
           .from(pipelineItemsTable)
-          .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, stage)));
+          .where(and(eq(pipelineItemsTable.businessId, bizId), eq(pipelineItemsTable.stage, stage)));
         const items = await db
           .select({ tender: tendersTable })
           .from(pipelineItemsTable)
           .innerJoin(tendersTable, eq(pipelineItemsTable.tenderId, tendersTable.id))
-          .where(and(eq(pipelineItemsTable.businessId, DEFAULT_BIZ), eq(pipelineItemsTable.stage, stage)));
+          .where(and(eq(pipelineItemsTable.businessId, bizId), eq(pipelineItemsTable.stage, stage)));
         const totalValue = items.reduce((s, i) => s + (i.tender.estimatedValue || 0), 0);
         return { stage, count: Number(cnt), totalValue };
       })
@@ -177,10 +178,10 @@ router.get("/dashboard/win-predictions", async (req, res) => {
         matchesTable,
         and(
           eq(matchesTable.tenderId, tendersTable.id),
-          eq(matchesTable.businessId, DEFAULT_BIZ)
+          eq(matchesTable.businessId, getBusinessId(req))
         )
       )
-      .where(eq(pipelineItemsTable.businessId, DEFAULT_BIZ))
+      .where(eq(pipelineItemsTable.businessId, getBusinessId(req)))
       .limit(8);
 
     const result = rows.map((r) => {

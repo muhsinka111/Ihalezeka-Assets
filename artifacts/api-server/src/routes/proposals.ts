@@ -3,13 +3,12 @@ import { db } from "@workspace/db";
 import { proposalsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { GetProposalParams } from "@workspace/api-zod";
-import { requirePro } from "../lib/authHelpers.js";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
 
 // Premium-only: the proposal builder (Teklif Oluşturucu) is a Pro power tool.
 router.use("/proposals", requirePro);
-const DEFAULT_BIZ = "demo-business";
 
 const fmt = (p: any) => ({
   ...p,
@@ -22,7 +21,7 @@ router.get("/proposals", async (req, res) => {
     const items = await db
       .select()
       .from(proposalsTable)
-      .where(eq(proposalsTable.businessId, DEFAULT_BIZ));
+      .where(eq(proposalsTable.businessId, getBusinessId(req)));
     res.json(items.map(fmt));
   } catch {
     res.status(500).json({ error: "Internal server error" });
@@ -34,7 +33,7 @@ router.post("/proposals", async (req, res) => {
     const { tenderId, contentJson } = req.body;
     const [proposal] = await db
       .insert(proposalsTable)
-      .values({ tenderId, contentJson, businessId: DEFAULT_BIZ, status: "draft" })
+      .values({ tenderId, contentJson, businessId: getBusinessId(req), status: "draft" })
       .returning();
     res.status(201).json(fmt(proposal));
   } catch {
@@ -48,7 +47,7 @@ router.get("/proposals/:id", async (req, res) => {
     const [proposal] = await db
       .select()
       .from(proposalsTable)
-      .where(and(eq(proposalsTable.id, id), eq(proposalsTable.businessId, DEFAULT_BIZ)));
+      .where(and(eq(proposalsTable.id, id), eq(proposalsTable.businessId, getBusinessId(req))));
     if (!proposal) return res.status(404).json({ error: "Not found" });
     res.json(fmt(proposal));
   } catch {
@@ -63,7 +62,7 @@ router.patch("/proposals/:id", async (req, res) => {
     const [updated] = await db
       .update(proposalsTable)
       .set({ contentJson, status })
-      .where(and(eq(proposalsTable.id, id), eq(proposalsTable.businessId, DEFAULT_BIZ)))
+      .where(and(eq(proposalsTable.id, id), eq(proposalsTable.businessId, getBusinessId(req))))
       .returning();
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(fmt(updated));

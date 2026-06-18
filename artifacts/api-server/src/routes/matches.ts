@@ -4,13 +4,12 @@ import { matchesTable, tendersTable, companyProfilesTable } from "@workspace/db"
 import { eq, and, gte, lte, desc, type SQL, count } from "drizzle-orm";
 import { ListMatchesQueryParams, GetMatchParams, UpdateMatchStatusParams, UpdateMatchStatusBody } from "@workspace/api-zod";
 import { computeCriteriaCompliance } from "../services/document-analyzer.js";
-import { requirePro } from "../lib/authHelpers.js";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
 
 // Premium-only: AI-derived matches (fit scores, pros/risks, criteria) are Pro.
 router.use("/matches", requirePro);
-const DEFAULT_BIZ = "demo-business";
 
 interface ResolvedContact {
   authority: string | null;
@@ -67,7 +66,8 @@ const formatMatch = (m: any, t: any) => ({
 router.get("/matches", async (req, res) => {
   try {
     const query = ListMatchesQueryParams.parse(req.query);
-    const conditions: SQL[] = [eq(matchesTable.businessId, DEFAULT_BIZ)];
+    const businessId = getBusinessId(req);
+    const conditions: SQL[] = [eq(matchesTable.businessId, businessId)];
     if (query.status) conditions.push(eq(matchesTable.status, query.status));
     if (query.minFit) conditions.push(gte(matchesTable.fitScore, query.minFit));
     if (query.maxFit) conditions.push(lte(matchesTable.fitScore, query.maxFit));
@@ -109,7 +109,7 @@ router.get("/matches/:tenderId", async (req, res) => {
       .select()
       .from(matchesTable)
       .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
-      .where(and(eq(matchesTable.tenderId, tenderId), eq(matchesTable.businessId, DEFAULT_BIZ)));
+      .where(and(eq(matchesTable.tenderId, tenderId), eq(matchesTable.businessId, getBusinessId(req))));
 
     let tenderRow: typeof tendersTable.$inferSelect;
     let matchPayload: ReturnType<typeof formatMatch>;
@@ -157,7 +157,7 @@ router.get("/matches/:tenderId", async (req, res) => {
     const [profile] = await db
       .select()
       .from(companyProfilesTable)
-      .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
+      .where(eq(companyProfilesTable.businessId, getBusinessId(req)))
       .limit(1);
 
     let criteriaCompliance: Array<{ criterion: string; compliant: boolean | null; note: string | null }>;
@@ -193,7 +193,7 @@ router.patch("/matches/:tenderId/status", async (req, res) => {
     const [updated] = await db
       .update(matchesTable)
       .set({ status: body.status })
-      .where(and(eq(matchesTable.tenderId, tenderId), eq(matchesTable.businessId, DEFAULT_BIZ)))
+      .where(and(eq(matchesTable.tenderId, tenderId), eq(matchesTable.businessId, getBusinessId(req))))
       .returning();
 
     if (!updated) return res.status(404).json({ error: "Not found" });

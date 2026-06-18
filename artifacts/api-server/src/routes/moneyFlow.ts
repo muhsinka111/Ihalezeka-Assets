@@ -1,15 +1,16 @@
 import { Router } from "express";
-import { requirePro } from "../lib/authHelpers.js";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 import { db } from "@workspace/db";
-import { tendersTable } from "@workspace/db";
-import { sql, isNotNull, desc } from "drizzle-orm";
+import { tendersTable, matchesTable } from "@workspace/db";
+import { sql, isNotNull, desc, eq } from "drizzle-orm";
 
 const router = Router();
 
 router.use("/money-flow", requirePro);
 
-router.get("/money-flow/monthly", async (_req, res) => {
+router.get("/money-flow/monthly", async (req, res) => {
   try {
+    const businessId = getBusinessId(req);
     const rows = await db
       .select({
         month: sql<string>`to_char(${tendersTable.createdAt}, 'Mon')`,
@@ -17,7 +18,8 @@ router.get("/money-flow/monthly", async (_req, res) => {
         amount: sql<number>`COALESCE(SUM(${tendersTable.estimatedValue}), 0)`,
       })
       .from(tendersTable)
-      .where(isNotNull(tendersTable.estimatedValue))
+      .innerJoin(matchesTable, eq(matchesTable.tenderId, tendersTable.id))
+      .where(sql`${tendersTable.estimatedValue} IS NOT NULL AND ${matchesTable.businessId} = ${businessId}`)
       .groupBy(
         sql`to_char(${tendersTable.createdAt}, 'YYYY-MM')`,
         sql`to_char(${tendersTable.createdAt}, 'Mon')`,
@@ -31,15 +33,17 @@ router.get("/money-flow/monthly", async (_req, res) => {
   }
 });
 
-router.get("/money-flow/categories", async (_req, res) => {
+router.get("/money-flow/categories", async (req, res) => {
   try {
+    const businessId = getBusinessId(req);
     const rows = await db
       .select({
         category: tendersTable.type,
         amount: sql<number>`COALESCE(SUM(${tendersTable.estimatedValue}), 0)`,
       })
       .from(tendersTable)
-      .where(isNotNull(tendersTable.estimatedValue))
+      .innerJoin(matchesTable, eq(matchesTable.tenderId, tendersTable.id))
+      .where(sql`${tendersTable.estimatedValue} IS NOT NULL AND ${matchesTable.businessId} = ${businessId}`)
       .groupBy(tendersTable.type)
       .orderBy(sql`SUM(${tendersTable.estimatedValue}) DESC`)
       .limit(8);
@@ -58,8 +62,9 @@ router.get("/money-flow/categories", async (_req, res) => {
   }
 });
 
-router.get("/money-flow/top-agencies", async (_req, res) => {
+router.get("/money-flow/top-agencies", async (req, res) => {
   try {
+    const businessId = getBusinessId(req);
     const rows = await db
       .select({
         agencyName: tendersTable.agencyName,
@@ -69,7 +74,8 @@ router.get("/money-flow/top-agencies", async (_req, res) => {
         il: sql<string>`MAX(${tendersTable.il})`,
       })
       .from(tendersTable)
-      .where(isNotNull(tendersTable.estimatedValue))
+      .innerJoin(matchesTable, eq(matchesTable.tenderId, tendersTable.id))
+      .where(sql`${tendersTable.estimatedValue} IS NOT NULL AND ${matchesTable.businessId} = ${businessId}`)
       .groupBy(tendersTable.agencyName)
       .orderBy(sql`SUM(${tendersTable.estimatedValue}) DESC`)
       .limit(10);
@@ -88,8 +94,9 @@ router.get("/money-flow/top-agencies", async (_req, res) => {
   }
 });
 
-router.get("/money-flow/recent-ticker", async (_req, res) => {
+router.get("/money-flow/recent-ticker", async (req, res) => {
   try {
+    const businessId = getBusinessId(req);
     const rows = await db
       .select({
         id: tendersTable.id,
@@ -99,7 +106,8 @@ router.get("/money-flow/recent-ticker", async (_req, res) => {
         type: tendersTable.type,
       })
       .from(tendersTable)
-      .where(isNotNull(tendersTable.estimatedValue))
+      .innerJoin(matchesTable, eq(matchesTable.tenderId, tendersTable.id))
+      .where(sql`${tendersTable.estimatedValue} IS NOT NULL AND ${matchesTable.businessId} = ${businessId}`)
       .orderBy(desc(tendersTable.createdAt))
       .limit(30);
 

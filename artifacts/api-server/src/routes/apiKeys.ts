@@ -3,9 +3,9 @@ import { db } from "@workspace/db";
 import { apiKeysTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
+import { getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
-const DEFAULT_BIZ = "demo-business";
 
 const ENCRYPTION_KEY = process.env.API_KEY_ENCRYPTION_SECRET || "ihalezeka-dev-key-32-bytes-long!!";
 const IV_LENGTH = 16;
@@ -41,7 +41,7 @@ router.get("/api-keys", async (req, res) => {
         createdAt: apiKeysTable.createdAt,
       })
       .from(apiKeysTable)
-      .where(eq(apiKeysTable.businessId, DEFAULT_BIZ));
+      .where(eq(apiKeysTable.businessId, getBusinessId(req)));
     res.json(items.map(fmt));
   } catch {
     res.status(500).json({ error: "Internal server error" });
@@ -58,7 +58,7 @@ router.post("/api-keys", async (req, res) => {
 
     const [created] = await db
       .insert(apiKeysTable)
-      .values({ businessId: DEFAULT_BIZ, provider, encryptedKey, maskedKey })
+      .values({ businessId: getBusinessId(req), provider, encryptedKey, maskedKey })
       .returning({
         id: apiKeysTable.id,
         provider: apiKeysTable.provider,
@@ -79,7 +79,7 @@ router.delete("/api-keys/:id", async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ error: "Invalid id" });
     await db
       .delete(apiKeysTable)
-      .where(and(eq(apiKeysTable.id, id), eq(apiKeysTable.businessId, DEFAULT_BIZ)));
+      .where(and(eq(apiKeysTable.id, id), eq(apiKeysTable.businessId, getBusinessId(req))));
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Internal server error" });

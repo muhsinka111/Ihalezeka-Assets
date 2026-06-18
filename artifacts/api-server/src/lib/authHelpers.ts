@@ -7,16 +7,18 @@ import { eq, sql, gt, and } from "drizzle-orm";
 /**
  * Returns the businessId to scope all queries against.
  *
- * Currently returns "demo-business" to match every other route in this
- * codebase (companyProfile, matches, pipeline, dashboard, etc.). All data —
- * company profiles, matches, notifications — lives under this single tenant.
+ * For authenticated Clerk sessions the Clerk userId IS the businessId (1:1).
+ * For the dev-bypass sentinel ("demo-user") we return "demo-business" so that
+ * all existing seed data remains accessible during local development — the same
+ * mapping already applied in companyProfile.ts.
  *
- * When a full cross-route auth migration happens (mapping Clerk userId →
- * businessId for every route and backfilling existing data), this helper
- * is the single place to update.
+ * Real Clerk users start with empty state and build their own data under their
+ * userId; no "demo-business" data is ever surfaced to them.
  */
-export function getBusinessId(_req: Request): string {
-  return "demo-business";
+export function getBusinessId(req: Request): string {
+  const userId = getUserId(req);
+  if (userId === DEFAULT_USER_ID) return "demo-business";
+  return userId;
 }
 
 /**

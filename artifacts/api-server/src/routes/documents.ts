@@ -3,14 +3,14 @@ import { db } from "@workspace/db";
 import { documentsTable } from "@workspace/db";
 import { eq, and, type SQL } from "drizzle-orm";
 import { ListDocumentsQueryParams, DeleteDocumentParams } from "@workspace/api-zod";
+import { getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
-const DEFAULT_BIZ = "demo-business";
 
 router.get("/documents", async (req, res) => {
   try {
     const query = ListDocumentsQueryParams.parse(req.query);
-    const conditions: SQL[] = [eq(documentsTable.businessId, DEFAULT_BIZ)];
+    const conditions: SQL[] = [eq(documentsTable.businessId, getBusinessId(req))];
     if (query.folder) conditions.push(eq(documentsTable.folder, query.folder));
 
     const items = await db
@@ -29,7 +29,7 @@ router.post("/documents", async (req, res) => {
     const { name, folder, fileUrl, validUntil } = req.body;
     const [doc] = await db
       .insert(documentsTable)
-      .values({ name, folder, fileUrl, validUntil, businessId: DEFAULT_BIZ, status: "valid" })
+      .values({ name, folder, fileUrl, validUntil, businessId: getBusinessId(req), status: "valid" })
       .returning();
     res.status(201).json({ ...doc, createdAt: doc.createdAt?.toISOString?.() ?? doc.createdAt });
   } catch {
@@ -42,7 +42,7 @@ router.delete("/documents/:id", async (req, res) => {
     const { id } = DeleteDocumentParams.parse(req.params);
     await db
       .delete(documentsTable)
-      .where(and(eq(documentsTable.id, id), eq(documentsTable.businessId, DEFAULT_BIZ)));
+      .where(and(eq(documentsTable.id, id), eq(documentsTable.businessId, getBusinessId(req))));
     res.status(204).send();
   } catch {
     res.status(500).json({ error: "Internal server error" });
@@ -54,7 +54,7 @@ router.get("/documents/folders", async (req, res) => {
     const docs = await db
       .select()
       .from(documentsTable)
-      .where(eq(documentsTable.businessId, DEFAULT_BIZ));
+      .where(eq(documentsTable.businessId, getBusinessId(req)));
 
     const folderMap: Record<string, { count: number; expiringCount: number }> = {};
     for (const doc of docs) {

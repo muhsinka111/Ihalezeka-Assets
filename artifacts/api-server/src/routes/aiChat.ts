@@ -6,14 +6,12 @@ import { logger } from "../lib/logger.js";
 import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { mapEkapToTender } from "../scrapers/utils.js";
 import { getTenderDetailsViaMcp, getTenderAnnouncementsViaMcp } from "../scrapers/ihalemcp-client.js";
-import { requirePro } from "../lib/authHelpers.js";
+import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 
 const router = Router();
 
 // Premium-only: the AI assistant is a Pro feature.
 router.use("/ai", requirePro);
-
-const DEFAULT_BIZ = "demo-business";
 
 const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL ?? "gpt-5.1";
 
@@ -401,13 +399,13 @@ async function runGetTenderDetail(args: { id: string }) {
   };
 }
 
-async function runGetTopMatches(args: { limit?: number }) {
+async function runGetTopMatches(args: { limit?: number }, businessId: string) {
   const limit = Math.min(args.limit ?? 6, 10);
   const rows = await db
     .select()
     .from(matchesTable)
     .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
-    .where(eq(matchesTable.businessId, DEFAULT_BIZ))
+    .where(eq(matchesTable.businessId, businessId))
     .orderBy(desc(matchesTable.fitScore))
     .limit(limit);
 
@@ -430,7 +428,7 @@ async function runGetUpcomingDeadlines(args: { limit?: number }) {
   return rows.map(serializeTender);
 }
 
-async function runAddToPipeline(args: { tenderId: number }) {
+async function runAddToPipeline(args: { tenderId: number }, businessId: string) {
   const [tender] = await db
     .select()
     .from(tendersTable)
@@ -444,7 +442,7 @@ async function runAddToPipeline(args: { tenderId: number }) {
     .from(pipelineItemsTable)
     .where(
       and(
-        eq(pipelineItemsTable.businessId, DEFAULT_BIZ),
+        eq(pipelineItemsTable.businessId, businessId),
         eq(pipelineItemsTable.tenderId, args.tenderId)
       )
     )
@@ -453,7 +451,7 @@ async function runAddToPipeline(args: { tenderId: number }) {
     return { ok: true, alreadyExists: true, message: `"${tender.title}" zaten takip listenizde.`, tender: serializeTender(tender) };
   }
   await db.insert(pipelineItemsTable).values({
-    businessId: DEFAULT_BIZ,
+    businessId,
     tenderId: args.tenderId,
     stage: "discovery",
   });
@@ -468,7 +466,7 @@ const TOOL_STATUS_LABELS: Record<string, string> = {
   add_to_pipeline: "Pipeline'a ekleniyor…",
 };
 
-async function executeTool(name: string, args: any, sse: (obj: unknown) => void) {
+async function executeTool(name: string, args: any, sse: (obj: unknown) => void, businessId: string) {
   switch (name) {
     case "search_tenders": {
       const results = await runSearchTenders(args);
@@ -496,7 +494,7 @@ async function executeTool(name: string, args: any, sse: (obj: unknown) => void)
       return result;
     }
     case "get_top_matches": {
-      const results = await runGetTopMatches(args);
+      const results = await runGetTopMatches(args, businessId);
       if (results.length) sse({ tenders: results });
       return { count: results.length, matches: results };
     }
@@ -506,7 +504,7 @@ async function executeTool(name: string, args: any, sse: (obj: unknown) => void)
       return { count: results.length, tenders: results };
     }
     case "add_to_pipeline": {
-      const result = await runAddToPipeline(args);
+      const result = await runAddToPipeline(args, businessId);
       sse({ action: { type: "pipeline_added", ok: result.ok, message: result.message } });
       return result;
     }
@@ -533,6 +531,7 @@ router.post("/ai/chat", async (req, res) => {
     }
 
     const chatContext: ChatContext = context ?? { mode: "general" };
+    const businessId = getBusinessId(req);
 
     // Always fetch company profile so aiBrief is injected in every mode.
     if (!chatContext.aiBrief) {
@@ -540,7 +539,7 @@ router.post("/ai/chat", async (req, res) => {
         const profileFetch = db
           .select()
           .from(companyProfilesTable)
-          .where(eq(companyProfilesTable.businessId, DEFAULT_BIZ))
+          .where(eq(companyProfilesTable.businessId, businessId))
           .limit(1);
 
         if (chatContext.mode === "general" && !chatContext.topMatches) {
@@ -549,7 +548,7 @@ router.post("/ai/chat", async (req, res) => {
               .select()
               .from(matchesTable)
               .innerJoin(tendersTable, eq(matchesTable.tenderId, tendersTable.id))
-              .where(eq(matchesTable.businessId, DEFAULT_BIZ))
+              .where(eq(matchesTable.businessId, businessId))
               .orderBy(desc(matchesTable.fitScore))
               .limit(6),
             profileFetch,
@@ -661,7 +660,7 @@ router.post("/ai/chat", async (req, res) => {
         }
         let result: unknown;
         try {
-          result = await executeTool(call.name, parsedArgs, sse);
+          result = await executeTool(call.name, parsedArgs, sse, businessId);
         } catch (toolErr) {
           logger.warn({ toolErr, tool: call.name }, "Tool execution failed");
           result = { error: "Araç çalıştırılamadı." };
