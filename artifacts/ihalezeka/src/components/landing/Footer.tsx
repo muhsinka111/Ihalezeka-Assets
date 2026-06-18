@@ -17,30 +17,30 @@ export function Footer() {
           <div>
             <h4 className="font-bold font-heading mb-4 text-foreground">Ürün</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Gösterge Paneli</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">İhale Arama</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Rakip Analizi</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Otomatik Teklif</Link></li>
+              <li><a href="#ozellikler" className="hover:text-primary transition-colors">Özellikler</a></li>
+              <li><a href="#nasil-calisir" className="hover:text-primary transition-colors">Nasıl Çalışır</a></li>
+              <li><a href="#moduller" className="hover:text-primary transition-colors">Modüller</a></li>
+              <li><a href="#fiyatlandirma" className="hover:text-primary transition-colors">Fiyatlandırma</a></li>
             </ul>
           </div>
           
           <div>
-            <h4 className="font-bold font-heading mb-4 text-foreground">Şirket</h4>
+            <h4 className="font-bold font-heading mb-4 text-foreground">Hesap</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Hakkımızda</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Kariyer</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">İletişim</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Blog</Link></li>
+              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Kayıt Ol</Link></li>
+              <li><Link href="/sign-in" className="hover:text-primary transition-colors">Giriş Yap</Link></li>
+              <li><Link href="/fiyatlandirma" className="hover:text-primary transition-colors">Fiyatlandırma</Link></li>
+              <li><Link href="/ihale-arama" className="hover:text-primary transition-colors">İhale Arama</Link></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-bold font-heading mb-4 text-foreground">Yasal</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Gizlilik Politikası</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Kullanım Şartları</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">KVKK Aydınlatma</Link></li>
-              <li><Link href="/sign-up" className="hover:text-primary transition-colors">Çerez Politikası</Link></li>
+              <li><span className="cursor-default">Gizlilik Politikası</span></li>
+              <li><span className="cursor-default">Kullanım Şartları</span></li>
+              <li><span className="cursor-default">KVKK Aydınlatma</span></li>
+              <li><span className="cursor-default">Çerez Politikası</span></li>
             </ul>
           </div>
         </div>

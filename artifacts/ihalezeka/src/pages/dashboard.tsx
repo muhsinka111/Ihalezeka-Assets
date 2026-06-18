@@ -370,7 +370,6 @@ export default function DashboardPage() {
                   <IconRobot className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <span className="font-heading font-semibold text-sm text-foreground">AI Asistanınız</span>
-                <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-primary text-primary-foreground border-0">BETA</Badge>
               </div>
               <Link href="/firsatlarim">
                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">

@@ -150,7 +150,6 @@ export default function TeklifOlusturucuPage() {
           <h1 className="text-2xl font-bold font-heading tracking-tight">Teklif Oluşturucu</h1>
           <p className="text-muted-foreground text-sm">Yapay zeka ile teklif taslağınızı oluşturun ve düzenleyin.</p>
         </div>
-        <Badge variant="outline" className="text-primary border-primary/30">BETA</Badge>
       </div>
 
       {/* Tender selector */}

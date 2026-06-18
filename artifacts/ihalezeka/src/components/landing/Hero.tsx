@@ -53,10 +53,14 @@ export function Hero() {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            {/* DEV BYPASS button — remove and restore sign-up/sign-in links when going to production */}
-            <Link href="/dashboard">
+            <Link href="/sign-up">
               <Button size="lg" className="h-14 px-8 text-base font-bold shadow-lg shadow-primary/25 w-full sm:w-auto">
-                Beta Girişi — Geliştirici Erişimi <IconArrowRight className="ml-2 w-5 h-5" />
+                Hemen Başla <IconArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Link href="#fiyatlandirma">
+              <Button size="lg" variant="outline" className="h-14 px-8 text-base font-semibold w-full sm:w-auto">
+                Fiyatlandırma
               </Button>
             </Link>
           </motion.div>
@@ -77,7 +81,7 @@ export function Hero() {
             </div>
             <div className="flex items-center gap-2">
               <IconChartBar className="w-5 h-5 text-primary" />
-              <span>Gelişmiş Veri Analizi</span>
+              <span>500+ Firma Kullanıyor</span>
             </div>
           </motion.div>
         </div>

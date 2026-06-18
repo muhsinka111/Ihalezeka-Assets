@@ -364,11 +364,7 @@ export function AppShell({ children }: AppShellProps) {
             >
               <IconRobot className="h-3.5 w-3.5" />
               AI Asistan
-              {isPro ? (
-                <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 bg-white/20 text-white border-0">BETA</Badge>
-              ) : (
-                <IconLock className="h-3 w-3 text-yellow-300" />
-              )}
+              {!isPro && <IconLock className="h-3 w-3 text-yellow-300" />}
             </Button>
 
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleDark}>
@@ -575,7 +571,6 @@ function AiPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
           <div className="flex items-center gap-2.5">
             <IconRobot className="h-5 w-5 text-primary" />
             <span className="font-heading font-bold text-base">İhaleZeka'ya Sor</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">BETA</Badge>
             {elapsedMs !== null && (
               <span className={cn(
                 "text-[11px] text-muted-foreground transition-opacity duration-500",

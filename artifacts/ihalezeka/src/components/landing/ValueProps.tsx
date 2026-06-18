@@ -363,7 +363,7 @@ export function ValueProps() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/60 border border-border/50 text-sm text-muted-foreground">
             <IconShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-            EKAP verisiyle anlık senkronize · Ücretsiz 14 gün deneyin · Kredi kartı gerekmez
+            EKAP verisiyle anlık senkronize · 500+ firma kullanıyor · Stripe ile güvenli ödeme
           </div>
         </motion.div>
 

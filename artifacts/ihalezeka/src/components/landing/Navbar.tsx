@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export function Navbar() {
@@ -32,6 +32,7 @@ export function Navbar() {
           <a href="#ozellikler" className="hover:text-foreground transition-colors">Özellikler</a>
           <a href="#nasil-calisir" className="hover:text-foreground transition-colors">Nasıl Çalışır</a>
           <a href="#moduller" className="hover:text-foreground transition-colors">Modüller</a>
+          <a href="#fiyatlandirma" className="hover:text-foreground transition-colors">Fiyatlandırma</a>
         </nav>
 
         <div className="flex items-center gap-3 md:gap-4">
@@ -39,7 +40,7 @@ export function Navbar() {
             <Button variant="ghost" className="font-semibold hidden sm:inline-flex">Giriş Yap</Button>
           </Link>
           <Link href="/sign-up">
-            <Button className="font-semibold shadow-md">Kayıt Ol</Button>
+            <Button className="font-semibold shadow-md">Hemen Başla</Button>
           </Link>
         </div>
       </div>

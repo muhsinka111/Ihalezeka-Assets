@@ -3,17 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   IconCheck,
   IconBolt,
-  IconCrown,
-  IconSearch,
   IconSettings,
+  IconArrowRight,
+  IconShieldCheck,
 } from "@tabler/icons-react";
 import { startCheckout, openBillingPortal } from "@/lib/billing";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@clerk/react";
+import { Link } from "wouter";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -30,20 +30,14 @@ interface BillingProduct {
   prices: BillingPrice[];
 }
 
-const FREE_FEATURES = [
-  "Tüm kaynaklarda ihale arama (EKAP ve daha fazlası)",
-  "İhale listeleri ve kart görünümü",
-  "Temel ihale detayları ve kısa özet",
-  "Kaynak bağlantısı ile resmi ilana erişim",
-];
-
 const PRO_FEATURES = [
-  "Tam ilan metni, belgeler ve iletişim bilgileri",
-  "Yapay zeka uygunluk analizi (skor, artılar, riskler, kriterler)",
-  "Doküman sohbeti ile ihale belgelerini sorgulama",
-  "Boru hattı, teklif oluşturucu ve başvuru sihirbazı",
-  "Rakip analizi, para akışı ve raporlar",
+  "Sınırsız ihale araması (EKAP, İlan.gov ve daha fazlası)",
+  "Yapay zeka uygunluk analizi — skor, artılar, riskler",
+  "Şartname doküman sohbeti",
+  "Boru hattı ve teklif oluşturucu",
+  "Rakip analizi ve para akışı raporları",
   "Kayıtlı arama uyarıları ve dışa aktarma",
+  "Başvuru sihirbazı ve belge yönetimi",
 ];
 
 const INTERVAL_LABEL: Record<string, string> = {
@@ -53,11 +47,14 @@ const INTERVAL_LABEL: Record<string, string> = {
   day: "gün",
 };
 
-/** Format a Stripe price (minor units) into a Turkish lira string. */
 function formatPrice(price: BillingPrice | null): { amount: string; interval: string } {
-  if (!price || price.unitAmount == null) return { amount: "₺499", interval: "ay" };
+  if (!price || price.unitAmount == null) return { amount: "$99", interval: "ay" };
   const major = price.unitAmount / 100;
-  const symbol = price.currency?.toLowerCase() === "try" ? "₺" : "";
+  const currency = price.currency?.toLowerCase();
+  let symbol = "";
+  if (currency === "try") symbol = "₺";
+  else if (currency === "usd") symbol = "$";
+  else if (currency === "eur") symbol = "€";
   const amount = `${symbol}${major.toLocaleString("tr-TR")}`;
   const interval = INTERVAL_LABEL[price.recurring?.interval ?? "month"] ?? "ay";
   return { amount, interval };
@@ -65,6 +62,7 @@ function formatPrice(price: BillingPrice | null): { amount: string; interval: st
 
 export default function FiyatlandirmaPage() {
   const { isPro } = useEntitlement();
+  const { isSignedIn } = useAuth();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
 
@@ -110,93 +108,88 @@ export default function FiyatlandirmaPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-8">
       <div className="space-y-2 text-center">
-        <h1 className="font-heading text-2xl font-bold sm:text-3xl">Size uygun planı seçin</h1>
+        <h1 className="font-heading text-2xl font-bold sm:text-3xl">Pro Plan</h1>
         <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-          Arama her zaman ücretsiz. Kazanmanızı sağlayan zekâ — analiz, belgeler ve araçlar — Pro
-          planında.
+          İhaleZeka'nın tüm gücü — yapay zeka analizi, belgeler, pipeline ve araçlar — tek planda.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Free plan */}
-        <Card className="flex flex-col">
-          <CardContent className="flex flex-1 flex-col gap-5 p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
-                <IconSearch className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <h2 className="font-heading text-lg font-bold">Ücretsiz</h2>
-                <p className="text-xs text-muted-foreground">Aramaya hemen başlayın</p>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold">₺0</span>
-              <span className="text-sm text-muted-foreground">/ ay</span>
-            </div>
-            <ul className="flex-1 space-y-2.5">
-              {FREE_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm">
-                  <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            <Button variant="outline" className="w-full" disabled>
-              {isPro ? "Mevcut taban plan" : "Mevcut planınız"}
-            </Button>
-          </CardContent>
-        </Card>
+      <Card className="relative overflow-hidden border-2 border-primary shadow-xl shadow-primary/10">
+        {/* Top accent */}
+        <div className="h-1.5 bg-gradient-to-r from-primary to-violet-500" />
 
-        {/* Pro plan */}
-        <Card className={cn("relative flex flex-col overflow-hidden", !isPro && "ring-2 ring-primary")}>
-          <div className="absolute right-4 top-4">
-            <Badge className="gap-1 bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
-              <IconCrown className="h-3 w-3 text-yellow-300" /> Önerilen
-            </Badge>
+        <CardContent className="flex flex-col gap-6 p-8">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/30">
+              <IconBolt className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="font-heading text-xl font-bold">Pro Plan</h2>
+              <p className="text-xs text-muted-foreground">Kazanmak için tam donanım</p>
+            </div>
           </div>
-          <CardContent className="flex flex-1 flex-col gap-5 p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600">
-                <IconBolt className="h-5 w-5 text-yellow-300" />
-              </div>
-              <div>
-                <h2 className="font-heading text-lg font-bold">Pro</h2>
-                <p className="text-xs text-muted-foreground">Kazanmak için tam donanım</p>
-              </div>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="text-3xl font-bold">{amount}</span>
-              <span className="text-sm text-muted-foreground">/ {interval}</span>
-            </div>
-            <ul className="flex-1 space-y-2.5">
-              {PRO_FEATURES.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm">
-                  <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-            {isPro ? (
-              <Button variant="outline" className="w-full gap-2" onClick={handleManage} disabled={portalLoading}>
-                <IconSettings className="h-4 w-4" />
-                {portalLoading ? "Açılıyor…" : "Aboneliği Yönet"}
-              </Button>
-            ) : (
-              <Button className="w-full gap-2" onClick={handleUpgrade} disabled={checkoutLoading}>
-                <IconBolt className="h-4 w-4" />
-                {checkoutLoading ? "Yönlendiriliyor…" : "Pro'ya Yükselt"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
-      <p className="text-center text-xs text-muted-foreground">
-        İstediğiniz zaman iptal edebilirsiniz. Ödemeler Stripe ile güvenli şekilde işlenir.
-      </p>
+          {/* Price */}
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-5xl font-extrabold">{amount}</span>
+              <span className="text-base text-muted-foreground font-medium">/ {interval}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              İstediğiniz zaman iptal edebilirsiniz
+            </p>
+          </div>
+
+          {/* CTA */}
+          {isPro ? (
+            <Button
+              variant="outline"
+              className="w-full gap-2 h-12"
+              onClick={handleManage}
+              disabled={portalLoading}
+            >
+              <IconSettings className="h-4 w-4" />
+              {portalLoading ? "Açılıyor…" : "Aboneliği Yönet"}
+            </Button>
+          ) : isSignedIn ? (
+            <Button
+              className="w-full gap-2 h-12 text-base font-bold shadow-lg shadow-primary/20"
+              onClick={handleUpgrade}
+              disabled={checkoutLoading}
+            >
+              <IconBolt className="h-4 w-4" />
+              {checkoutLoading ? "Yönlendiriliyor…" : "Pro'ya Geç"}
+            </Button>
+          ) : (
+            <Link href="/sign-up">
+              <Button className="w-full gap-2 h-12 text-base font-bold shadow-lg shadow-primary/20">
+                <IconArrowRight className="h-5 w-5" />
+                Hemen Başla
+              </Button>
+            </Link>
+          )}
+
+          {/* Features */}
+          <ul className="space-y-3">
+            {PRO_FEATURES.map((f) => (
+              <li key={f} className="flex items-start gap-3 text-sm">
+                <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <IconCheck className="h-3 w-3 text-primary" />
+                </div>
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <div className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground">
+        <IconShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+        Ödemeler Stripe ile güvenli şekilde işlenir
+      </div>
     </div>
   );
 }
