@@ -22,6 +22,7 @@ import ParaAkisiPage from "@/pages/para-akisi";
 import BelgelerimPage from "@/pages/belgelerim";
 import RaporlarPage from "@/pages/raporlar";
 import EntegrasyonlarPage from "@/pages/entegrasyonlar";
+import AyarlarPage from "@/pages/ayarlar";
 import PazarlamaPage from "@/pages/pazarlama/index";
 import ContentGeneratorPage from "@/pages/pazarlama/content-generator";
 import ContentCalendarPage from "@/pages/pazarlama/content-calendar";
@@ -303,6 +304,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/fiyatlandirma"><ProtectedRoute component={FiyatlandirmaPage} /></Route>
           <Route path="/belgelerim"><ProtectedRoute component={BelgelerimPage} /></Route>
           <Route path="/entegrasyonlar"><ProtectedRoute component={EntegrasyonlarPage} /></Route>
+          <Route path="/ayarlar"><ProtectedRoute component={AyarlarPage} /></Route>
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
