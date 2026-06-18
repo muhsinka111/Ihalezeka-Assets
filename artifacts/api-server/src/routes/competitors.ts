@@ -298,24 +298,20 @@ router.get("/competitors/insights", async (req, res) => {
         .join("; ");
 
       try {
-        const { openai } = await import("@workspace/integrations-openai-ai-server");
-        const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+        const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+        const completion = await anthropic.messages.create({
+          model: "claude-opus-4-8",
+          max_tokens: 250,
+          system: "Sen Türkiye kamu ihalesi danışmanısın. Rakip analizi verilerini inceleyerek kullanıcıya kısa, pratik Türkçe tavsiye ver. 2-3 cümle, sade dil.",
           messages: [
-            {
-              role: "system",
-              content:
-                "Sen Türkiye kamu ihalesi danışmanısın. Rakip analizi verilerini inceleyerek kullanıcıya kısa, pratik Türkçe tavsiye ver. 2-3 cümle, sade dil.",
-            },
             {
               role: "user",
               content: `Profil kapsamında ${total} ihale sonucuna göre öne çıkan rakipler: ${topList}. Bu verilere dayanarak stratejik tavsiye ver.`,
             },
           ],
-          max_tokens: 250,
-          temperature: 0.6,
-        } as any);
-        aiInsight = completion.choices[0]?.message?.content?.trim() ?? topList;
+        });
+        const firstBlock = completion.content[0];
+        aiInsight = firstBlock?.type === "text" ? firstBlock.text.trim() : topList;
       } catch (err) {
         logger.debug({ err }, "AI insight generation failed, using fallback");
         aiInsight = `${total} ihale sonucu analiz edildi. Sektörde öne çıkan rakipler: ${topList}.`;

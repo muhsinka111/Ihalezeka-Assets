@@ -731,31 +731,23 @@ Lütfen aşağıdaki JSON formatında yanıt ver:
 }`;
 
   try {
-    const aiRes = await fetch("https://ai.replit.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env["REPLIT_AI_API_KEY"] ?? ""}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.7,
-      }),
+    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const aiRes = await anthropic.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 2048,
+      system: systemPrompt + "\n\nYalnızca geçerli JSON döndür, başka açıklama ekleme.",
+      messages: [{ role: "user", content: userPrompt }],
     });
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      logger.error({ errText }, "AI API error");
-      return res.status(502).json({ error: "AI generation failed", detail: errText });
+    const firstBlock = aiRes.content[0];
+    const rawText = firstBlock?.type === "text" ? firstBlock.text : "{}";
+    let content: Record<string, string> = {};
+    try {
+      const m = rawText.match(/\{[\s\S]*\}/);
+      if (m) content = JSON.parse(m[0]) as Record<string, string>;
+    } catch {
+      content = {};
     }
-
-    const aiData = await aiRes.json() as { choices: Array<{ message: { content: string } }> };
-    const content = JSON.parse(aiData.choices[0]?.message?.content ?? "{}") as Record<string, string>;
 
     let imageUrl: string | null = null;
 

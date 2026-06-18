@@ -6,7 +6,7 @@ import {
 } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { logger } from "./logger.js";
-import { batchProcess } from "@workspace/integrations-openai-ai-server/batch";
+import { batchProcess } from "@workspace/integrations-anthropic-ai/batch";
 
 export interface ScoredMatch {
   tenderId: number;
@@ -193,11 +193,11 @@ let _aiAvailable: boolean | null = null;
 function isAiAvailable(): boolean {
   if (_aiAvailable === null) {
     _aiAvailable =
-      !!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
-      !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+      !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL &&
+      !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     if (!_aiAvailable) {
       logger.warn(
-        "AI_INTEGRATIONS_OPENAI_BASE_URL or AI_INTEGRATIONS_OPENAI_API_KEY not set — " +
+        "AI_INTEGRATIONS_ANTHROPIC_BASE_URL or AI_INTEGRATIONS_ANTHROPIC_API_KEY not set — " +
           "tender scoring will use rule-based fallback only"
       );
     }
@@ -209,18 +209,19 @@ async function scoreWithAi(
   tender: typeof tendersTable.$inferSelect,
   profile: typeof companyProfilesTable.$inferSelect,
 ): Promise<AiScoreResult> {
-  const { openai } = await import("@workspace/integrations-openai-ai-server");
+  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
 
   const prompt = buildScoringPrompt(tender, profile);
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    max_completion_tokens: 512,
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-8",
+    max_tokens: 512,
+    system: "Sen bir ihale uyum analisti olarak çalışıyorsun. Yalnızca geçerli JSON döndür, başka açıklama ekleme.",
     messages: [{ role: "user", content: prompt }],
-    response_format: { type: "json_object" },
   });
 
-  const content = response.choices[0]?.message?.content;
+  const firstBlock = response.content[0];
+  const content = firstBlock?.type === "text" ? firstBlock.text : null;
   if (!content) throw new Error("Empty AI response");
 
   const parsed = JSON.parse(content) as Partial<AiScoreResult>;

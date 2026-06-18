@@ -13,20 +13,7 @@ const router = Router();
 // Premium-only: the AI assistant is a Pro feature.
 router.use("/ai", requirePro);
 
-const AI_CHAT_MODEL = process.env.AI_CHAT_MODEL ?? "gpt-5.1";
-
-// gpt-5+ models: no temperature, use max_completion_tokens
-// gpt-4 and earlier: temperature + max_tokens
-const isLegacyModel =
-  AI_CHAT_MODEL.startsWith("gpt-4") ||
-  AI_CHAT_MODEL.startsWith("gpt-3") ||
-  AI_CHAT_MODEL.startsWith("o1");
-
-function modelParams(maxTokens: number) {
-  return isLegacyModel
-    ? { max_tokens: maxTokens, temperature: 0.7 }
-    : { max_completion_tokens: maxTokens };
-}
+const AI_CHAT_MODEL = "claude-opus-4-8";
 
 interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -157,86 +144,71 @@ Kurallar:
 
 // ── Agent tools ────────────────────────────────────────────────────
 
-const TOOLS = [
+const TOOLS_ANTHROPIC = [
   {
-    type: "function" as const,
-    function: {
-      name: "search_tenders",
-      description:
-        "Türkiye kamu ihale veritabanında aktif (süresi geçmemiş) ihaleleri arar. Kullanıcı bir konu, anahtar kelime, şehir veya ihale türü için ihale aramak istediğinde kullan.",
-      parameters: {
-        type: "object",
-        properties: {
-          q: {
-            type: "string",
-            description: "İhale başlığı veya kurum adında aranacak anahtar kelime (ör. 'yazılım', 'inşaat', 'tıbbi cihaz').",
-          },
-          il: { type: "string", description: "İhalenin yapılacağı il (ör. 'Ankara', 'İstanbul')." },
-          type: { type: "string", description: "İhale türü: 'Mal', 'Hizmet' veya 'Yapım'." },
-          limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 8, en fazla 12)." },
+    name: "search_tenders",
+    description:
+      "Türkiye kamu ihale veritabanında aktif (süresi geçmemiş) ihaleleri arar. Kullanıcı bir konu, anahtar kelime, şehir veya ihale türü için ihale aramak istediğinde kullan.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        q: {
+          type: "string",
+          description: "İhale başlığı veya kurum adında aranacak anahtar kelime (ör. 'yazılım', 'inşaat', 'tıbbi cihaz').",
         },
+        il: { type: "string", description: "İhalenin yapılacağı il (ör. 'Ankara', 'İstanbul')." },
+        type: { type: "string", description: "İhale türü: 'Mal', 'Hizmet' veya 'Yapım'." },
+        limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 8, en fazla 12)." },
       },
     },
   },
   {
-    type: "function" as const,
-    function: {
-      name: "get_tender_detail",
-      description:
-        "Belirli bir ihalenin tam detaylarını döndürür: açıklama, belgeler, AI özeti, CPV kodları, ihale yöntemi. Kullanıcı belirli bir ihale hakkında detaylı soru sorduğunda ya da ihale ID veya IKN numarası bilindiğinde kullan.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "string",
-            description: "İhalenin sayısal veritabanı ID'si (ör. '142') veya IKN kodu (ör. '2024/123456'). search_tenders sonucundaki id alanından alınabilir.",
-          },
+    name: "get_tender_detail",
+    description:
+      "Belirli bir ihalenin tam detaylarını döndürür: açıklama, belgeler, AI özeti, CPV kodları, ihale yöntemi. Kullanıcı belirli bir ihale hakkında detaylı soru sorduğunda ya da ihale ID veya IKN numarası bilindiğinde kullan.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        id: {
+          type: "string",
+          description: "İhalenin sayısal veritabanı ID'si (ör. '142') veya IKN kodu (ör. '2024/123456'). search_tenders sonucundaki id alanından alınabilir.",
         },
-        required: ["id"],
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "get_top_matches",
+    description:
+      "Kullanıcının firma profiline göre en yüksek uyum skoruna sahip ihale fırsatlarını döndürür. Kullanıcı 'bana uygun ihaleler', 'en iyi fırsatlarım' gibi şeyler sorduğunda kullan.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: { type: "number", description: "Döndürülecek en fazla fırsat sayısı (varsayılan 6)." },
       },
     },
   },
   {
-    type: "function" as const,
-    function: {
-      name: "get_top_matches",
-      description:
-        "Kullanıcının firma profiline göre en yüksek uyum skoruna sahip ihale fırsatlarını döndürür. Kullanıcı 'bana uygun ihaleler', 'en iyi fırsatlarım' gibi şeyler sorduğunda kullan.",
-      parameters: {
-        type: "object",
-        properties: {
-          limit: { type: "number", description: "Döndürülecek en fazla fırsat sayısı (varsayılan 6)." },
-        },
+    name: "get_upcoming_deadlines",
+    description:
+      "Son başvuru tarihi en yakın olan aktif ihaleleri döndürür. Kullanıcı yaklaşan son tarihleri sorduğunda kullan.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 6)." },
       },
     },
   },
   {
-    type: "function" as const,
-    function: {
-      name: "get_upcoming_deadlines",
-      description:
-        "Son başvuru tarihi en yakın olan aktif ihaleleri döndürür. Kullanıcı yaklaşan son tarihleri sorduğunda kullan.",
-      parameters: {
-        type: "object",
-        properties: {
-          limit: { type: "number", description: "Döndürülecek en fazla ihale sayısı (varsayılan 6)." },
-        },
+    name: "add_to_pipeline",
+    description:
+      "Belirtilen ihaleyi kullanıcının takip listesine (pipeline) ekler. Kullanıcı bir ihaleyi takip etmek/pipeline'a eklemek istediğinde kullan. tenderId, search_tenders veya get_top_matches sonuçlarından alınmalıdır.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        tenderId: { type: "number", description: "Pipeline'a eklenecek ihalenin sayısal ID'si." },
       },
-    },
-  },
-  {
-    type: "function" as const,
-    function: {
-      name: "add_to_pipeline",
-      description:
-        "Belirtilen ihaleyi kullanıcının takip listesine (pipeline) ekler. Kullanıcı bir ihaleyi takip etmek/pipeline'a eklemek istediğinde kullan. tenderId, search_tenders veya get_top_matches sonuçlarından alınmalıdır.",
-      parameters: {
-        type: "object",
-        properties: {
-          tenderId: { type: "number", description: "Pipeline'a eklenecek ihalenin sayısal ID'si." },
-        },
-        required: ["tenderId"],
-      },
+      required: ["tenderId"],
     },
   },
 ];
@@ -513,11 +485,6 @@ async function executeTool(name: string, args: any, sse: (obj: unknown) => void,
   }
 }
 
-interface AccumulatedToolCall {
-  id: string;
-  name: string;
-  arguments: string;
-}
 
 router.post("/ai/chat", async (req, res) => {
   try {
@@ -580,10 +547,11 @@ router.post("/ai/chat", async (req, res) => {
 
     const systemPrompt = buildSystemPrompt(chatContext);
 
-    const conversation: any[] = [
-      { role: "system", content: systemPrompt },
-      ...messages.slice(-12),
-    ];
+    // Build Anthropic messages (system is separate — filter out any system role from history)
+    const anthropicMessages: Array<{ role: "user" | "assistant"; content: any }> =
+      messages.slice(-12)
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -593,84 +561,70 @@ router.post("/ai/chat", async (req, res) => {
 
     const sse = (obj: unknown) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
 
-    const { openai } = await import("@workspace/integrations-openai-ai-server");
+    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
 
     const useTools = chatContext.mode === "general";
     const MAX_TURNS = 4;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const stream = await openai.chat.completions.create({
-        model: AI_CHAT_MODEL,
-        messages: conversation,
-        stream: true,
-        ...modelParams(1500),
-        ...(useTools ? { tools: TOOLS, tool_choice: "auto" } : {}),
-      } as any);
-
+      const toolUseMap: Record<number, { id: string; name: string; json: string }> = {};
       let assistantText = "";
-      const toolAcc: Record<number, AccumulatedToolCall> = {};
 
-      for await (const chunk of stream) {
-        const choice = chunk.choices[0];
-        const delta = choice?.delta;
-        if (!delta) continue;
+      const stream = anthropic.messages.stream({
+        model: AI_CHAT_MODEL,
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: anthropicMessages,
+        ...(useTools ? { tools: TOOLS_ANTHROPIC, tool_choice: { type: "auto" as const } } : {}),
+      });
 
-        if (delta.content) {
-          assistantText += delta.content;
-          sse({ delta: delta.content });
-        }
-
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            const idx = tc.index ?? 0;
-            if (!toolAcc[idx]) toolAcc[idx] = { id: "", name: "", arguments: "" };
-            if (tc.id) toolAcc[idx].id = tc.id;
-            if (tc.function?.name) toolAcc[idx].name = tc.function.name;
-            if (tc.function?.arguments) toolAcc[idx].arguments += tc.function.arguments;
+      for await (const event of stream) {
+        if (event.type === "content_block_start" && event.content_block.type === "tool_use") {
+          toolUseMap[event.index] = { id: event.content_block.id, name: event.content_block.name, json: "" };
+        } else if (event.type === "content_block_delta") {
+          if (event.delta.type === "text_delta") {
+            assistantText += event.delta.text;
+            sse({ delta: event.delta.text });
+          } else if (event.delta.type === "input_json_delta") {
+            if (toolUseMap[event.index]) toolUseMap[event.index].json += event.delta.partial_json;
           }
         }
       }
 
-      const toolCalls = Object.values(toolAcc).filter((t) => t.name);
+      const toolUseBlocks = Object.entries(toolUseMap).map(([, tu]) => tu);
 
-      if (toolCalls.length === 0) {
+      if (toolUseBlocks.length === 0) {
         break;
       }
 
-      // Record the assistant's tool-call turn, then execute each tool.
-      conversation.push({
-        role: "assistant",
-        content: assistantText || null,
-        tool_calls: toolCalls.map((t) => ({
-          id: t.id,
-          type: "function",
-          function: { name: t.name, arguments: t.arguments || "{}" },
-        })),
-      });
+      // Build assistant message with all content blocks for Anthropic format
+      const assistantContent: any[] = [];
+      if (assistantText) assistantContent.push({ type: "text", text: assistantText });
+      for (const tu of toolUseBlocks) {
+        let parsedInput: any = {};
+        try { parsedInput = JSON.parse(tu.json || "{}"); } catch { parsedInput = {}; }
+        assistantContent.push({ type: "tool_use", id: tu.id, name: tu.name, input: parsedInput });
+      }
+      anthropicMessages.push({ role: "assistant", content: assistantContent });
 
-      for (const call of toolCalls) {
-        // Signal the frontend which tool is running so it can show a status message
-        sse({ toolStatus: TOOL_STATUS_LABELS[call.name] ?? "Veriler yükleniyor…" });
+      // Execute each tool and collect results
+      const toolResults: any[] = [];
+      for (const tu of toolUseBlocks) {
+        sse({ toolStatus: TOOL_STATUS_LABELS[tu.name] ?? "Veriler yükleniyor…" });
 
         let parsedArgs: any = {};
-        try {
-          parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
-        } catch {
-          parsedArgs = {};
-        }
+        try { parsedArgs = JSON.parse(tu.json || "{}"); } catch { parsedArgs = {}; }
+
         let result: unknown;
         try {
-          result = await executeTool(call.name, parsedArgs, sse, businessId);
+          result = await executeTool(tu.name, parsedArgs, sse, businessId);
         } catch (toolErr) {
-          logger.warn({ toolErr, tool: call.name }, "Tool execution failed");
+          logger.warn({ toolErr, tool: tu.name }, "Tool execution failed");
           result = { error: "Araç çalıştırılamadı." };
         }
-        conversation.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content: JSON.stringify(result),
-        });
+        toolResults.push({ type: "tool_result", tool_use_id: tu.id, content: JSON.stringify(result) });
       }
+      anthropicMessages.push({ role: "user", content: toolResults });
     }
 
     // ── Proposal patch (proposal mode only) ─────────────────────────
@@ -682,22 +636,20 @@ router.post("/ai/chat", async (req, res) => {
 
     if (shouldPatch && chatContext.currentDraft) {
       try {
-        const patchMessages = [
-          { role: "system" as const, content: buildPatchSystemPrompt(chatContext) },
-          {
-            role: "user" as const,
-            content: `Mevcut teklif taslağı:\n\n${chatContext.currentDraft}\n\nKullanıcı isteği: ${lastUserMessage}`,
-          },
-        ];
-
-        const patchResponse = await openai.chat.completions.create({
+        const patchResponse = await anthropic.messages.create({
           model: AI_CHAT_MODEL,
-          messages: patchMessages as any,
-          stream: false,
-          ...modelParams(2500),
-        } as any);
+          max_tokens: 2500,
+          system: buildPatchSystemPrompt(chatContext),
+          messages: [
+            {
+              role: "user",
+              content: `Mevcut teklif taslağı:\n\n${chatContext.currentDraft}\n\nKullanıcı isteği: ${lastUserMessage}`,
+            },
+          ],
+        });
 
-        const updatedDraft = patchResponse.choices[0]?.message?.content ?? "";
+        const patchBlock = patchResponse.content[0];
+        const updatedDraft = patchBlock?.type === "text" ? patchBlock.text : "";
         if (updatedDraft) {
           sse({ proposalPatch: updatedDraft });
         }

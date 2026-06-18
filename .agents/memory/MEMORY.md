@@ -8,7 +8,8 @@
 - [HTML→text backfills](html-strip-backfills.md) — strip stored HTML in JS (exported stripHtml), not Postgres regexp_replace (no lazy quantifiers → greedy match ate real notice text)
 - [React Query invalidation keys](react-query-invalidation-keys.md) — generated hooks key on full `/api/...` path; bare path in invalidateQueries silently no-ops (stale UI after mutation)
 - [Express router-level gate leak](express-router-gate-leak.md) — sub-routers mounted at "/" pass every request through each in turn, so a bare `router.use(requirePro)` gates unrelated siblings; scope to a path prefix or per-route
-- [AI tender scoring silently rule-based](ai-scoring-empty-response.md) — scoreWithAi (gpt-5-mini, max_completion_tokens 512 + json response_format) returns empty content every call → scoreNewTenders always falls back to rule-based; matches still upsert so it looks healthy
+- [Anthropic claude-opus-4-8 constraints](anthropic-opus-constraints.md) — no temperature/top_p/top_k params; system is separate arg; content is blocks array; streaming uses content_block_start/delta events; tool_use blocks need input_schema not parameters
+- [AI tender scoring silently rule-based](ai-scoring-empty-response.md) — scoreWithAi switched to claude-opus-4-8; previously gpt-5-mini json response_format returned empty → now Anthropic with explicit JSON system prompt
 - [İlan.gov has no downloadable documents](ilan-no-documents.md) — GetAdDetail files is null/empty for all ads; extract defensively but expect 0, never fabricate doc entries or write a network backfill
 - [EKAP ISI access limitations](ekap-isi-access.md) — ihaleDurumlar codes for "concluded" and ISI endpoint both return 0; ihale-mcp doesn't index ISIs; award_results populates when access is resolved
 - [Matches endpoint tender fallback](matches-tender-fallback.md) — GET /matches/:tenderId inner-joins matchesTable; tenders without match records return 404; fix: fall back to raw tender query when no match row exists

@@ -486,9 +486,9 @@ export async function extractTextFromDocument(
   return extractTextFromPdf(buffer);
 }
 
-async function getOpenAI() {
-  const { openai } = await import("@workspace/integrations-openai-ai-server");
-  return openai;
+async function getAnthropic() {
+  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+  return anthropic;
 }
 
 const EXTRACTION_PROMPT = `Sen bir Türk kamu ihalesi uzmanısın. Aşağıda sana bir ihaleye ait MEVCUT bilgi (belge metni, ilan/duyuru metni veya ihale künyesi) ve (varsa) başvuran firmanın profili verilecek. Bu bilgiyi analiz et ve yapılandırılmış bilgi çıkar.
@@ -596,7 +596,7 @@ async function analyzeWithAI(
   tenderTitle: string,
   groundingSource: GroundingSource = "notice",
 ): Promise<AiAnalysis> {
-  const openai = await getOpenAI();
+  const anthropic = await getAnthropic();
   const maxChars = 12_000;
   const truncated =
     textContent.length > maxChars
@@ -608,11 +608,11 @@ async function analyzeWithAI(
       ? "\n\nNOT: Bu ihale için detaylı doküman metni mevcut değil; aşağıdaki bilgi yalnızca ihale künyesidir. Yine de eldeki bilgiye dayalı gerçek bir özet ve değerlendirme üret, RET cevabı verme."
       : "";
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-5-mini",
-    max_completion_tokens: 2048,
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-8",
+    max_tokens: 2048,
+    system: EXTRACTION_PROMPT,
     messages: [
-      { role: "system", content: EXTRACTION_PROMPT },
       {
         role: "user",
         content: `İhale Adı: ${tenderTitle}\n\nBilgi Kaynağı: ${GROUNDING_LABEL[groundingSource]}${sourceNote}\n\nMevcut Bilgi:\n${truncated}`,
@@ -620,7 +620,8 @@ async function analyzeWithAI(
     ],
   });
 
-  const raw = response.choices[0]?.message?.content ?? "{}";
+  const firstBlock = response.content[0];
+  const raw = firstBlock?.type === "text" ? firstBlock.text : "{}";
   let parsed: Partial<AiAnalysis> = {};
   try {
     const m = raw.match(/\{[\s\S]*\}/);
@@ -1010,31 +1011,29 @@ Kurallar:
 
 export async function chatWithDocuments(input: DocumentChatInput): Promise<string> {
   const { tenderTitle, agencyName, docText, groundingSource = "metadata", question, history } = input;
-  const openai = await getOpenAI();
+  const anthropic = await getAnthropic();
 
   const trimmedDocs =
     docText && docText.trim().length > 0
       ? docText.slice(0, 24_000)
       : `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}`;
 
-  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: DOC_CHAT_SYSTEM },
-    {
-      role: "system",
-      content: `İhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}\nBilgi Kaynağı: ${GROUNDING_LABEL[groundingSource]}\n\nMevcut İhale Bilgisi:\n${trimmedDocs}`,
-    },
-    ...(history ?? []).slice(-6),
-    { role: "user", content: question },
-  ];
+  const systemContent = `${DOC_CHAT_SYSTEM}\n\nİhale: ${tenderTitle}${agencyName ? ` — ${agencyName}` : ""}\nBilgi Kaynağı: ${GROUNDING_LABEL[groundingSource]}\n\nMevcut İhale Bilgisi:\n${trimmedDocs}`;
 
-  const response = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages,
+  const historyMessages = (history ?? []).slice(-6).filter(m => m.role !== "system") as Array<{ role: "user" | "assistant"; content: string }>;
+
+  const response = await anthropic.messages.create({
+    model: "claude-opus-4-8",
     max_tokens: 700,
-    temperature: 0.2,
+    system: systemContent,
+    messages: [
+      ...historyMessages,
+      { role: "user", content: question },
+    ],
   });
 
-  const answer = response.choices[0]?.message?.content?.trim() ?? "";
+  const firstBlock = response.content[0];
+  const answer = firstBlock?.type === "text" ? firstBlock.text.trim() : "";
   // Deterministic refusal guardrail: replace a hard "documents unavailable" refusal
   // with a grounded, honest answer that still leans on the available tender info.
   if (!answer || isRefusal(answer)) {
