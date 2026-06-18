@@ -241,6 +241,19 @@ export default function BasvuruSihirbazPage() {
         </Button>
       </div>
 
+      {/* AI scoring notice */}
+      <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+        <IconBrain className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-semibold mb-0.5">Tüm alanlar isteğe bağlıdır</p>
+          <p className="text-blue-700 leading-snug">
+            Vergi numarası, MERSİS veya diğer hassas bilgilerinizi paylaşmak zorunda değilsiniz.
+            Ancak doldurduğunuz her alan, yapay zeka motorumuzun size daha doğru ihale eşleştirmesi
+            yapmasını sağlar — eksik alanlar skoru düşürür.
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Step sidebar */}
         <div className="space-y-1">
@@ -286,22 +299,41 @@ export default function BasvuruSihirbazPage() {
 
               {/* ── Step 1: Firma Kimliği ── */}
               {step === 1 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label>Firma Adı *</Label>
-                    <Input defaultValue={data.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Örn: ABC Yapı Ltd. Şti." />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Firma Adı</Label>
+                      <Input defaultValue={data.companyName} onChange={(e) => set("companyName", e.target.value)} placeholder="Örn: ABC Yapı Ltd. Şti." />
+                      <p className="text-xs text-muted-foreground">AI eşleştirme ve raporlarda görünür.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label>Vergi Numarası</Label>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">isteğe bağlı</span>
+                      </div>
+                      <Input defaultValue={data.taxNumber} onChange={(e) => set("taxNumber", e.target.value)} placeholder="Paylaşmak istemiyorsanız boş bırakın" />
+                      <p className="text-xs text-muted-foreground">Girmeniz halinde EKAP uyumluluk skoru artar.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label>MERSİS Numarası</Label>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">isteğe bağlı</span>
+                      </div>
+                      <Input defaultValue={data.mersisNumber} onChange={(e) => set("mersisNumber", e.target.value)} placeholder="Paylaşmak istemiyorsanız boş bırakın" />
+                      <p className="text-xs text-muted-foreground">Teklif hazırlama asistanı bu veriyi kullanır.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label>EKAP Numarası</Label>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">isteğe bağlı</span>
+                      </div>
+                      <Input defaultValue={data.ekapNumber} onChange={(e) => set("ekapNumber", e.target.value)} placeholder="Paylaşmak istemiyorsanız boş bırakın" />
+                      <p className="text-xs text-muted-foreground">Kazandığınız geçmiş ihalelere erişimi hızlandırır.</p>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Vergi Numarası *</Label>
-                    <Input defaultValue={data.taxNumber} onChange={(e) => set("taxNumber", e.target.value)} placeholder="1234567890" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>MERSİS Numarası</Label>
-                    <Input defaultValue={data.mersisNumber} onChange={(e) => set("mersisNumber", e.target.value)} placeholder="Opsiyonel" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>EKAP Numarası</Label>
-                    <Input defaultValue={data.ekapNumber} onChange={(e) => set("ekapNumber", e.target.value)} placeholder="Opsiyonel" />
+                  <div className="p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground flex gap-2 items-start">
+                    <span className="text-base leading-none mt-0.5">🔒</span>
+                    <span>Vergi numarası ve MERSİS bilgileri şifreli saklanır ve yalnızca AI skoru hesaplamak için kullanılır. Üçüncü taraflarla paylaşılmaz.</span>
                   </div>
                 </div>
               )}
