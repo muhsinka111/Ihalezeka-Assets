@@ -3,6 +3,7 @@ import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, sql, gt, and } from "drizzle-orm";
+import { getUncachableStripeClient } from "./stripeClient.js";
 
 /**
  * Returns the businessId to scope all queries against.
@@ -121,18 +122,75 @@ export async function getEntitlement(
     } else {
       const customerId = rows[0]?.stripeCustomerId;
       if (customerId) {
-        const result = await db.execute(sql`
-          SELECT 1
-          FROM stripe.subscriptions
-          WHERE customer = ${customerId}
-            AND status IN ('active', 'trialing')
-          LIMIT 1
-        `);
-        if (((result as any).rows?.length ?? 0) > 0) plan = "pro";
+        let checkedViaDb = false;
+        // ── Try synced stripe.subscriptions table first ─────────────────────
+        try {
+          const result = await db.execute(sql`
+            SELECT 1
+            FROM stripe.subscriptions
+            WHERE customer = ${customerId}
+              AND status IN ('active', 'trialing')
+            LIMIT 1
+          `);
+          checkedViaDb = true;
+          if (((result as any).rows?.length ?? 0) > 0) plan = "pro";
+        } catch {
+          // stripe.subscriptions table not present yet — fall through to API
+        }
+
+        // ── Fall back to live Stripe API if DB table absent ─────────────────
+        if (!checkedViaDb) {
+          try {
+            const stripe = await getUncachableStripeClient();
+            const subs = await stripe.subscriptions.list({
+              customer: customerId,
+              status: "active",
+              limit: 1,
+            });
+            if (subs.data.length > 0) plan = "pro";
+          } catch {
+            // Stripe not connected — fail closed to free
+          }
+        }
+      } else {
+        // ── No stored customerId — user may have paid via a payment link
+        //    (which creates a fresh Stripe customer not yet linked to our DB).
+        //    Search Stripe by the user's email as a best-effort check. ─────────
+        const userEmail = rows[0] ? (await db
+          .select({ email: usersTable.email })
+          .from(usersTable)
+          .where(eq(usersTable.userId, userId))
+          .limit(1)
+          .then(r => r[0]?.email)) : undefined;
+
+        if (userEmail) {
+          try {
+            const stripe = await getUncachableStripeClient();
+            const customers = await stripe.customers.list({ email: userEmail, limit: 5 });
+            for (const cust of customers.data) {
+              const subs = await stripe.subscriptions.list({
+                customer: cust.id,
+                status: "active",
+                limit: 1,
+              });
+              if (subs.data.length > 0) {
+                // Link this Stripe customer to the user so future lookups are faster
+                await db
+                  .update(usersTable)
+                  .set({ stripeCustomerId: cust.id })
+                  .where(eq(usersTable.userId, userId));
+                plan = "pro";
+                break;
+              }
+            }
+          } catch {
+            // Stripe API not accessible — fail closed to free
+          }
+        }
       }
     }
   } catch {
-    // Stripe schema not present yet (pre-connect) or transient DB error.
+    // Transient DB error — fail closed to free.
     plan = "free";
   }
 

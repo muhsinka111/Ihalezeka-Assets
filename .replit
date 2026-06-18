@@ -43,6 +43,7 @@ externalPort = 3000
 
 [userenv.shared]
 OPERATOR_EMAIL = "info@ihalezeka.com"
+STRIPE_PAYMENT_LINK = "https://buy.stripe.com/14AfZh9p219Mddv4aG0Ny0b"
 
 [userenv.development]
 ENTITLEMENTS_FORCE_PLAN = "pro"

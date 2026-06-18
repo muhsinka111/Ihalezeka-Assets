@@ -142,10 +142,14 @@ export function AppShell({ children }: AppShellProps) {
       } catch {
         // ignore and retry
       }
-      if (tries < 6) {
-        timer = setTimeout(poll, 1500);
+      if (tries < 10) {
+        timer = setTimeout(poll, 2000);
       } else {
         qc.invalidateQueries();
+        toast.info(
+          "Planınız henüz güncellenmediyse lütfen sayfayı yenileyin ya da destek ekibiyle iletişime geçin.",
+          { duration: 8000 },
+        );
       }
     };
     poll();

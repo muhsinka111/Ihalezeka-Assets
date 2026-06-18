@@ -10,6 +10,7 @@ import {
   DEFAULT_USER_ID,
 } from "../lib/authHelpers.js";
 import { getUncachableStripeClient } from "../lib/stripeClient.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -31,6 +32,76 @@ function buildReturnUrl(req: any, path: string): string {
 }
 
 /**
+ * Fetch active products + prices directly from the Stripe API.
+ * Used as a fallback when the stripe.* synced tables don't exist yet.
+ */
+async function getProductsFromStripeApi(): Promise<any[]> {
+  const stripe = await getUncachableStripeClient();
+  const proProductId = process.env["STRIPE_PRO_PRODUCT_ID"];
+
+  const [products, prices] = await Promise.all([
+    stripe.products.list({ active: true, limit: 20 }),
+    stripe.prices.list({ active: true, limit: 100 }),
+  ]).catch((err) => {
+    logger.warn({ err }, "Stripe API products/prices list failed (restricted key?)");
+    throw err;
+  });
+
+  // Filter to just the İhaleZeka Pro product
+  const filteredProducts = proProductId
+    ? products.data.filter((p) => p.id === proProductId)
+    : products.data.filter((p) => p.name.toLowerCase().includes("ihalezeka"));
+
+  const pricesByProduct = new Map<string, any[]>();
+  for (const price of prices.data) {
+    const pid = typeof price.product === "string" ? price.product : price.product.id;
+    if (!pricesByProduct.has(pid)) pricesByProduct.set(pid, []);
+    pricesByProduct.get(pid)!.push({
+      id: price.id,
+      unitAmount: price.unit_amount,
+      currency: price.currency,
+      recurring: price.recurring ? { interval: price.recurring.interval } : null,
+    });
+  }
+
+  return filteredProducts.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description ?? null,
+    prices: (pricesByProduct.get(p.id) ?? []).sort(
+      (a: any, b: any) => (a.unitAmount ?? 0) - (b.unitAmount ?? 0),
+    ),
+  }));
+}
+
+/**
+ * Build a synthetic products list from the STRIPE_DEFAULT_PRICE_ID or
+ * STRIPE_PAYMENT_LINK env var. Used as the final fallback when both DB tables
+ * and Stripe API are unavailable (e.g. restricted key without read permission).
+ * Returns a product with unitAmount=null so the frontend uses its $99 fallback.
+ */
+function getProductsFromEnvFallback(): any[] {
+  const priceId = process.env["STRIPE_DEFAULT_PRICE_ID"];
+  const paymentLink = process.env["STRIPE_PAYMENT_LINK"];
+  if (!priceId && !paymentLink) return [];
+  return [
+    {
+      id: "pro",
+      name: "İhaleZeka Pro",
+      description: null,
+      prices: [
+        {
+          id: priceId ?? "payment_link",
+          unitAmount: 9900,
+          currency: "usd",
+          recurring: { interval: "month" },
+        },
+      ],
+    },
+  ];
+}
+
+/**
  * GET /api/billing/entitlement — the current user's plan.
  * `?fresh=1` bypasses the server-side cache (used right after checkout).
  */
@@ -45,12 +116,19 @@ router.get("/billing/entitlement", async (req, res) => {
 });
 
 /**
- * GET /api/billing/products — active products with their active prices, read
- * from the synced stripe.* tables. Returns an empty list before Stripe is
- * connected (schema absent) so the pricing page still renders.
+ * GET /api/billing/products — active products with their active prices.
+ * Filters to the designated İhaleZeka Pro product (STRIPE_PRO_PRODUCT_ID env var,
+ * or the product whose name contains "ihalezeka" case-insensitively).
+ * Tries the synced stripe.* tables first; falls back to a live Stripe API call.
  */
 router.get("/billing/products", async (_req, res) => {
+  // ── Try synced DB tables first ────────────────────────────────────────────
   try {
+    const proProductId = process.env["STRIPE_PRO_PRODUCT_ID"];
+    const productFilter = proProductId
+      ? sql`AND p.id = ${proProductId}`
+      : sql`AND lower(p.name) LIKE '%ihalezeka%'`;
+
     const result = await db.execute(sql`
       SELECT
         p.id            AS product_id,
@@ -62,7 +140,7 @@ router.get("/billing/products", async (_req, res) => {
         pr.recurring    AS recurring
       FROM stripe.products p
       LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
-      WHERE p.active = true
+      WHERE p.active = true ${productFilter}
       ORDER BY pr.unit_amount ASC NULLS LAST
     `);
 
@@ -85,22 +163,93 @@ router.get("/billing/products", async (_req, res) => {
         });
       }
     }
-    res.json({ data: Array.from(map.values()) });
+
+    const dbProducts = Array.from(map.values());
+    if (dbProducts.length > 0) {
+      return res.json({ data: dbProducts });
+    }
+    // DB tables exist but are empty — fall through to API fallback
   } catch {
-    res.json({ data: [] });
+    // stripe.* tables don't exist yet — fall through to API fallback
   }
+
+  // ── Fall back to live Stripe API ──────────────────────────────────────────
+  try {
+    const apiProducts = await getProductsFromStripeApi();
+    if (apiProducts.length > 0) return res.json({ data: apiProducts });
+  } catch {
+    // Stripe API unavailable or permission denied — fall through to env fallback
+  }
+
+  // ── Final fallback: STRIPE_DEFAULT_PRICE_ID env var ───────────────────────
+  return res.json({ data: getProductsFromEnvFallback() });
 });
 
-/** Resolve the default Pro price id (cheapest active recurring price). */
+/**
+ * Resolve the default Pro price id for İhaleZeka.
+ * Prefers STRIPE_DEFAULT_PRICE_ID env var if set, then synced DB (filtered to
+ * the ihalezeka product), then live Stripe API (also filtered by product name).
+ */
 async function resolveDefaultPriceId(): Promise<string | null> {
-  const result = await db.execute(sql`
-    SELECT id
-    FROM stripe.prices
-    WHERE active = true AND recurring IS NOT NULL
-    ORDER BY unit_amount ASC NULLS LAST
-    LIMIT 1
-  `);
-  return ((result as any).rows?.[0]?.id as string | undefined) ?? null;
+  // ── Explicit env override always wins ─────────────────────────────────────
+  const envPriceId = process.env["STRIPE_DEFAULT_PRICE_ID"];
+  if (envPriceId) return envPriceId;
+
+  const proProductId = process.env["STRIPE_PRO_PRODUCT_ID"];
+
+  // ── Try synced DB table ───────────────────────────────────────────────────
+  try {
+    const productFilter = proProductId
+      ? sql`AND pr.product = ${proProductId}`
+      : sql`AND lower(p.name) LIKE '%ihalezeka%'`;
+
+    const result = await db.execute(sql`
+      SELECT pr.id
+      FROM stripe.prices pr
+      JOIN stripe.products p ON p.id = pr.product
+      WHERE pr.active = true AND pr.recurring IS NOT NULL
+        ${productFilter}
+      ORDER BY pr.unit_amount ASC NULLS LAST
+      LIMIT 1
+    `);
+    const id = (result as any).rows?.[0]?.id as string | undefined;
+    if (id) return id;
+  } catch {
+    // stripe.prices table doesn't exist yet
+  }
+
+  // ── Fall back to live Stripe API ──────────────────────────────────────────
+  try {
+    const stripe = await getUncachableStripeClient();
+    if (proProductId) {
+      const prices = await stripe.prices.list({
+        active: true,
+        type: "recurring",
+        product: proProductId,
+        limit: 10,
+      });
+      if (prices.data[0]?.id) return prices.data[0].id;
+    } else {
+      // Search all products, find the one named *ihalezeka*
+      const products = await stripe.products.list({ active: true, limit: 20 });
+      const proProduct = products.data.find((p) =>
+        p.name.toLowerCase().includes("ihalezeka"),
+      );
+      if (proProduct) {
+        const prices = await stripe.prices.list({
+          active: true,
+          type: "recurring",
+          product: proProduct.id,
+          limit: 10,
+        });
+        if (prices.data[0]?.id) return prices.data[0].id;
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, "Stripe prices list failed; checking STRIPE_DEFAULT_PRICE_ID");
+  }
+
+  return null;
 }
 
 /** Ensure a users row exists and has a Stripe customer; returns the customer id. */
@@ -145,34 +294,66 @@ function ensureRealUser(req: any, res: any): string | null {
 /**
  * POST /api/billing/checkout — start a Stripe Checkout session for the Pro
  * subscription. Body: { priceId?, basePath? }. Returns { url }.
+ *
+ * Falls back to STRIPE_PAYMENT_LINK when no dynamic session can be created
+ * (e.g. restricted API key without checkout-session write permission).
  */
 router.post("/billing/checkout", async (req, res) => {
   const userId = ensureRealUser(req, res);
   if (!userId) return;
 
   try {
-    const priceId = (req.body?.priceId as string | undefined) ?? (await resolveDefaultPriceId());
-    if (!priceId) {
+    const bodyPriceId = req.body?.priceId as string | undefined;
+    const priceId = bodyPriceId ?? (await resolveDefaultPriceId());
+
+    // ── If priceId is the payment-link sentinel or we have the env var set,
+    //    redirect directly to the static Stripe payment link. ──────────────
+    const paymentLink = process.env["STRIPE_PAYMENT_LINK"];
+    if (priceId === "payment_link" || (!priceId && paymentLink)) {
+      if (paymentLink) {
+        invalidateEntitlement(userId);
+        return res.json({ url: paymentLink });
+      }
       return res.status(503).json({ error: "no_price_configured" });
     }
 
-    const email = getSessionEmail(req);
-    const customerId = await ensureStripeCustomer(userId, email);
+    if (!priceId) {
+      // No price from DB, API, or env — last resort: try payment link
+      if (paymentLink) {
+        invalidateEntitlement(userId);
+        return res.json({ url: paymentLink });
+      }
+      return res.status(503).json({ error: "no_price_configured" });
+    }
 
-    const stripe = await getUncachableStripeClient();
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: buildReturnUrl(req, "/ihale-arama?checkout=success"),
-      cancel_url: buildReturnUrl(req, "/fiyatlandirma?checkout=cancel"),
-      allow_promotion_codes: true,
-    });
+    // ── Attempt dynamic Stripe Checkout session ───────────────────────────
+    try {
+      const email = getSessionEmail(req);
+      const customerId = await ensureStripeCustomer(userId, email);
 
-    invalidateEntitlement(userId);
-    res.json({ url: session.url });
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        line_items: [{ price: priceId, quantity: 1 }],
+        success_url: buildReturnUrl(req, "/ihale-arama?checkout=success"),
+        cancel_url: buildReturnUrl(req, "/fiyatlandirma?checkout=cancel"),
+        allow_promotion_codes: true,
+      });
+
+      invalidateEntitlement(userId);
+      return res.json({ url: session.url });
+    } catch (sessionErr) {
+      // Dynamic session failed — fall back to payment link if configured
+      logger.warn({ err: sessionErr }, "Checkout session creation failed; trying payment link");
+      if (paymentLink) {
+        invalidateEntitlement(userId);
+        return res.json({ url: paymentLink });
+      }
+      throw sessionErr;
+    }
   } catch (err) {
-    console.error("Checkout error:", err);
+    logger.error({ err }, "Checkout error");
     res.status(500).json({ error: "checkout_failed" });
   }
 });
