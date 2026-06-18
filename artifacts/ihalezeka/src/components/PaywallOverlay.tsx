@@ -10,6 +10,7 @@ import {
   IconCrown,
   IconSparkles,
   IconCircleCheck,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { startCheckout } from "@/lib/billing";
 import { useEntitlement } from "@/hooks/useEntitlement";
@@ -107,6 +108,29 @@ export function PaywallCard({
             <Button size="sm" variant="outline">Planları Gör</Button>
           </Link>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Full-width banner shown on the tender detail page when a free user has
+ * exhausted their 2 included AI analysis credits.
+ */
+export function CreditsExhaustedBanner() {
+  return (
+    <Card className="border-amber-200 bg-amber-50">
+      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-6 py-5">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+          <IconAlertTriangle className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-amber-900 text-sm">Ücretsiz analiz haklarınız bitti</p>
+          <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+            2 ücretsiz yapay zeka analizinizi kullandınız. Sınırsız analiz, ihale belgeleri, belgelerle sohbet ve daha fazlası için Pro'ya geçin.
+          </p>
+        </div>
+        <UpgradeButton size="sm" className="shrink-0" label="Pro'ya Geç — ₺99/ay" />
       </CardContent>
     </Card>
   );

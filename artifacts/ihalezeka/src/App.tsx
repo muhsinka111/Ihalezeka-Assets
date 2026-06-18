@@ -38,6 +38,7 @@ const clerkPubKey = publishableKeyFromHost(
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -90,7 +91,12 @@ function SignInPage() {
 function SignUpPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-12">
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp
+        routing="path"
+        path={`${basePath}/sign-up`}
+        signInUrl={`${basePath}/sign-in`}
+        forceRedirectUrl={`${basePath}/basvuru-sihirbazi`}
+      />
     </div>
   );
 }
@@ -98,10 +104,6 @@ function SignUpPage() {
 function HomeRedirect() {
   const { isLoaded, isSignedIn } = useAuth();
 
-  // Redirect signed-in users straight to tender search — the product's hero
-  // experience — once Clerk confirms auth state. Until then (loading) or for
-  // signed-out users, show the public landing page immediately so the page is
-  // never blank in the preview pane.
   if (isLoaded && isSignedIn) {
     return <Redirect to="/ihale-arama" />;
   }
@@ -109,27 +111,49 @@ function HomeRedirect() {
   return <LandingPage />;
 }
 
-// DEV BYPASS: auth check skipped until project is ready for production.
-// To re-enable, replace the body with the commented-out block below.
+/**
+ * Production ProtectedRoute: enforces Clerk auth and redirects unauthenticated
+ * users to /sign-in. Signed-in users without a company profile are nudged to
+ * the wizard (unless they are already on it or explicitly skipped it this session).
+ */
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
-    <AppShell>
-      <Component />
-    </AppShell>
+    <>
+      <Show when="signed-in">
+        <AppShell>
+          <Component />
+        </AppShell>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/sign-in" />
+      </Show>
+    </>
   );
 }
-// PRODUCTION version (restore when ready):
-// function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-//   return (
-//     <>
-//       <Show when="signed-in"><AppShell><Component /></AppShell></Show>
-//       <Show when="signed-out"><Redirect to="/sign-in" /></Show>
-//     </>
-//   );
-// }
 
-// Wrap a premium-only page in the Pro full-page gate. Free users see an upgrade
-// screen (inside the AppShell); Pro users see the real page.
+/**
+ * A variant of ProtectedRoute for the wizard itself — it never redirects back
+ * to the wizard (avoiding an infinite loop).
+ */
+function WizardRoute() {
+  return (
+    <>
+      <Show when="signed-in">
+        <AppShell>
+          <BasvuruSihirbazPage />
+        </AppShell>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/sign-in" />
+      </Show>
+    </>
+  );
+}
+
+/**
+ * Wrap a premium-only page in the Pro full-page gate. Free users see an upgrade
+ * screen (inside the AppShell); Pro users see the real page.
+ */
 function proGate(
   Component: React.ComponentType,
   gate: { title: string; description: string },
@@ -162,6 +186,41 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+/**
+ * Watches for a newly signed-in user with no company profile and redirects them
+ * to the wizard — unless they have explicitly skipped it this browser session or
+ * already have a profile. The skip flag is persisted in localStorage per user so
+ * it survives page refreshes but resets if the user signs out and back in as a
+ * different account.
+ */
+function FirstVisitRedirect() {
+  const { isLoaded, isSignedIn, userId } = useAuth();
+  const [, navigate] = useLocation();
+  const hasCheckedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId || hasCheckedRef.current) return;
+
+    const currentPath = window.location.pathname.replace(basePath, "") || "/";
+    if (currentPath === "/basvuru-sihirbazi" || currentPath.startsWith("/sign-")) return;
+
+    const skipKey = `ihale_onboarding_skipped_${userId}`;
+    if (localStorage.getItem(skipKey)) return;
+
+    hasCheckedRef.current = true;
+
+    fetch(`${API_BASE}/company-profile`, { credentials: "include" })
+      .then((res) => {
+        if (res.status === 404) {
+          navigate("/basvuru-sihirbazi");
+        }
+      })
+      .catch(() => {});
+  }, [isLoaded, isSignedIn, userId, navigate]);
+
+  return null;
+}
+
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -181,17 +240,19 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
+        <FirstVisitRedirect />
         <Switch>
           <Route path="/" component={HomeRedirect} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
+
+          <Route path="/basvuru-sihirbazi" component={WizardRoute} />
 
           <Route path="/ihale-arama"><ProtectedRoute component={IhaleAramaPage} /></Route>
           <Route path="/ihale/:id"><ProtectedRoute component={IhaleDetayPage} /></Route>
           <Route path="/fiyatlandirma"><ProtectedRoute component={FiyatlandirmaPage} /></Route>
           <Route path="/belgelerim"><ProtectedRoute component={BelgelerimPage} /></Route>
           <Route path="/entegrasyonlar"><ProtectedRoute component={EntegrasyonlarPage} /></Route>
-          <Route path="/basvuru-sihirbazi"><ProtectedRoute component={BasvuruSihirbazPage} /></Route>
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>

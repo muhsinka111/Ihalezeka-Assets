@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, gt, and } from "drizzle-orm";
 
 /**
  * Returns the businessId to scope all queries against.
@@ -37,6 +37,25 @@ export const DEFAULT_USER_ID = "demo-user";
 export function getUserId(req: Request): string {
   const { userId } = getAuth(req);
   return userId ?? DEFAULT_USER_ID;
+}
+
+/**
+ * Express middleware that requires a verified Clerk session. Returns 401 for
+ * any request that lacks a valid JWT (unauthenticated or expired session).
+ * Use this on credit-gated or user-scoped endpoints that are available to both
+ * free and Pro users, as an alternative to the stronger `requirePro` guard.
+ */
+export function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const { userId } = getAuth(req);
+  if (!userId) {
+    res.status(401).json({ error: "auth_required", message: "Giriş yapmanız gerekiyor." });
+    return;
+  }
+  next();
 }
 
 // ── Entitlement (free vs pro) ──────────────────────────────────────────────
@@ -138,6 +157,57 @@ export async function requirePro(
     // fall through to 402
   }
   res.status(402).json({ error: "upgrade_required" });
+}
+
+// ── Credit system ─────────────────────────────────────────────────────────
+
+/**
+ * Ensure a row exists in the users table for the given userId and return its
+ * current search_credits balance.
+ */
+async function ensureUserRow(userId: string): Promise<number> {
+  await db
+    .insert(usersTable)
+    .values({ userId, searchCredits: 2 })
+    .onConflictDoNothing({ target: usersTable.userId });
+
+  const [row] = await db
+    .select({ searchCredits: usersTable.searchCredits })
+    .from(usersTable)
+    .where(eq(usersTable.userId, userId))
+    .limit(1);
+
+  return row?.searchCredits ?? 2;
+}
+
+/**
+ * Attempt to consume one AI search credit for a free-tier user.
+ *
+ * - Pro users: always pass through (returns `{ ok: true }`).
+ * - Free user with credits > 0: deducts 1 and returns `{ ok: true, remaining }`.
+ * - Free user at 0: returns `{ ok: false }` — caller must respond with 402.
+ *
+ * Uses an atomic UPDATE … WHERE search_credits > 0 so concurrent requests
+ * cannot over-spend credits.
+ */
+export async function consumeCredit(
+  req: Request,
+): Promise<{ ok: true; remaining?: number } | { ok: false }> {
+  const proStatus = await isPro(req);
+  if (proStatus) return { ok: true };
+
+  const userId = getUserId(req);
+  const current = await ensureUserRow(userId);
+  if (current <= 0) return { ok: false };
+
+  const result = await db
+    .update(usersTable)
+    .set({ searchCredits: sql`GREATEST(search_credits - 1, 0)` })
+    .where(and(eq(usersTable.userId, userId), gt(usersTable.searchCredits, 0)))
+    .returning({ searchCredits: usersTable.searchCredits });
+
+  if (result.length === 0) return { ok: false };
+  return { ok: true, remaining: result[0].searchCredits };
 }
 
 // ── Free-tier masking ──────────────────────────────────────────────────────

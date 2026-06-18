@@ -45,6 +45,7 @@ import {
   IconCurrencyLira,
   IconLock,
   IconSettings,
+  IconZoomMoney,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
@@ -102,6 +103,18 @@ export function AppShell({ children }: AppShellProps) {
   const { isPro } = useEntitlement();
   const qc = useQueryClient();
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  const { data: creditsData } = useQuery<{ credits: number }>({
+    queryKey: ["/api/credits"],
+    queryFn: async () => {
+      const res = await fetch(`${API_BASE}/credits`);
+      if (!res.ok) return { credits: 0 };
+      return res.json();
+    },
+    enabled: !isPro,
+    staleTime: 30_000,
+  });
+  const searchCredits = creditsData?.credits ?? 0;
 
   // After returning from Stripe Checkout (`?checkout=success`), poll the
   // entitlement endpoint until the synced subscription flips the plan to Pro,
@@ -356,6 +369,28 @@ export function AppShell({ children }: AppShellProps) {
           </form>
 
           <div className="flex items-center gap-1.5 ml-auto">
+            {!isPro && creditsData !== undefined && (
+              searchCredits > 0 ? (
+                <button
+                  onClick={handleUpgrade}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
+                  title="Ücretsiz AI analiz hakkı"
+                >
+                  <IconZoomMoney className="h-3.5 w-3.5" />
+                  {searchCredits} arama hakkı
+                </button>
+              ) : (
+                <button
+                  onClick={handleUpgrade}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs font-semibold hover:bg-destructive/20 transition-colors"
+                  title="Kredi bitti — Pro'ya geç"
+                >
+                  <IconZoomMoney className="h-3.5 w-3.5" />
+                  Kredi bitti
+                </button>
+              )
+            )}
+
             <Button
               variant="default"
               size="sm"

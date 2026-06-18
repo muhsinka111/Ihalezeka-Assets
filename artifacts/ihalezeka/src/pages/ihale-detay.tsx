@@ -1,8 +1,8 @@
 import { useParams, Link } from "wouter";
 import { useGetMatch, useGetTender, getGetMatchQueryKey, getGetTenderQueryKey, useCreatePipelineItem, useListPipelineItems } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { PaywallCard } from "@/components/PaywallOverlay";
+import { PaywallCard, CreditsExhaustedBanner, UpgradeButton } from "@/components/PaywallOverlay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -839,7 +839,20 @@ export default function IhaleDetayPage() {
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [creditsExhausted, setCreditsExhausted] = useState(false);
   const autoTriggered = useRef(false);
+
+  const { data: creditsData, refetch: refetchCredits } = useQuery<{ credits: number }>({
+    queryKey: ["/api/credits"],
+    queryFn: async () => {
+      const res = await fetch("/api/credits");
+      if (!res.ok) return { credits: 0 };
+      return res.json();
+    },
+    enabled: !isPro && !entLoading,
+    staleTime: 10_000,
+  });
+  const remainingCredits = creditsData?.credits ?? 0;
 
   const [mcpData, setMcpData] = useState<McpEnrichment | null>(null);
   const [mcpLoading, setMcpLoading] = useState(false);
@@ -850,6 +863,7 @@ export default function IhaleDetayPage() {
     setAnalysis(initialAnalysis);
     autoTriggered.current = false;
     setAnalysisError(null);
+    setCreditsExhausted(false);
   }, [tenderId, initialAnalysis]);
 
   // Fetch live MCP announcement + contact whenever the tender changes (Pro only)
@@ -875,8 +889,13 @@ export default function IhaleDetayPage() {
     try {
       const res = await fetch(`/api/tenders/${tenderId}/analyze`, { method: "POST" });
       const data = await res.json();
+      if (res.status === 402) {
+        setCreditsExhausted(true);
+        return;
+      }
       if (!res.ok) throw new Error(data?.error ?? "Analiz başarısız");
       setAnalysis(data.analysis);
+      refetchCredits();
     } catch (e: any) {
       setAnalysisError(e.message ?? "Analiz sırasında bir hata oluştu");
     } finally {
@@ -1059,26 +1078,40 @@ export default function IhaleDetayPage() {
             </>
           ) : (
             <>
-              {/* Free: basic summary + paywalls for premium intelligence */}
-              {tender.summary && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <IconFileText className="h-5 w-5 text-primary" />
-                      Özet
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{tender.summary}</p>
-                  </CardContent>
-                </Card>
+              {/* Free: AI analysis via credits, then paywalls for the rest */}
+              {creditsExhausted ? (
+                <CreditsExhaustedBanner />
+              ) : (
+                <>
+                  {!analysis && remainingCredits > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm">
+                      <IconBolt className="h-4 w-4 shrink-0" />
+                      <span>
+                        <span className="font-semibold">{remainingCredits}</span> ücretsiz yapay zeka analiziniz kaldı. Analiz Et'e tıklayarak kullanabilirsiniz.
+                      </span>
+                    </div>
+                  )}
+                  {!analysis && remainingCredits === 0 && !analysisLoading && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 px-4 py-4 rounded-lg bg-amber-50 border border-amber-200">
+                      <div className="flex-1 text-sm text-amber-800">
+                        <span className="font-semibold">Ücretsiz hakkınız bitti.</span> Sınırsız yapay zeka analizi için Pro'ya geçin.
+                      </div>
+                      <UpgradeButton size="sm" className="shrink-0" label="Pro'ya Geç" />
+                    </div>
+                  )}
+                  <AiSummaryCard
+                    analysis={analysis}
+                    loading={analysisLoading}
+                    error={analysisError}
+                    autoRunning={false}
+                    fallbackSummary={tender.summary ?? ""}
+                    fallbackPros={[]}
+                    fallbackRisks={[]}
+                    onRun={runAnalysis}
+                  />
+                </>
               )}
 
-              <PaywallCard
-                icon={IconChartBar}
-                title="Yapay Zeka Uygunluk Analizi"
-                description="Bu ihalenin firmanıza uygunluğunu, artılarını, risklerini ve yeterlilik kriterleri uyumunu yapay zeka ile saniyeler içinde değerlendirin."
-              />
               <PaywallCard
                 icon={IconFileText}
                 title="İhale İlanı ve Belgeler"

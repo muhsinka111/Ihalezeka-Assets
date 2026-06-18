@@ -17,7 +17,7 @@ import { searchEkapByKeyword } from "../scrapers/ekap-client.js";
 import { searchIlanByKeyword } from "../scrapers/ilan-client.js";
 import { mapEkapToTender, mapIlanToTender } from "../scrapers/utils.js";
 import { getTenderAnnouncementsViaMcp, getTenderDetailsViaMcp } from "../scrapers/ihalemcp-client.js";
-import { isPro, requirePro, maskTenderForFree } from "../lib/authHelpers.js";
+import { isPro, requirePro, requireAuth, maskTenderForFree, consumeCredit } from "../lib/authHelpers.js";
 
 const router = Router();
 
@@ -336,11 +336,16 @@ router.get("/tenders/:id", async (req, res) => {
   }
 });
 
-router.post("/tenders/:id/analyze", requirePro, async (req, res) => {
+router.post("/tenders/:id/analyze", requireAuth, async (req, res) => {
   try {
     const { id } = GetTenderParams.parse(req.params);
     const [tender] = await db.select().from(tendersTable).where(eq(tendersTable.id, id));
     if (!tender) return res.status(404).json({ error: "Not found" });
+
+    const credit = await consumeCredit(req);
+    if (!credit.ok) {
+      return res.status(402).json({ error: "credits_exhausted", message: "Ücretsiz analiz hakkınız bitti. Pro'ya geçerek sınırsız erişim edinin." });
+    }
 
     const { analysis, docsDownloaded, docsTotal, extractedText, groundingSource, confidence } =
       await analyzeTender(toGroundingInput(tender));

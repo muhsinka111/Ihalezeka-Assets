@@ -17,6 +17,7 @@ import savedSearchesRouter from "./savedSearches";
 import marketingRouter from "./marketing";
 import aiChatRouter from "./aiChat";
 import billingRouter from "./billing";
+import creditsRouter from "./credits";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(notificationsRouter);
 router.use(savedSearchesRouter);
 router.use(marketingRouter);
 router.use(billingRouter);
+router.use(creditsRouter);
 
 export default router;

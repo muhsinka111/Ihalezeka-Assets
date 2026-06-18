@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, uniqueIndex, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -11,6 +11,10 @@ import { z } from "zod/v4";
  * Pro price). This table only persists the IDs we need to (a) attach a checkout
  * session / billing-portal session to the right Stripe customer, and (b) join a
  * user to their synced subscription rows.
+ *
+ * `searchCredits` tracks the number of AI suitability analysis calls a free-tier
+ * user may make. Default is 2 (given at account creation). Pro subscribers bypass
+ * this counter entirely.
  */
 export const usersTable = pgTable(
   "users",
@@ -20,6 +24,7 @@ export const usersTable = pgTable(
     email: text("email"),
     stripeCustomerId: text("stripe_customer_id"),
     stripeSubscriptionId: text("stripe_subscription_id"),
+    searchCredits: integer("search_credits").notNull().default(2),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
