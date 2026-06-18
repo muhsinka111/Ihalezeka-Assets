@@ -316,13 +316,15 @@ router.get("/tenders/:id", async (req, res) => {
     if (!tender) return res.status(404).json({ error: "Not found" });
 
     // Ensure EKAP tenders always have at least the portal URL as a document entry.
-    // This covers the 77% of tenders whose documents array was never populated by
-    // the enrichment scraper. The portal URL opens EKAP's own document page in the
-    // user's browser — it works correctly there even though headless download is
-    // blocked by the anti-bot gate.
+    // This covers tenders whose documents array was never populated OR whose stored
+    // documents all have empty URLs (scraper fetched metadata but not the download links).
+    // The portal URL opens EKAP's own document page in the user's browser — it works
+    // correctly there even though headless download is blocked by the anti-bot gate.
     const storedDocs = (tender.documents as Array<{ name: string; url: string; type: string }> | null) ?? [];
-    if (storedDocs.length === 0 && tender.sourceSystem === "ekap" && tender.ikn) {
-      const portalUrl = tender.sourceUrl ?? `https://ekapv2.kik.gov.tr/ekap/detay/${tender.ikn}`;
+    const hasAnyUrl = storedDocs.some((d) => !!d.url);
+    if (!hasAnyUrl && tender.sourceSystem === "ekap" && tender.ikn) {
+      const iknSlug = String(tender.ikn).replace("/", "_");
+      const portalUrl = `https://ekapv2.kik.gov.tr/ekap/search?iknNo=${iknSlug}`;
       const injected = { ...tender, documents: [{ name: "İhale Dokümanı (EKAP Portal)", url: portalUrl, type: "ekap-portal" }] };
       const pro = await isPro(req);
       return res.json(pro ? injected : maskTenderForFree(injected));

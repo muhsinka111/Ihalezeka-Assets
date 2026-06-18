@@ -575,32 +575,46 @@ function DocumentsCard({
           <ul className="space-y-2">
             {documents.map((doc, i) => {
               if (!doc.url) return null;
+              const isPortal = doc.type === "ekap-portal";
               return (
               <li key={i} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
                 <IconFileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{doc.name || `Belge ${i + 1}`}</p>
-                  {doc.type && <p className="text-xs text-muted-foreground">{doc.type}</p>}
+                  {isPortal ? (
+                    <p className="text-xs text-muted-foreground">EKAP portalında görüntülemek için tıklayın</p>
+                  ) : (
+                    doc.type && <p className="text-xs text-muted-foreground">{doc.type}</p>
+                  )}
                 </div>
-                {doc.url && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 text-xs"
-                      onClick={() => setOpenIndex(i)}
-                    >
-                      <IconEye className="h-3.5 w-3.5" />
-                      Görüntüle
-                    </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {isPortal ? (
                     <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                      <Button variant="outline" size="sm" className="h-7 gap-1 text-xs">
                         <IconExternalLink className="h-3.5 w-3.5" />
-                        İndir
+                        EKAP'ta Aç
                       </Button>
                     </a>
-                  </div>
-                )}
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => setOpenIndex(i)}
+                      >
+                        <IconEye className="h-3.5 w-3.5" />
+                        Görüntüle
+                      </Button>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+                          <IconExternalLink className="h-3.5 w-3.5" />
+                          İndir
+                        </Button>
+                      </a>
+                    </>
+                  )}
+                </div>
               </li>
               );
             })}
