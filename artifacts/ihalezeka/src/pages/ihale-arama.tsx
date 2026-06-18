@@ -250,14 +250,34 @@ function useScraperStatus(onFinished?: () => void) {
 const SOURCE_LABELS: Record<string, string> = {
   ekap: "EKAP",
   ilan_gov: "ilan.gov.tr",
-  ted: "TED (AB)",
+  ted: "TED (AB İhaleleri)",
   worldbank: "Dünya Bankası",
   ebrd: "EBRD",
-  kit: "KİT",
+  kit: "KİT (Kamu İktisadi Teşebbüsleri)",
+  tcdd: "TCDD",
+  botas: "BOTAŞ",
+  tpao: "TPAO",
+  dhmi: "DHMİ",
+  toki: "TOKİ",
+  dsi: "DSİ",
   tubitak: "TÜBİTAK",
   kosgeb: "KOSGEB",
   kalkinma_ajansi: "Kalkınma Ajansları",
+  baka: "BAKA (Batı Akdeniz Kalkınma Ajansı)",
+  bebka: "BEBKA (Bursa Eskişehir Bilecik)",
+  dogaka: "DOGAKA (Doğu Akdeniz Kalkınma Ajansı)",
+  marka: "MARKA (Kuzey Marmara Kalkınma Ajansı)",
+  ungm: "BM Tedarik (UNGM/UNDP)",
+  adb: "ADB (Asya Kalkınma Bankası)",
+  aiib: "AIIB (Asya Altyapı Yatırım Bankası)",
+  isdb: "IsDB (İslam Kalkınma Bankası)",
 };
+
+/**
+ * Sources hidden from the panel — either broken with no fix path, or
+ * internal enrichment jobs that aren't meaningful to end-users.
+ */
+const HIDDEN_SOURCES = new Set(["award_results"]);
 
 const STATUS_META: Record<string, { label: string; dot: string; text: string }> = {
   success: { label: "Çalışıyor", dot: "bg-green-500", text: "text-green-700" },
@@ -269,9 +289,13 @@ const STATUS_META: Record<string, { label: string; dot: string; text: string }> 
 
 function SourceHealthPanel({ perSource }: { perSource: SourceHealth[] }) {
   const [open, setOpen] = useState(false);
-  if (perSource.length === 0) return null;
 
-  const problems = perSource.filter((s) => s.status === "error" || s.status === "empty").length;
+  // Only show sources that are meaningful to the user — hide internal jobs and
+  // broken sources with no fix path.
+  const visible = perSource.filter((s) => !HIDDEN_SOURCES.has(s.source));
+  if (visible.length === 0) return null;
+
+  const problems = visible.filter((s) => s.status === "error" || s.status === "empty").length;
 
   return (
     <div className="relative">
@@ -289,7 +313,7 @@ function SourceHealthPanel({ perSource }: { perSource: SourceHealth[] }) {
             Veri Kaynakları
           </div>
           <div className="space-y-0.5 max-h-80 overflow-auto">
-            {perSource.map((s) => {
+            {visible.map((s) => {
               const meta = STATUS_META[s.status] ?? STATUS_META.never_run;
               return (
                 <div key={s.source} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-muted/50">

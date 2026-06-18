@@ -264,14 +264,34 @@ export async function scoreNewTenders(newTenderIds: number[]): Promise<ScoredMat
   }
 
   const aiEnabled = isAiAvailable();
+
+  // Step 1: rule-based pre-filter (free, instant) — drop pairs that have no
+  // realistic chance of matching before spending any AI tokens on them.
+  const AI_SCORE_THRESHOLD = 40;
+  const preScored = pairs.map((p) => ({
+    ...p,
+    ruleScore: computeRuleBasedScore(p.tender, p.profile),
+  }));
+  const aiCandidates = preScored.filter((p) => p.ruleScore.fitScore >= AI_SCORE_THRESHOLD);
+  const ruledOut = preScored.filter((p) => p.ruleScore.fitScore < AI_SCORE_THRESHOLD);
+
   logger.info(
-    { pairs: pairs.length, tenders: tenders.length, profiles: profiles.length, aiEnabled },
-    "Starting tender scoring"
+    {
+      pairs: pairs.length,
+      tenders: tenders.length,
+      profiles: profiles.length,
+      aiEnabled,
+      aiCandidates: aiCandidates.length,
+      skippedByRules: ruledOut.length,
+    },
+    "Starting tender scoring (rule pre-filter applied)"
   );
 
+  // Step 2: AI scoring only for candidates that passed the rule threshold.
+  type PreScoredPair = (typeof aiCandidates)[number];
   const scoredPairs = await batchProcess(
-    pairs,
-    async ({ tender, profile }) => {
+    aiCandidates,
+    async ({ tender, profile, ruleScore }: PreScoredPair) => {
       let result: AiScoreResult;
       if (aiEnabled) {
         try {
@@ -285,20 +305,33 @@ export async function scoreNewTenders(newTenderIds: number[]): Promise<ScoredMat
             { err, tenderId: tender.id, businessId: profile.businessId },
             "AI scoring failed — falling back to rule-based"
           );
-          result = computeRuleBasedScore(tender, profile);
+          result = ruleScore;
         }
       } else {
-        result = computeRuleBasedScore(tender, profile);
+        result = ruleScore;
       }
       return { tender, profile, ...result };
     },
     { concurrency: 3, retries: 5 }
   );
 
+  // Step 3: include ruled-out pairs with their rule score so they still get a
+  // match record (just never surface above notification threshold).
+  const ruledOutScored = ruledOut.map(({ tender, profile, ruleScore }) => ({
+    tender,
+    profile,
+    ...ruleScore,
+  }));
+
   const results: ScoredMatch[] = [];
 
-  for (const item of scoredPairs) {
-    if (!item) continue;
+  // Merge AI-scored and rule-only results into one list for DB persistence.
+  const allScored = [
+    ...(scoredPairs.filter(Boolean) as NonNullable<(typeof scoredPairs)[number]>[]),
+    ...ruledOutScored,
+  ];
+
+  for (const item of allScored) {
     const { tender, profile, fitScore, reasoning, pros, risks } = item;
 
     try {
