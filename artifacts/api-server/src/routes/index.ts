@@ -18,6 +18,7 @@ import marketingRouter from "./marketing";
 import aiChatRouter from "./aiChat";
 import billingRouter from "./billing";
 import creditsRouter from "./credits";
+import adminUsersRouter from "./adminUsers";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(savedSearchesRouter);
 router.use(marketingRouter);
 router.use(billingRouter);
 router.use(creditsRouter);
+router.use(adminUsersRouter);
 
 export default router;

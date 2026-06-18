@@ -38,7 +38,6 @@ import {
   IconCrown,
   IconBolt,
   IconSparkles,
-  IconSpeakerphone,
   IconCircleCheck,
   IconCalendar,
   IconMapPin,
@@ -65,8 +64,6 @@ const NAV_ITEMS = [
   { href: "/belgelerim", label: "Belgelerim", icon: IconFileText },
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
   { href: "/entegrasyonlar", label: "Entegrasyonlar", icon: IconPlug },
-  { href: "/pazarlama", label: "Pazarlama", icon: IconSpeakerphone, adminOnly: true },
-  { href: "/admin", label: "Yönetim", icon: IconSettings, adminOnly: true },
 ];
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -208,32 +205,44 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.filter(({ adminOnly }) => !adminOnly || isAdmin).map(({ href, label, icon: Icon, adminOnly, pro }, idx, visibleItems) => {
+        {NAV_ITEMS.map(({ href, label, icon: Icon, pro }) => {
           const active = location === href || location.startsWith(href + "/");
-          const prevItem = visibleItems[idx - 1];
-          const showDivider = adminOnly && prevItem && !prevItem.adminOnly;
           const locked = pro && !isPro;
           return (
-            <React.Fragment key={href}>
-              {showDivider && (
-                <div className={cn("border-t border-sidebar-border my-2 mx-1", collapsed && "mx-0")} />
-              )}
-              <Link href={href} onClick={() => setMobileSidebarOpen(false)}>
-                <a className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-                  collapsed && "justify-center px-2",
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                )}>
-                  <Icon className="h-4.5 w-4.5 shrink-0 h-[18px] w-[18px]" />
-                  {!collapsed && <span className="flex-1">{label}</span>}
-                  {!collapsed && locked && <ProLockBadge />}
-                </a>
-              </Link>
-            </React.Fragment>
+            <Link key={href} href={href} onClick={() => setMobileSidebarOpen(false)}>
+              <a className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                collapsed && "justify-center px-2",
+                active
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              )}>
+                <Icon className="h-4.5 w-4.5 shrink-0 h-[18px] w-[18px]" />
+                {!collapsed && <span className="flex-1">{label}</span>}
+                {!collapsed && locked && <ProLockBadge />}
+              </a>
+            </Link>
           );
         })}
+
+        {/* Admin-only: single entry point to the admin area */}
+        {isAdmin && (
+          <>
+            <div className={cn("border-t border-sidebar-border my-2 mx-1", collapsed && "mx-0")} />
+            <Link href="/admin" onClick={() => setMobileSidebarOpen(false)}>
+              <a className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                collapsed && "justify-center px-2",
+                (location === "/admin" || location.startsWith("/admin/"))
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              )}>
+                <IconSettings className="h-[18px] w-[18px] shrink-0" />
+                {!collapsed && <span className="flex-1">⚙ Admin Paneli</span>}
+              </a>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Plan Card */}

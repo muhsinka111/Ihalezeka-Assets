@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { socialConnectionsTable, socialPostsTable } from "@workspace/db";
+import { socialConnectionsTable, socialPostsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, lte } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger.js";
@@ -71,20 +71,29 @@ function getUserId(req: Request): string {
 
 /**
  * Fail-closed admin check.
- * - When ADMIN_USER_ID is configured: only that specific user is admin.
- * - When ADMIN_USER_ID is not configured: any real authenticated Clerk session
- *   is treated as admin (userId must be non-null from Clerk, not the fallback).
+ * - When ADMIN_USER_ID is configured: that user is always admin (bootstrap mechanism).
+ * - DB isAdmin=true also grants admin (set via PATCH /api/admin/users/:id).
+ * - If neither condition is met, access is denied.
  * Never returns true for unauthenticated requests.
  */
-function checkIsAdmin(req: Request): boolean {
+async function checkIsAdmin(req: Request): Promise<boolean> {
   const { userId } = getAuth(req);
   if (!userId) return false;
-  if (ADMIN_USER_ID) return userId === ADMIN_USER_ID;
-  return true;
+  if (ADMIN_USER_ID && userId === ADMIN_USER_ID) return true;
+  try {
+    const [row] = await db
+      .select({ isAdmin: usersTable.isAdmin })
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId))
+      .limit(1);
+    return row?.isAdmin ?? false;
+  } catch {
+    return false;
+  }
 }
 
-function adminMiddleware(req: Request, res: Response, next: NextFunction): void {
-  if (!checkIsAdmin(req)) {
+async function adminMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!(await checkIsAdmin(req))) {
     res.status(403).json({ error: "Admin erişimi gereklidir" });
     return;
   }
@@ -94,8 +103,8 @@ function adminMiddleware(req: Request, res: Response, next: NextFunction): void 
 // ── Admin check endpoint (no auth gate — lets frontend determine visibility) ──
 // Returns isAdmin status for any caller; the actual data routes are protected.
 
-router.get("/marketing/admin-check", (req, res) => {
-  res.json({ isAdmin: checkIsAdmin(req) });
+router.get("/marketing/admin-check", async (req, res) => {
+  res.json({ isAdmin: await checkIsAdmin(req) });
 });
 
 // All other marketing routes require admin

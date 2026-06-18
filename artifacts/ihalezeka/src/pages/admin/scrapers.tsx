@@ -92,7 +92,7 @@ interface RunState {
   error: string | null;
 }
 
-export default function AdminPage() {
+export default function AdminScrapersTab() {
   const [status, setStatus] = useState<ScraperStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -167,12 +167,8 @@ export default function AdminPage() {
   const otherSources = status?.perSource.filter((s) => !PRIMARY_SOURCES.includes(s.source)) ?? [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-heading font-bold text-foreground">Yönetim Paneli</h1>
-          <p className="text-sm text-muted-foreground mt-1">Veri kaynaklarını görüntüle ve yenile</p>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-end">
         <Button
           variant="outline"
           size="sm"

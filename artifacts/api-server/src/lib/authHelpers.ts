@@ -108,21 +108,26 @@ export async function getEntitlement(
   let plan: Plan = "free";
   try {
     const rows = await db
-      .select({ stripeCustomerId: usersTable.stripeCustomerId })
+      .select({ stripeCustomerId: usersTable.stripeCustomerId, isProOverride: usersTable.isProOverride })
       .from(usersTable)
       .where(eq(usersTable.userId, userId))
       .limit(1);
 
-    const customerId = rows[0]?.stripeCustomerId;
-    if (customerId) {
-      const result = await db.execute(sql`
-        SELECT 1
-        FROM stripe.subscriptions
-        WHERE customer = ${customerId}
-          AND status IN ('active', 'trialing')
-        LIMIT 1
-      `);
-      if (((result as any).rows?.length ?? 0) > 0) plan = "pro";
+    // Admin-granted Pro override (for testing without a real Stripe subscription)
+    if (rows[0]?.isProOverride) {
+      plan = "pro";
+    } else {
+      const customerId = rows[0]?.stripeCustomerId;
+      if (customerId) {
+        const result = await db.execute(sql`
+          SELECT 1
+          FROM stripe.subscriptions
+          WHERE customer = ${customerId}
+            AND status IN ('active', 'trialing')
+          LIMIT 1
+        `);
+        if (((result as any).rows?.length ?? 0) > 0) plan = "pro";
+      }
     }
   } catch {
     // Stripe schema not present yet (pre-connect) or transient DB error.

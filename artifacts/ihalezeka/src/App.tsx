@@ -27,7 +27,7 @@ import ContentCalendarPage from "@/pages/pazarlama/content-calendar";
 import BlogAdminPage from "@/pages/pazarlama/blog";
 import SocialConnectionsPage from "@/pages/pazarlama/social-connections";
 import FiyatlandirmaPage from "@/pages/fiyatlandirma";
-import AdminPage from "@/pages/admin";
+import AdminPage from "@/pages/admin/index";
 import NotFound from "@/pages/not-found";
 import { RequirePro } from "@/components/PaywallOverlay";
 
@@ -128,6 +128,47 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
         <Redirect to="/sign-in" />
       </Show>
     </>
+  );
+}
+
+/**
+ * Route guard for admin-only pages. Requires Clerk auth + admin status.
+ * Non-admins see a 403 page; unauthenticated users are redirected to sign-in.
+ */
+function AdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const [isAdmin, setIsAdmin] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    fetch(`${API_BASE}/marketing/admin-check`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => setIsAdmin(d.isAdmin ?? false))
+      .catch(() => setIsAdmin(false));
+  }, [isLoaded, isSignedIn]);
+
+  if (!isLoaded || (isSignedIn && isAdmin === null)) return null;
+
+  if (!isSignedIn) return <Redirect to="/sign-in" />;
+
+  if (!isAdmin) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-20">
+          <div className="text-5xl">🔒</div>
+          <h1 className="text-2xl font-heading font-bold">Yetkisiz Erişim</h1>
+          <p className="text-muted-foreground max-w-sm">
+            Bu sayfaya erişim için yönetici yetkisi gereklidir.
+          </p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <Component />
+    </AppShell>
   );
 }
 
@@ -262,13 +303,13 @@ function ClerkProviderWithRoutes() {
           <Route path="/para-akisi"><ProtectedRoute component={proGate(ParaAkisiPage, { title: "Para Akışı Pro'ya özeldir", description: "Aylık nakit akışı, kategori ve idare bazlı analizler için Pro'ya geçin." })} /></Route>
           <Route path="/raporlar"><ProtectedRoute component={proGate(RaporlarPage, { title: "Raporlar Pro'ya özeldir", description: "Başvuru performansı ve kategori raporlarınız için Pro planına geçin." })} /></Route>
 
-          <Route path="/pazarlama"><ProtectedRoute component={PazarlamaPage} /></Route>
-          <Route path="/pazarlama/icerik-uretici"><ProtectedRoute component={ContentGeneratorPage} /></Route>
-          <Route path="/pazarlama/takvim"><ProtectedRoute component={ContentCalendarPage} /></Route>
-          <Route path="/pazarlama/blog"><ProtectedRoute component={BlogAdminPage} /></Route>
-          <Route path="/pazarlama/baglantilar"><ProtectedRoute component={SocialConnectionsPage} /></Route>
+          <Route path="/pazarlama"><AdminRoute component={PazarlamaPage} /></Route>
+          <Route path="/pazarlama/icerik-uretici"><AdminRoute component={ContentGeneratorPage} /></Route>
+          <Route path="/pazarlama/takvim"><AdminRoute component={ContentCalendarPage} /></Route>
+          <Route path="/pazarlama/blog"><AdminRoute component={BlogAdminPage} /></Route>
+          <Route path="/pazarlama/baglantilar"><AdminRoute component={SocialConnectionsPage} /></Route>
 
-          <Route path="/admin"><ProtectedRoute component={AdminPage} /></Route>
+          <Route path="/admin"><AdminRoute component={AdminPage} /></Route>
 
           <Route component={NotFound} />
         </Switch>
