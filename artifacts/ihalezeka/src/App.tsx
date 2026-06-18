@@ -6,6 +6,7 @@ import { Switch, Route, Redirect, useLocation, Router as WouterRouter } from "wo
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AppShell } from "@/components/AppShell";
+import { AuthLayout } from "@/components/AuthLayout";
 import { Toaster } from "@/components/ui/sonner";
 
 import LandingPage from "@/pages/landing";
@@ -50,9 +51,8 @@ const clerkAppearance = {
   baseTheme: shadcn,
   cssLayerName: "clerk",
   options: {
-    logoPlacement: "inside" as const,
+    logoPlacement: "none" as const,
     logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
     colorPrimary: "#2C46D8",
@@ -63,41 +63,50 @@ const clerkAppearance = {
     colorInput: "hsl(214 32% 91%)",
     colorInputForeground: "hsl(222 47% 11%)",
     fontFamily: "Inter, sans-serif",
-    borderRadius: "0.875rem",
+    borderRadius: "0.5rem",
   },
   elements: {
-    rootBox: "w-full flex justify-center",
-    cardBox: "bg-card rounded-2xl w-[440px] max-w-full overflow-hidden border border-border shadow-md",
-    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    rootBox: "w-full",
+    cardBox: "w-full shadow-none border-0 bg-transparent rounded-none p-0",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none !p-0",
     footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "text-foreground font-heading",
-    headerSubtitle: "text-muted-foreground",
-    formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-md font-medium",
-    formFieldInput: "border-input bg-background text-foreground rounded-md",
-    footerActionLink: "text-primary hover:text-primary/90 font-medium",
-    footerAction: "bg-secondary/30",
+    headerTitle: "text-slate-900 font-heading text-2xl font-bold",
+    headerSubtitle: "text-slate-500 text-sm",
+    formButtonPrimary:
+      "bg-[#2C46D8] text-white hover:bg-[#2338b8] rounded-lg font-semibold h-11 text-sm shadow-sm",
+    formFieldInput:
+      "border-[#e2e8f0] bg-[#f8fafc] text-slate-900 rounded-lg h-10 text-sm placeholder:text-slate-300",
+    formFieldLabel: "text-sm font-medium text-slate-700",
+    footerActionLink: "text-[#2C46D8] hover:text-[#2338b8] font-semibold",
+    footerAction: "bg-transparent",
+    dividerText: "text-slate-400 text-xs",
+    dividerLine: "bg-slate-200",
+    socialButtonsBlockButton:
+      "border-[#e2e8f0] bg-[#f8fafc] text-slate-700 hover:bg-slate-100 rounded-lg h-10 text-sm font-medium",
     alert: "bg-destructive/10 border-destructive/20 text-destructive",
+    identityPreviewText: "text-slate-700",
+    identityPreviewEditButton: "text-[#2C46D8]",
   },
 };
 
 function SignInPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-12">
+    <AuthLayout>
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
-    </div>
+    </AuthLayout>
   );
 }
 
 function SignUpPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-12">
+    <AuthLayout>
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
         forceRedirectUrl={`${basePath}/basvuru-sihirbazi`}
       />
-    </div>
+    </AuthLayout>
   );
 }
 
