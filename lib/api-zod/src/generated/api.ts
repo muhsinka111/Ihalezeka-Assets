@@ -36,6 +36,9 @@ export const getDashboardTopMatchesResponseTenderSourceSystemDefault = `ekap`;
 export const getDashboardTopMatchesResponseFitScoreMin = 0;
 export const getDashboardTopMatchesResponseFitScoreMax = 100;
 
+export const getDashboardTopMatchesResponseBreakdownItemScoreMin = 0;
+export const getDashboardTopMatchesResponseBreakdownItemScoreMax = 100;
+
 
 
 export const GetDashboardTopMatchesResponseItem = zod.object({
@@ -66,8 +69,17 @@ export const GetDashboardTopMatchesResponseItem = zod.object({
 }),
   "fitScore": zod.number().min(getDashboardTopMatchesResponseFitScoreMin).max(getDashboardTopMatchesResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
+  "winnability": zod.string().nullish().describe('One-line plain-language summary of how winnable the tender is'),
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
+  "breakdown": zod.array(zod.object({
+  "key": zod.enum(['cpv', 'experience', 'financial', 'geographic', 'timing', 'method']),
+  "label": zod.string(),
+  "score": zod.number().min(getDashboardTopMatchesResponseBreakdownItemScoreMin).max(getDashboardTopMatchesResponseBreakdownItemScoreMax),
+  "weight": zod.number().describe('Relative weight (the six weights sum to 100)'),
+  "reasoning": zod.string()
+})).optional().describe('Transparent weighted match-anatomy sub-scores'),
+  "checklist": zod.array(zod.string()).optional().describe('Items the company must complete to be able to bid'),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
   "aiSummary": zod.object({
   "summary": zod.string(),
@@ -268,6 +280,9 @@ export const listMatchesResponseItemsItemTenderSourceSystemDefault = `ekap`;
 export const listMatchesResponseItemsItemFitScoreMin = 0;
 export const listMatchesResponseItemsItemFitScoreMax = 100;
 
+export const listMatchesResponseItemsItemBreakdownItemScoreMin = 0;
+export const listMatchesResponseItemsItemBreakdownItemScoreMax = 100;
+
 
 
 export const ListMatchesResponse = zod.object({
@@ -299,8 +314,17 @@ export const ListMatchesResponse = zod.object({
 }),
   "fitScore": zod.number().min(listMatchesResponseItemsItemFitScoreMin).max(listMatchesResponseItemsItemFitScoreMax),
   "reasoning": zod.string().nullish(),
+  "winnability": zod.string().nullish().describe('One-line plain-language summary of how winnable the tender is'),
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
+  "breakdown": zod.array(zod.object({
+  "key": zod.enum(['cpv', 'experience', 'financial', 'geographic', 'timing', 'method']),
+  "label": zod.string(),
+  "score": zod.number().min(listMatchesResponseItemsItemBreakdownItemScoreMin).max(listMatchesResponseItemsItemBreakdownItemScoreMax),
+  "weight": zod.number().describe('Relative weight (the six weights sum to 100)'),
+  "reasoning": zod.string()
+})).optional().describe('Transparent weighted match-anatomy sub-scores'),
+  "checklist": zod.array(zod.string()).optional().describe('Items the company must complete to be able to bid'),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
   "aiSummary": zod.object({
   "summary": zod.string(),
@@ -336,6 +360,9 @@ export const getMatchResponseOneTenderSourceSystemDefault = `ekap`;
 export const getMatchResponseOneFitScoreMin = 0;
 export const getMatchResponseOneFitScoreMax = 100;
 
+export const getMatchResponseOneBreakdownItemScoreMin = 0;
+export const getMatchResponseOneBreakdownItemScoreMax = 100;
+
 export const getMatchResponseTwoTenderOneSourceSystemDefault = `ekap`;
 
 export const GetMatchResponse = zod.object({
@@ -366,8 +393,17 @@ export const GetMatchResponse = zod.object({
 }),
   "fitScore": zod.number().min(getMatchResponseOneFitScoreMin).max(getMatchResponseOneFitScoreMax),
   "reasoning": zod.string().nullish(),
+  "winnability": zod.string().nullish().describe('One-line plain-language summary of how winnable the tender is'),
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
+  "breakdown": zod.array(zod.object({
+  "key": zod.enum(['cpv', 'experience', 'financial', 'geographic', 'timing', 'method']),
+  "label": zod.string(),
+  "score": zod.number().min(getMatchResponseOneBreakdownItemScoreMin).max(getMatchResponseOneBreakdownItemScoreMax),
+  "weight": zod.number().describe('Relative weight (the six weights sum to 100)'),
+  "reasoning": zod.string()
+})).optional().describe('Transparent weighted match-anatomy sub-scores'),
+  "checklist": zod.array(zod.string()).optional().describe('Items the company must complete to be able to bid'),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
   "aiSummary": zod.object({
   "summary": zod.string(),
@@ -438,6 +474,9 @@ export const updateMatchStatusResponseTenderSourceSystemDefault = `ekap`;
 export const updateMatchStatusResponseFitScoreMin = 0;
 export const updateMatchStatusResponseFitScoreMax = 100;
 
+export const updateMatchStatusResponseBreakdownItemScoreMin = 0;
+export const updateMatchStatusResponseBreakdownItemScoreMax = 100;
+
 
 
 export const UpdateMatchStatusResponse = zod.object({
@@ -468,8 +507,17 @@ export const UpdateMatchStatusResponse = zod.object({
 }),
   "fitScore": zod.number().min(updateMatchStatusResponseFitScoreMin).max(updateMatchStatusResponseFitScoreMax),
   "reasoning": zod.string().nullish(),
+  "winnability": zod.string().nullish().describe('One-line plain-language summary of how winnable the tender is'),
   "pros": zod.array(zod.string()).optional(),
   "risks": zod.array(zod.string()).optional(),
+  "breakdown": zod.array(zod.object({
+  "key": zod.enum(['cpv', 'experience', 'financial', 'geographic', 'timing', 'method']),
+  "label": zod.string(),
+  "score": zod.number().min(updateMatchStatusResponseBreakdownItemScoreMin).max(updateMatchStatusResponseBreakdownItemScoreMax),
+  "weight": zod.number().describe('Relative weight (the six weights sum to 100)'),
+  "reasoning": zod.string()
+})).optional().describe('Transparent weighted match-anatomy sub-scores'),
+  "checklist": zod.array(zod.string()).optional().describe('Items the company must complete to be able to bid'),
   "status": zod.enum(['new', 'pipeline', 'watching', 'ignored']),
   "aiSummary": zod.object({
   "summary": zod.string(),

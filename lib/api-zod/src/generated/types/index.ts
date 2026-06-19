@@ -73,6 +73,8 @@ export * from './savedSearchCriteriaDurum';
 export * from './savedSearchCriteriaSource';
 export * from './savedSearchInput';
 export * from './savedSearchUpdate';
+export * from './scoreBreakdownItem';
+export * from './scoreBreakdownItemKey';
 export * from './sectorFacet';
 export * from './tender';
 export * from './tenderDetail';

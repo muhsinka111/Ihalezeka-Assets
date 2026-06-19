@@ -21,7 +21,9 @@ import {
   IconBuildingBank, IconMapPin, IconPhone, IconMail, IconUser,
   IconEye, IconSend, IconMessage2, IconThumbUp, IconHelpCircle,
   IconLock, IconLayoutKanban, IconChevronDown,
+  IconTargetArrow, IconListCheck, IconClockHour4,
 } from "@tabler/icons-react";
+import type { Match, ScoreBreakdownItem } from "@workspace/api-client-react";
 
 type FitVerdict = "uygun" | "dikkat" | "uygun_degil";
 
@@ -397,6 +399,107 @@ function AnalysisDetailsCard({ analysis }: { analysis: AiAnalysis }) {
         <p className="text-xs text-muted-foreground">
           Analiz tarihi: {new Date(analysis.analyzedAt).toLocaleString("tr-TR")}
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Transparent weighted match anatomy (eşleşme anatomisi) ─────────
+function barColor(score: number): string {
+  return score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-amber-500" : "bg-rose-500";
+}
+
+function MatchAnatomyCard({
+  fitScore,
+  winnability,
+  breakdown,
+}: {
+  fitScore: number;
+  winnability?: string | null;
+  breakdown: ScoreBreakdownItem[];
+}) {
+  if (!breakdown || breakdown.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between text-base">
+          <span className="flex items-center gap-2">
+            <IconTargetArrow className="h-5 w-5 text-primary" />
+            Eşleşme Anatomisi
+          </span>
+          <span
+            className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-sm font-bold ${
+              fitScore >= 70
+                ? "bg-emerald-500/10 text-emerald-600"
+                : fitScore >= 40
+                ? "bg-amber-500/10 text-amber-600"
+                : "bg-rose-500/10 text-rose-600"
+            }`}
+          >
+            %{fitScore}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {winnability && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg border bg-muted/40 text-sm">
+            <IconThumbUp className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
+            <p className="leading-relaxed font-medium">{winnability}</p>
+          </div>
+        )}
+        <div className="space-y-3.5">
+          {breakdown.map((item) => (
+            <div key={item.key}>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <span className="text-sm font-medium flex items-center gap-1.5">
+                  {item.label}
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    ağırlık %{item.weight}
+                  </span>
+                </span>
+                <span className="text-sm font-semibold tabular-nums">{item.score}</span>
+              </div>
+              <div className="bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${barColor(item.score)}`}
+                  style={{ width: `${Math.min(100, Math.max(0, item.score))}%` }}
+                />
+              </div>
+              {item.reasoning && (
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.reasoning}</p>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Genel skor, alt boyutların ağırlıklı ortalamasıdır.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── "Teklif vermek için tamamlamanız gerekenler" checklist ─────────
+function ChecklistCard({ items }: { items: string[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <IconListCheck className="h-5 w-5 text-primary" />
+          Teklif Vermek İçin Tamamlamanız Gerekenler
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-2">
+          {items.map((item, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm">
+              <span className="mt-0.5 h-5 w-5 rounded-full border-2 border-amber-300 bg-amber-50 shrink-0" />
+              <span className="leading-relaxed">{item}</span>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   );
@@ -1016,6 +1119,14 @@ export default function IhaleDetayPage() {
         <div className="lg:col-span-2 space-y-6">
           {isPro ? (
             <>
+              <MatchAnatomyCard
+                fitScore={match!.fitScore}
+                winnability={match?.winnability}
+                breakdown={match?.breakdown ?? []}
+              />
+
+              <ChecklistCard items={match?.checklist ?? []} />
+
               <AiSummaryCard
                 analysis={analysis}
                 loading={analysisLoading}
@@ -1145,7 +1256,28 @@ export default function IhaleDetayPage() {
           <Card>
             <CardContent className="pt-6 flex flex-col items-center gap-4">
               {isPro ? (
-                <FitGauge score={match!.fitScore} />
+                <>
+                  <FitGauge score={match!.fitScore} />
+                  {match?.winnability && (
+                    <p className="text-xs text-center text-muted-foreground leading-relaxed -mt-1">
+                      {match.winnability}
+                    </p>
+                  )}
+                  <div
+                    className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold ${
+                      !hasDeadline
+                        ? "bg-muted text-muted-foreground"
+                        : daysLeft! <= 0
+                        ? "bg-rose-500/10 text-rose-600"
+                        : daysLeft! <= 7
+                        ? "bg-amber-500/10 text-amber-600"
+                        : "bg-emerald-500/10 text-emerald-600"
+                    }`}
+                  >
+                    <IconClockHour4 className="h-4 w-4" />
+                    {deadlineText}
+                  </div>
+                </>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-2">
                   <div className="h-28 w-28 rounded-full border-4 border-dashed border-muted flex items-center justify-center">

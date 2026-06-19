@@ -218,6 +218,31 @@ export const MatchStatus = {
   ignored: 'ignored',
 } as const;
 
+export type ScoreBreakdownItemKey = typeof ScoreBreakdownItemKey[keyof typeof ScoreBreakdownItemKey];
+
+
+export const ScoreBreakdownItemKey = {
+  cpv: 'cpv',
+  experience: 'experience',
+  financial: 'financial',
+  geographic: 'geographic',
+  timing: 'timing',
+  method: 'method',
+} as const;
+
+export interface ScoreBreakdownItem {
+  key: ScoreBreakdownItemKey;
+  label: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  score: number;
+  /** Relative weight (the six weights sum to 100) */
+  weight: number;
+  reasoning: string;
+}
+
 export interface Match {
   id: number;
   tender: Tender;
@@ -228,8 +253,17 @@ export interface Match {
   fitScore: number;
   /** @nullable */
   reasoning?: string | null;
+  /**
+     * One-line plain-language summary of how winnable the tender is
+     * @nullable
+     */
+  winnability?: string | null;
   pros?: string[];
   risks?: string[];
+  /** Transparent weighted match-anatomy sub-scores */
+  breakdown?: ScoreBreakdownItem[];
+  /** Items the company must complete to be able to bid */
+  checklist?: string[];
   status: MatchStatus;
   /** AI-extracted document analysis (null when no documents analyzed) */
   aiSummary?: AiSummary | null;

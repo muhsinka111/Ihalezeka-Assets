@@ -1,6 +1,16 @@
 import { useListMatches } from "@workspace/api-client-react";
 import { Card } from "@/components/ui/card";
+import { Link } from "wouter";
 import type { AiSummary } from "@workspace/api-client-react";
+
+function deadlineMeta(deadline: string | null | undefined): { text: string; cls: string } {
+  if (deadline == null) return { text: "Belirtilmemiş", cls: "text-muted-foreground" };
+  const days = Math.ceil((new Date(deadline).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return { text: "Süresi geçti", cls: "text-rose-600 font-semibold" };
+  if (days === 0) return { text: "Bugün son gün", cls: "text-rose-600 font-semibold" };
+  if (days <= 7) return { text: `${days} gün kaldı`, cls: "text-amber-600 font-semibold" };
+  return { text: `${days} gün kaldı`, cls: "text-emerald-600 font-medium" };
+}
 
 function formatTurnover(value: number): string {
   if (value >= 1_000_000_000) return `₺${(value / 1_000_000_000).toFixed(1).replace(".0", "")}Mr`;
@@ -61,12 +71,17 @@ export default function FirsatlarimPage() {
                   <th className="px-4 py-3 font-medium text-center">Uyum Skoru</th>
                   <th className="px-4 py-3 font-medium">Tahmini Bedel</th>
                   <th className="px-4 py-3 font-medium">Son Tarih</th>
-                  <th className="px-4 py-3 font-medium">İşlem</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {page?.items.map((match) => (
-                  <tr key={match.id} className="hover:bg-muted/30 transition-colors">
+                {page?.items.map((match) => {
+                  const dl = deadlineMeta(match.tender.deadline);
+                  return (
+                  <tr
+                    key={match.id}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => { window.location.href = `${import.meta.env.BASE_URL}ihale/${match.tender.id}`; }}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="font-medium line-clamp-1">{match.tender.agencyName}</div>
@@ -81,7 +96,16 @@ export default function FirsatlarimPage() {
                           </span>
                         )}
                       </div>
-                      <div className="font-medium line-clamp-2">{match.tender.title}</div>
+                      <Link
+                        href={`/ihale/${match.tender.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium line-clamp-2 hover:text-primary hover:underline"
+                      >
+                        {match.tender.title}
+                      </Link>
+                      {match.winnability && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{match.winnability}</p>
+                      )}
                       {match.aiSummary && <AiThresholdPills aiSummary={match.aiSummary} />}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -89,20 +113,18 @@ export default function FirsatlarimPage() {
                         ${match.fitScore >= 70 ? 'bg-emerald-500/10 text-emerald-600' : 
                           match.fitScore >= 40 ? 'bg-amber-500/10 text-amber-600' : 
                           'bg-rose-500/10 text-rose-600'}`}>
-                        {match.fitScore}
+                        %{match.fitScore}
                       </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {match.tender.estimatedValue != null ? `₺${match.tender.estimatedValue.toLocaleString('tr-TR')}` : "Belirtilmemiş"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {match.tender.deadline != null ? new Date(match.tender.deadline).toLocaleDateString('tr-TR') : "Belirtilmemiş"}
-                    </td>
-                    <td className="px-4 py-3">
-                      {/* Action buttons */}
+                    <td className={`px-4 py-3 whitespace-nowrap text-xs ${dl.cls}`}>
+                      {dl.text}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

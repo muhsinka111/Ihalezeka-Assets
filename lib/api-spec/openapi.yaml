@@ -1172,12 +1172,25 @@ components:
           maximum: 100
         reasoning:
           type: ["string", "null"]
+        winnability:
+          type: ["string", "null"]
+          description: One-line plain-language summary of how winnable the tender is
         pros:
           type: array
           items:
             type: string
         risks:
           type: array
+          items:
+            type: string
+        breakdown:
+          type: array
+          description: Transparent weighted match-anatomy sub-scores
+          items:
+            $ref: "#/components/schemas/ScoreBreakdownItem"
+        checklist:
+          type: array
+          description: Items the company must complete to be able to bid
           items:
             type: string
         status:
@@ -1191,6 +1204,25 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    ScoreBreakdownItem:
+      type: object
+      required: [key, label, score, weight, reasoning]
+      properties:
+        key:
+          type: string
+          enum: [cpv, experience, financial, geographic, timing, method]
+        label:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        weight:
+          type: integer
+          description: Relative weight (the six weights sum to 100)
+        reasoning:
+          type: string
 
     MatchDetail:
       allOf:

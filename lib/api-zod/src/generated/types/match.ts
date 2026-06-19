@@ -7,6 +7,7 @@
  */
 import type { AiSummary } from './aiSummary';
 import type { MatchStatus } from './matchStatus';
+import type { ScoreBreakdownItem } from './scoreBreakdownItem';
 import type { Tender } from './tender';
 
 export interface Match {
@@ -19,8 +20,17 @@ export interface Match {
   fitScore: number;
   /** @nullable */
   reasoning?: string | null;
+  /**
+     * One-line plain-language summary of how winnable the tender is
+     * @nullable
+     */
+  winnability?: string | null;
   pros?: string[];
   risks?: string[];
+  /** Transparent weighted match-anatomy sub-scores */
+  breakdown?: ScoreBreakdownItem[];
+  /** Items the company must complete to be able to bid */
+  checklist?: string[];
   status: MatchStatus;
   /** AI-extracted document analysis (null when no documents analyzed) */
   aiSummary?: AiSummary | null;
