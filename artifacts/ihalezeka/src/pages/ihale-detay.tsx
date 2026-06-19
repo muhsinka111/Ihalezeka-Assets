@@ -1342,8 +1342,8 @@ export default function IhaleDetayPage() {
           )}
 
           <div className="space-y-2">
-            <Link href="/basvuru-sihirbazi">
-              <Button className="w-full" size="lg">Benim Adıma Başvur</Button>
+            <Link href="/ayarlar?tab=sirket">
+              <Button className="w-full" size="lg">Firma Profilini Tamamla</Button>
             </Link>
             {pipelineError && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">

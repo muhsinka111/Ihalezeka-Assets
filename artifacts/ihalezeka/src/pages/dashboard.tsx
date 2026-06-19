@@ -206,7 +206,7 @@ export default function DashboardPage() {
             <IconFlame className="h-4 w-4 text-orange-500" />
             Hızlı Eylemler
           </Button>
-          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => navigate("/para-akisi")}>
+          <Button variant="outline" size="sm" className="gap-2 h-9" onClick={() => navigate("/raporlar")}>
             <IconDownload className="h-4 w-4" />
             Rapor Dışa Aktar
           </Button>
@@ -305,7 +305,7 @@ export default function DashboardPage() {
                 <h2 className="font-heading font-semibold text-sm text-foreground">Para Akışı Analizi</h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5">{fmtTL(totalVolume)} · Son 7 Ay Toplam Hacim</p>
               </div>
-              <Link href="/para-akisi">
+              <Link href="/raporlar">
                 <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
                   Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
                 </Button>
@@ -437,9 +437,9 @@ export default function DashboardPage() {
                 />
               </div>
               {[
-                { icon: IconBolt, label: "Benim Adıma Başvur", badge: "YENİ", badgeCls: "bg-emerald-500 text-white", to: "/basvuru-sihirbazi" },
+                { icon: IconBolt, label: "Firma Profilini Tamamla", badge: "YENİ", badgeCls: "bg-emerald-500 text-white", to: "/ayarlar?tab=sirket" },
                 { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "", to: "/boru-hatti" },
-                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "", to: "/profil" },
+                { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "", to: "/ayarlar?tab=belgeler" },
               ].map((action) => (
                 <button key={action.label} onClick={() => navigate(action.to)}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 hover:border-primary/30 transition-all group">
@@ -514,7 +514,7 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
-            <button onClick={() => navigate("/basvuru-sihirbazi")}
+            <button onClick={() => navigate("/ayarlar?tab=sirket")}
               className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white font-semibold text-xs py-2 rounded-lg transition-colors">
               Hemen Dene
             </button>

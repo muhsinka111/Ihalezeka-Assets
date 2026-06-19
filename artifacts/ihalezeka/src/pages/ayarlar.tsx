@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/react";
 import { useGetCompanyProfile, useUpsertCompanyProfile } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import {
   IconUser,
   IconBuilding,
@@ -17,16 +20,237 @@ import {
   IconCheck,
   IconX,
   IconPlus,
-  IconExternalLink,
+  IconFileText,
+  IconBriefcase,
+  IconBrain,
+  IconTrendingUp,
+  IconMapPin,
+  IconSearch,
+  IconCircleCheck,
+  IconTargetArrow,
+  IconRosette,
+  IconBolt,
+  IconScale,
+  IconShieldCheck,
+  IconSparkles,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
+import { BelgelerimTab } from "@/pages/belgelerim";
 
 const CERTIFICATIONS = [
   "ISO 9001", "ISO 14001", "ISO 45001", "ISO 27001", "ISO 50001",
   "TSE", "CE", "OHSAS 18001", "Mesleki Yeterlilik Belgesi",
   "Çevre Yönetim Belgesi", "Kalite Yönetim Belgesi",
 ];
+
+type CodeSuggestion = { code: string; label: string };
+
+const KEYWORD_SUGGESTIONS: {
+  keywords: string[];
+  sektor: string;
+  nace: CodeSuggestion[];
+  cpv: CodeSuggestion[];
+}[] = [
+  {
+    keywords: ["inşaat", "insaat", "yol", "yapı", "yapi", "bina", "şantiye", "santiye", "altyapı"],
+    sektor: "İnşaat",
+    nace: [
+      { code: "41.20", label: "İkamet amaçlı bina inşaatı" },
+      { code: "42.11", label: "Otoyol, tünel ve köprü inşaatı" },
+    ],
+    cpv: [
+      { code: "45000000", label: "İnşaat işleri" },
+      { code: "45233000", label: "İnşaat, temel ve yüzey işleri" },
+    ],
+  },
+  {
+    keywords: ["yazılım", "yazilim", "bilişim", "bilisim", "bilgisayar", "bt", "it", "donanım"],
+    sektor: "Bilgi Teknolojileri",
+    nace: [
+      { code: "62.01", label: "Bilgisayar programlama faaliyetleri" },
+      { code: "62.02", label: "Bilgisayar danışmanlık faaliyetleri" },
+    ],
+    cpv: [
+      { code: "72000000", label: "BT hizmetleri: danışmanlık, yazılım geliştirme" },
+      { code: "48000000", label: "Yazılım paketi ve bilişim sistemleri" },
+    ],
+  },
+  {
+    keywords: ["tıbbi", "tibbi", "medikal", "sağlık", "saglik", "hastane", "cihaz"],
+    sektor: "Sağlık / Medikal",
+    nace: [
+      { code: "46.46", label: "Cerrahi, tıbbi ve ortopedik alet ticareti" },
+      { code: "32.50", label: "Tıbbi ve dişçilik araç ve gereçleri" },
+    ],
+    cpv: [
+      { code: "33000000", label: "Tıbbi cihazlar, farmasötikler" },
+      { code: "33100000", label: "Tıbbi donanımlar" },
+    ],
+  },
+  {
+    keywords: ["temizlik", "hijyen", "çöp", "cop", "tesis"],
+    sektor: "Tesis Yönetimi",
+    nace: [
+      { code: "81.21", label: "Binaların genel temizliği" },
+      { code: "81.22", label: "Diğer bina ve endüstriyel temizlik" },
+    ],
+    cpv: [
+      { code: "90910000", label: "Temizlik hizmetleri" },
+      { code: "90900000", label: "Temizlik ve sanitasyon hizmetleri" },
+    ],
+  },
+  {
+    keywords: ["gıda", "gida", "yemek", "catering", "yiyecek", "içecek", "icecek"],
+    sektor: "Gıda / Catering",
+    nace: [
+      { code: "56.29", label: "Diğer yiyecek hizmeti faaliyetleri" },
+      { code: "56.21", label: "Özel günlerde yiyecek sağlanması" },
+    ],
+    cpv: [
+      { code: "55500000", label: "Kantin ve yemek sunum hizmetleri" },
+      { code: "15000000", label: "Yiyecek, içecek ve ilgili ürünler" },
+    ],
+  },
+  {
+    keywords: ["güvenlik", "guvenlik", "koruma", "bekçi"],
+    sektor: "Güvenlik",
+    nace: [
+      { code: "80.10", label: "Özel güvenlik faaliyetleri" },
+    ],
+    cpv: [
+      { code: "79710000", label: "Güvenlik hizmetleri" },
+    ],
+  },
+  {
+    keywords: ["elektrik", "mekanik", "tesisat", "enerji"],
+    sektor: "Elektrik & Mekanik",
+    nace: [
+      { code: "43.21", label: "Elektrik tesisatı" },
+      { code: "43.22", label: "Sıhhi tesisat, ısıtma ve iklimlendirme" },
+    ],
+    cpv: [
+      { code: "45310000", label: "Elektrik tesisatı işleri" },
+      { code: "09300000", label: "Elektrik, ısıtma, güneş ve nükleer enerji" },
+    ],
+  },
+  {
+    keywords: ["araç", "arac", "kiralama", "lojistik", "ulaşım", "ulasim", "taşıma", "tasima"],
+    sektor: "Araç Kiralama & Lojistik",
+    nace: [
+      { code: "77.11", label: "Otomobil ve hafif motorlu kara taşıtı kiralama" },
+      { code: "49.41", label: "Karayolu ile yük taşımacılığı" },
+    ],
+    cpv: [
+      { code: "60000000", label: "Ulaştırma hizmetleri" },
+      { code: "34110000", label: "Binek otomobiller" },
+    ],
+  },
+];
+
+const CODE_LABELS: Record<string, string> = (() => {
+  const map: Record<string, string> = {};
+  for (const g of KEYWORD_SUGGESTIONS) {
+    for (const c of [...g.nace, ...g.cpv]) map[c.code] = c.label;
+  }
+  return map;
+})();
+
+const STRATEGIES = [
+  {
+    key: "aggressive",
+    label: "Agresif",
+    icon: IconBolt,
+    desc: "Yüksek kırım (%15-25), hacim odaklı büyüme.",
+    why: "Daha fazla ihaleye girmek isteyenler için. Yapay zeka düşük marjlı, büyük hacimli ihaleleri öne çıkarır.",
+    active: "border-rose-500 bg-rose-50 text-rose-800 ring-2 ring-rose-300",
+    idle: "border-border bg-background text-foreground hover:border-rose-300",
+  },
+  {
+    key: "balanced",
+    label: "Dengeli",
+    icon: IconScale,
+    desc: "Orta kırım (%8-12), sürdürülebilir denge.",
+    why: "Karlılık ve hacim dengesi arayanlar için. En sık tercih edilen stratejidir.",
+    active: "border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-300",
+    idle: "border-border bg-background text-foreground hover:border-blue-300",
+  },
+  {
+    key: "conservative",
+    label: "Muhafazakâr",
+    icon: IconShieldCheck,
+    desc: "Düşük kırım (%3-7), yüksek kar marjı.",
+    why: "Seçici davranıp yüksek kar hedefleyenler için. Yapay zeka yalnızca güçlü uyumlu ihaleleri önerir.",
+    active: "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-300",
+    idle: "border-border bg-background text-foreground hover:border-emerald-300",
+  },
+];
+
+const AI_EXPERTISE_OPTIONS = [
+  "Yapım İşleri", "BT & Yazılım", "Danışmanlık", "Temizlik Hizmetleri",
+  "Güvenlik Hizmetleri", "Sağlık & Tıbbi Cihaz", "Araç Kiralama & Lojistik",
+  "Elektrik & Mekanik", "Yemek & Catering", "Peyzaj & Çevre",
+  "Enerji & Telekomünikasyon", "Eğitim & Kurs",
+];
+
+const AI_STRENGTH_OPTIONS = [
+  "Fiyat Rekabeti", "Teknik Yeterlilik", "Güçlü Referanslar",
+  "Hızlı Teslimat", "Yerel Varlık", "Kalite Belgeleri",
+  "Tecrübeli Ekip", "Geniş Alt Yüklenici Ağı",
+];
+
+const AI_AVOID_OPTIONS = [
+  "Yurt Dışı İhaleleri", "Sağlık / Hastane İşleri", "Yemek / Catering",
+  "Temizlik Hizmetleri", "Altyapı / Büyük Yapım",
+  "Çok Kısa Süreli İhaleler", "Çok Düşük Bütçeli İhaleler",
+];
+
+function buildAiBrief(
+  expertise: string[],
+  strengths: string[],
+  expYears: number,
+  avoidTypes: string[],
+  notes: string,
+): string {
+  const parts: string[] = [];
+  if (expertise.length > 0) parts.push(`Uzmanlık: ${expertise.join(", ")}.`);
+  if (expYears > 0) parts.push(`${expYears} yıllık sektör deneyimi.`);
+  if (strengths.length > 0) parts.push(`Güçlü yönler: ${strengths.join(", ")}.`);
+  if (avoidTypes.length > 0) parts.push(`Tercih edilmeyenler: ${avoidTypes.join(", ")}.`);
+  if (notes.trim()) parts.push(notes.trim());
+  return parts.join(" ").slice(0, 500);
+}
+
+function CircularProgress({ value, size = 132, strokeWidth = 11 }: { value: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (value / 100) * circumference;
+  const color =
+    value < 30 ? "stroke-rose-500" : value < 70 ? "stroke-amber-500" : value < 100 ? "stroke-primary" : "stroke-emerald-500";
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg className="-rotate-90" width={size} height={size}>
+        <circle className="stroke-muted" strokeWidth={strokeWidth} fill="transparent" r={radius} cx={size / 2} cy={size / 2} />
+        <circle
+          className={`${color} transition-all duration-700 ease-out`}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="transparent"
+          r={radius}
+          cx={size / 2}
+          cy={size / 2}
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center text-center">
+        <span className="text-3xl font-bold tracking-tight">%{Math.round(value)}</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">Doğruluk</span>
+      </div>
+    </div>
+  );
+}
 
 const ALLOWED_COMPANY_KEYS = [
   "companyName", "taxNumber", "mersisNumber", "ekapNumber",

@@ -13,14 +13,9 @@ import LandingPage from "@/pages/landing";
 import DashboardPage from "@/pages/dashboard";
 import FirsatlarimPage from "@/pages/firsatlarim";
 import IhaleDetayPage from "@/pages/ihale-detay";
-import BasvuruSihirbazPage from "@/pages/basvuru-sihirbazi";
 import IhaleAramaPage from "@/pages/ihale-arama";
 import BoruHattiPage from "@/pages/boru-hatti";
-import RakipAnaliziPage from "@/pages/rakip-analizi";
-import ParaAkisiPage from "@/pages/para-akisi";
-import BelgelerimPage from "@/pages/belgelerim";
 import RaporlarPage from "@/pages/raporlar";
-import EntegrasyonlarPage from "@/pages/entegrasyonlar";
 import AyarlarPage from "@/pages/ayarlar";
 import PazarlamaPage from "@/pages/pazarlama/index";
 import ContentGeneratorPage from "@/pages/pazarlama/content-generator";
@@ -104,7 +99,7 @@ function SignUpPage() {
         routing="path"
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
-        forceRedirectUrl={`${basePath}/basvuru-sihirbazi`}
+        forceRedirectUrl={`${basePath}/ayarlar?tab=sirket`}
       />
     </AuthLayout>
   );
@@ -182,25 +177,6 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
 }
 
 /**
- * A variant of ProtectedRoute for the wizard itself — it never redirects back
- * to the wizard (avoiding an infinite loop).
- */
-function WizardRoute() {
-  return (
-    <>
-      <Show when="signed-in">
-        <AppShell>
-          <BasvuruSihirbazPage />
-        </AppShell>
-      </Show>
-      <Show when="signed-out">
-        <Redirect to="/sign-in" />
-      </Show>
-    </>
-  );
-}
-
-/**
  * Wrap a premium-only page in the Pro full-page gate. Free users see an upgrade
  * screen (inside the AppShell); Pro users see the real page.
  */
@@ -252,7 +228,7 @@ function FirstVisitRedirect() {
     if (!isLoaded || !isSignedIn || !userId || hasCheckedRef.current) return;
 
     const currentPath = window.location.pathname.replace(basePath, "") || "/";
-    if (currentPath === "/basvuru-sihirbazi" || currentPath.startsWith("/sign-")) return;
+    if (currentPath === "/ayarlar" || currentPath.startsWith("/sign-")) return;
 
     const skipKey = `ihale_onboarding_skipped_${userId}`;
     if (localStorage.getItem(skipKey)) return;
@@ -262,7 +238,7 @@ function FirstVisitRedirect() {
     fetch(`${API_BASE}/company-profile`, { credentials: "include" })
       .then((res) => {
         if (res.status === 404) {
-          navigate("/basvuru-sihirbazi");
+          navigate("/ayarlar?tab=sirket");
         }
       })
       .catch(() => {});
@@ -296,20 +272,14 @@ function ClerkProviderWithRoutes() {
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
 
-          <Route path="/basvuru-sihirbazi" component={WizardRoute} />
-
           <Route path="/ihale-arama"><ProtectedRoute component={IhaleAramaPage} /></Route>
           <Route path="/ihale/:id"><ProtectedRoute component={IhaleDetayPage} /></Route>
           <Route path="/fiyatlandirma"><ProtectedRoute component={FiyatlandirmaPage} /></Route>
-          <Route path="/belgelerim"><ProtectedRoute component={BelgelerimPage} /></Route>
-          <Route path="/entegrasyonlar"><ProtectedRoute component={EntegrasyonlarPage} /></Route>
           <Route path="/ayarlar"><ProtectedRoute component={AyarlarPage} /></Route>
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
           <Route path="/boru-hatti"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Boru Hattı Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
-          <Route path="/rakip-analizi"><ProtectedRoute component={proGate(RakipAnaliziPage, { title: "Rakip Analizi Pro'ya özeldir", description: "Rakiplerinizin kazandığı ihaleleri ve stratejilerini görmek için Pro'ya geçin." })} /></Route>
-          <Route path="/para-akisi"><ProtectedRoute component={proGate(ParaAkisiPage, { title: "Para Akışı Pro'ya özeldir", description: "Aylık nakit akışı, kategori ve idare bazlı analizler için Pro'ya geçin." })} /></Route>
           <Route path="/raporlar"><ProtectedRoute component={proGate(RaporlarPage, { title: "Raporlar Pro'ya özeldir", description: "Başvuru performansı ve kategori raporlarınız için Pro planına geçin." })} /></Route>
 
           <Route path="/pazarlama"><AdminRoute component={PazarlamaPage} /></Route>

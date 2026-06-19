@@ -18,12 +18,7 @@ import {
   IconStarFilled,
   IconSearch,
   IconListDetails,
-  IconTruckDelivery,
-  IconChartBar,
-  IconCash,
-  IconFileText,
   IconChartAreaLine,
-  IconPlug,
   IconBell,
   IconRobot,
   IconSun,
@@ -57,13 +52,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard, pro: true },
   { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled, pro: true },
   { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails, pro: true },
-  { href: "/basvuru-sihirbazi", label: "Başvuru Sihirbazı", icon: IconTruckDelivery },
-  { href: "/rakip-analizi", label: "Rakip Analizi", icon: IconChartBar, pro: true },
-  { href: "/para-akisi", label: "Para Akışı", icon: IconCash, pro: true },
-  { href: "/belgelerim", label: "Belgelerim", icon: IconFileText },
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
   { href: "/ayarlar", label: "Ayarlar", icon: IconSettings },
-  { href: "/entegrasyonlar", label: "Entegrasyonlar", icon: IconPlug },
 ];
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -269,22 +259,22 @@ export function AppShell({ children }: AppShellProps) {
           </button>
         </div>
       ) : (
-        <div className="mx-3 mb-3 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-3 shadow-lg">
+        <div className="mx-3 mb-3 rounded-xl bg-slate-800 border border-slate-700 p-3 shadow-sm">
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="h-6 w-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-              <IconCrown className="h-3.5 w-3.5 text-yellow-300" />
+            <div className="h-6 w-6 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+              <IconCrown className="h-3.5 w-3.5 text-amber-400" />
             </div>
             <span className="text-xs font-bold text-white">Pro'ya Yükseltin</span>
           </div>
-          <p className="text-[10px] text-white/70 mb-2.5 leading-relaxed">
-            Yapay zeka analizi, belgeler ve tüm araçların kilidini açın.
+          <p className="text-[10px] text-white/60 mb-2.5 leading-relaxed">
+            Tüm araçların kilidini açın.
           </p>
           <button
             onClick={handleUpgrade}
             disabled={upgradeLoading}
-            className="w-full bg-white/15 hover:bg-white/25 border border-white/30 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
           >
-            <IconBolt className="h-3 w-3 text-yellow-300" />
+            <IconBolt className="h-3 w-3 text-amber-400" />
             {upgradeLoading ? "Yönlendiriliyor…" : "Planı Yükselt"}
           </button>
         </div>
@@ -293,10 +283,10 @@ export function AppShell({ children }: AppShellProps) {
         <div className="flex justify-center pb-2">
           <button
             onClick={isPro ? handleManageSubscription : handleUpgrade}
-            className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center hover:opacity-90 transition-opacity"
+            className="h-8 w-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center hover:bg-slate-700 transition-colors"
             title={isPro ? "Aboneliği Yönet" : "Planı Yükselt"}
           >
-            <IconCrown className="h-4 w-4 text-yellow-300" />
+            <IconCrown className="h-4 w-4 text-amber-400" />
           </button>
         </div>
       )}

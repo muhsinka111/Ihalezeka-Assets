@@ -14,7 +14,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   pending: { label: "Bekleniyor", color: "bg-slate-100 text-slate-700 border-slate-200", icon: IconFileText },
 };
 
-export default function BelgelerimPage() {
+export function BelgelerimTab() {
   const [activeFolder, setActiveFolder] = useState<string | undefined>();
   const { data: folders, isLoading: fLoading } = useListDocumentFolders();
   const { data: docs, isLoading: dLoading, refetch } = useListDocuments(activeFolder ? { folder: activeFolder } : {});
@@ -28,10 +28,7 @@ export default function BelgelerimPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold font-heading tracking-tight">Belgelerim</h1>
-          <p className="text-muted-foreground text-sm">İhale başvurularında kullandığınız belgeleri yönetin.</p>
-        </div>
+        <p className="text-muted-foreground text-sm">İhale başvurularında kullandığınız belgeleri yönetin.</p>
         <Dialog>
           <DialogTrigger asChild>
             <Button className="gap-2"><IconUpload className="h-4 w-4" /> Belge Yükle</Button>
