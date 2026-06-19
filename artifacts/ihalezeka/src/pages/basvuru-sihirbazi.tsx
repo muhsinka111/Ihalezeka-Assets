@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@clerk/react";
 import { useGetCompanyProfile, useUpsertCompanyProfile } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +85,41 @@ const STRATEGIES = [
     activeColor: "border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400",
   },
 ];
+
+const AI_EXPERTISE_OPTIONS = [
+  "Yapım İşleri", "BT & Yazılım", "Danışmanlık", "Temizlik Hizmetleri",
+  "Güvenlik Hizmetleri", "Sağlık & Tıbbi Cihaz", "Araç Kiralama & Lojistik",
+  "Elektrik & Mekanik", "Yemek & Catering", "Peyzaj & Çevre",
+  "Enerji & Telekomünikasyon", "Eğitim & Kurs",
+];
+
+const AI_STRENGTH_OPTIONS = [
+  "Fiyat Rekabeti", "Teknik Yeterlilik", "Güçlü Referanslar",
+  "Hızlı Teslimat", "Yerel Varlık", "Kalite Belgeleri",
+  "Tecrübeli Ekip", "Geniş Alt Yüklenici Ağı",
+];
+
+const AI_AVOID_OPTIONS = [
+  "Yurt Dışı İhaleleri", "Sağlık / Hastane İşleri", "Yemek / Catering",
+  "Temizlik Hizmetleri", "Altyapı / Büyük Yapım",
+  "Çok Kısa Süreli İhaleler", "Çok Düşük Bütçeli İhaleler",
+];
+
+function buildAiBrief(
+  expertise: string[],
+  strengths: string[],
+  expYears: number,
+  avoidTypes: string[],
+  notes: string,
+): string {
+  const parts: string[] = [];
+  if (expertise.length > 0) parts.push(`Uzmanlık: ${expertise.join(", ")}.`);
+  if (expYears > 0) parts.push(`${expYears} yıllık sektör deneyimi.`);
+  if (strengths.length > 0) parts.push(`Güçlü yönler: ${strengths.join(", ")}.`);
+  if (avoidTypes.length > 0) parts.push(`Tercih edilmeyenler: ${avoidTypes.join(", ")}.`);
+  if (notes.trim()) parts.push(notes.trim());
+  return parts.join(" ").slice(0, 1000);
+}
 
 function ChipSelector({
   options,
@@ -215,9 +251,24 @@ export default function BasvuruSihirbazPage() {
 
   const save = async () => {
     setSaving(true);
-    await mutation.mutateAsync({ data: { ...data, completionStep: step } });
-    setSaving(false);
-    if (step < 6) setStep(step + 1);
+    try {
+      const payload: any = { ...data, completionStep: step };
+      if (step === 6) {
+        payload.aiBrief = buildAiBrief(
+          form._aiExpertise ?? [],
+          form._aiStrengths ?? [],
+          form._aiExpYears ?? 0,
+          form._aiAvoidTypes ?? [],
+          form._aiNotes ?? (data.aiBrief ?? ""),
+        );
+      }
+      await mutation.mutateAsync({ data: payload });
+      if (step < 6) setStep(step + 1);
+    } catch {
+      toast.error("Kaydedilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSkip = () => {
@@ -470,26 +521,96 @@ export default function BasvuruSihirbazPage() {
 
               {/* ── Step 6: AI Bağlamı ── */}
               {step === 6 && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                    <strong>Bu bilgi neden önemli?</strong> Yazdığınız özet, yapay zeka asistanımızın her sohbette firmanızı tanımasını sağlar. Sektörünüzü, güçlü yönlerinizi ve geçmiş deneyimlerinizi ekleyin.
+                    <strong>Bu bilgi neden önemli?</strong> Aşağıdaki sorular, yapay zeka motorunun ihale–firma uyumunu çok daha doğru değerlendirmesini sağlar. Ne kadar çok doldurursanız eşleştirme o kadar isabetli olur.
                   </div>
+
+                  {/* Uzmanlık Alanları */}
+                  <div className="space-y-2">
+                    <Label>Uzmanlık Alanları</Label>
+                    <p className="text-xs text-muted-foreground">Firmanızın en güçlü olduğu iş alanlarını seçin (birden fazla seçebilirsiniz).</p>
+                    <ChipSelector
+                      options={AI_EXPERTISE_OPTIONS}
+                      selected={form._aiExpertise ?? []}
+                      onToggle={(v) => {
+                        const cur: string[] = form._aiExpertise ?? [];
+                        set("_aiExpertise", cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]);
+                      }}
+                    />
+                  </div>
+
+                  {/* Rekabet Avantajı */}
+                  <div className="space-y-2">
+                    <Label>Rekabet Avantajlarınız</Label>
+                    <p className="text-xs text-muted-foreground">Rakiplerinize kıyasla öne çıktığınız güçlü yönlerinizi seçin.</p>
+                    <ChipSelector
+                      options={AI_STRENGTH_OPTIONS}
+                      selected={form._aiStrengths ?? []}
+                      onToggle={(v) => {
+                        const cur: string[] = form._aiStrengths ?? [];
+                        set("_aiStrengths", cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]);
+                      }}
+                    />
+                  </div>
+
+                  {/* Deneyim Yılı */}
+                  <div className="space-y-3">
+                    <Label>
+                      Sektör Deneyimi:{" "}
+                      <span className="font-bold text-primary">
+                        {(form._aiExpYears ?? 0) === 0 ? "Belirtilmedi" : `${form._aiExpYears ?? 0} yıl`}
+                      </span>
+                    </Label>
+                    <Slider
+                      min={0}
+                      max={35}
+                      step={1}
+                      value={[form._aiExpYears ?? 0]}
+                      onValueChange={([v]) => set("_aiExpYears", v)}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Belirtme</span>
+                      <span>5 yıl</span>
+                      <span>10 yıl</span>
+                      <span>20 yıl</span>
+                      <span>35+ yıl</span>
+                    </div>
+                  </div>
+
+                  {/* Kaçınılan İhale Türleri */}
+                  <div className="space-y-2">
+                    <Label>Tercih Etmediğiniz İhale Türleri</Label>
+                    <p className="text-xs text-muted-foreground">AI bu türdeki ihaleleri size önerirken daha düşük puan verir.</p>
+                    <ChipSelector
+                      options={AI_AVOID_OPTIONS}
+                      selected={form._aiAvoidTypes ?? []}
+                      onToggle={(v) => {
+                        const cur: string[] = form._aiAvoidTypes ?? [];
+                        set("_aiAvoidTypes", cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v]);
+                      }}
+                    />
+                  </div>
+
+                  {/* Serbest Notlar */}
                   <div className="space-y-1.5">
-                    <Label htmlFor="aiBrief">Firma Özeti (en fazla 500 karakter)</Label>
+                    <Label htmlFor="aiNotes">Ek Notlar <span className="text-muted-foreground font-normal">(isteğe bağlı)</span></Label>
                     <Textarea
-                      id="aiBrief"
-                      rows={6}
-                      maxLength={500}
-                      placeholder="Örn: İnşaat sektöründe 15 yıllık deneyimimiz var. Kamuya ait altyapı projeleri, yol yapımı ve okul inşaatlarında referanslarımız bulunmaktadır. ISO 9001 ve ISO 14001 belgelerimiz mevcut. Özellikle Marmara ve İç Anadolu bölgelerinde aktifiz."
-                      defaultValue={data.aiBrief ?? ""}
-                      onChange={(e) => set("aiBrief", e.target.value)}
+                      id="aiNotes"
+                      rows={3}
+                      maxLength={400}
+                      placeholder="Örn: Özellikle okul ve kamu binası yapım ihalelerinde güçlüyüz. Marmara bölgesinde alt yüklenici ağımız geniş."
+                      defaultValue={form._aiNotes ?? (data.aiBrief ?? "")}
+                      onChange={(e) => set("_aiNotes", e.target.value)}
                       className="resize-none"
                     />
                     <p className="text-xs text-muted-foreground text-right">
-                      {(form.aiBrief ?? data.aiBrief ?? "").length} / 500
+                      {(form._aiNotes ?? (data.aiBrief ?? "")).length} / 400
                     </p>
                   </div>
-                  {data.completionStep >= 6 && (
+
+                  {data.completionStep != null && data.completionStep >= 6 && (
                     <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3">
                       <IconCheck className="h-5 w-5 text-emerald-600 shrink-0" />
                       <p className="text-sm text-emerald-700 font-medium">Profiliniz tamamlandı! Eşleşme sistemi aktif.</p>

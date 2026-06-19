@@ -79,6 +79,7 @@ function buildScoringPrompt(
 
   const profileDetails = [
     `Şirket: ${profile.companyName}`,
+    profile.aiBrief ? `Firma Özeti: ${profile.aiBrief}` : null,
     profile.cpvCodes.length > 0 ? `CPV Kodları: ${profile.cpvCodes.join(", ")}` : null,
     profile.naceCodes.length > 0 ? `NACE Kodları: ${profile.naceCodes.join(", ")}` : null,
     profile.certifications.length > 0
