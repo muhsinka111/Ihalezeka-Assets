@@ -14,7 +14,6 @@ import DashboardPage from "@/pages/dashboard";
 import FirsatlarimPage from "@/pages/firsatlarim";
 import IhaleDetayPage from "@/pages/ihale-detay";
 import BasvuruSihirbazPage from "@/pages/basvuru-sihirbazi";
-import TeklifOlusturucuPage from "@/pages/teklif-olusturucu";
 import IhaleAramaPage from "@/pages/ihale-arama";
 import BoruHattiPage from "@/pages/boru-hatti";
 import RakipAnaliziPage from "@/pages/rakip-analizi";
@@ -308,7 +307,6 @@ function ClerkProviderWithRoutes() {
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
-          <Route path="/teklif-olusturucu"><ProtectedRoute component={proGate(TeklifOlusturucuPage, { title: "Teklif Oluşturucu Pro'ya özeldir", description: "Yapay zeka destekli teklif taslakları oluşturmak için Pro planına geçin." })} /></Route>
           <Route path="/boru-hatti"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Boru Hattı Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
           <Route path="/rakip-analizi"><ProtectedRoute component={proGate(RakipAnaliziPage, { title: "Rakip Analizi Pro'ya özeldir", description: "Rakiplerinizin kazandığı ihaleleri ve stratejilerini görmek için Pro'ya geçin." })} /></Route>
           <Route path="/para-akisi"><ProtectedRoute component={proGate(ParaAkisiPage, { title: "Para Akışı Pro'ya özeldir", description: "Aylık nakit akışı, kategori ve idare bazlı analizler için Pro'ya geçin." })} /></Route>

@@ -57,7 +57,6 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard, pro: true },
   { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled, pro: true },
   { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails, pro: true },
-  { href: "/teklif-olusturucu", label: "Teklif Oluşturucu", icon: IconFileText, pro: true },
   { href: "/basvuru-sihirbazi", label: "Başvuru Sihirbazı", icon: IconTruckDelivery },
   { href: "/rakip-analizi", label: "Rakip Analizi", icon: IconChartBar, pro: true },
   { href: "/para-akisi", label: "Para Akışı", icon: IconCash, pro: true },
