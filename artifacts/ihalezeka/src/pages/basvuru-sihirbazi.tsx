@@ -118,7 +118,7 @@ function buildAiBrief(
   if (strengths.length > 0) parts.push(`Güçlü yönler: ${strengths.join(", ")}.`);
   if (avoidTypes.length > 0) parts.push(`Tercih edilmeyenler: ${avoidTypes.join(", ")}.`);
   if (notes.trim()) parts.push(notes.trim());
-  return parts.join(" ").slice(0, 1000);
+  return parts.join(" ").slice(0, 500);
 }
 
 function ChipSelector({
