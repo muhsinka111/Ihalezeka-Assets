@@ -9,8 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import {
   IconUser,
@@ -20,13 +18,12 @@ import {
   IconCheck,
   IconX,
   IconPlus,
-  IconFileText,
+  IconFolder,
   IconBriefcase,
   IconBrain,
   IconTrendingUp,
   IconMapPin,
   IconSearch,
-  IconCircleCheck,
   IconTargetArrow,
   IconRosette,
   IconBolt,
@@ -561,12 +558,113 @@ function ProfilTab() {
   );
 }
 
+function WhyBox({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-[12px] leading-relaxed text-blue-800">
+      <IconSparkles className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
+      <span>{children}</span>
+    </div>
+  );
+}
+
+function CodeFinder({
+  type,
+  selected,
+  onToggle,
+}: {
+  type: "nace" | "cpv";
+  selected: string[];
+  onToggle: (code: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+
+  const matches = useMemo(() => {
+    if (!q) return [];
+    const groups = KEYWORD_SUGGESTIONS.filter((g) =>
+      g.keywords.some((k) => k.includes(q) || q.includes(k)) || g.sektor.toLowerCase().includes(q),
+    );
+    const out: { code: string; label: string; sektor: string }[] = [];
+    for (const g of groups) {
+      for (const c of g[type]) out.push({ ...c, sektor: g.sektor });
+    }
+    return out;
+  }, [q, type]);
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Sektör veya anahtar kelime yazın (örn: inşaat, yazılım, temizlik)"
+          className="pl-9"
+        />
+      </div>
+
+      {q && matches.length === 0 && (
+        <p className="text-xs text-muted-foreground">Eşleşen kod bulunamadı. Aşağıdan elle de ekleyebilirsiniz.</p>
+      )}
+
+      {matches.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {matches.map((m) => {
+            const isSel = selected.includes(m.code);
+            return (
+              <button
+                key={`${type}-${m.code}`}
+                type="button"
+                onClick={() => onToggle(m.code)}
+                className={`flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors ${
+                  isSel ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-background hover:border-primary/40"
+                }`}
+              >
+                <div className={`mt-0.5 h-4 w-4 shrink-0 rounded-full flex items-center justify-center ${isSel ? "bg-primary text-primary-foreground" : "border border-muted-foreground/40"}`}>
+                  {isSel && <IconCheck className="h-3 w-3" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-xs font-semibold">{m.code}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 h-[15px]">{m.sektor}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">{m.label}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {selected.map((code) => (
+            <span key={code} className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary text-xs font-medium pl-2 pr-1 py-1">
+              <span className="font-mono">{code}</span>
+              {CODE_LABELS[code] && <span className="text-primary/70 font-normal max-w-[160px] truncate">· {CODE_LABELS[code]}</span>}
+              <button type="button" onClick={() => onToggle(code)} className="rounded hover:bg-primary/20 p-0.5">
+                <IconX className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SirketTab() {
   const { data: profile, isLoading } = useGetCompanyProfile();
   const mutation = useUpsertCompanyProfile();
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
+
+  const [aiExpertise, setAiExpertise] = useState<string[]>([]);
+  const [aiStrengths, setAiStrengths] = useState<string[]>([]);
+  const [aiAvoid, setAiAvoid] = useState<string[]>([]);
+  const [aiExpYears, setAiExpYears] = useState<number>(0);
+  const [aiNotes, setAiNotes] = useState<string>("");
 
   if (isLoading) return <Skeleton className="h-64 w-full" />;
 
@@ -577,12 +675,53 @@ function SirketTab() {
     const current: string[] = arr(k);
     set(k, current.includes(val) ? current.filter((x) => x !== val) : [...current, val]);
   };
+  const toggleLocal = (
+    setter: React.Dispatch<React.SetStateAction<string[]>>,
+    val: string,
+  ) => setter((c) => (c.includes(val) ? c.filter((x) => x !== val) : [...c, val]));
+
+  const aiBriefComposed = buildAiBrief(aiExpertise, aiStrengths, aiExpYears, aiAvoid, aiNotes);
+  const effectiveBrief = (data.aiBrief ?? "").trim() || aiBriefComposed;
+
+  const score = (() => {
+    let s = 0;
+    if ((data.companyName ?? "").trim()) s += 15;
+    if (arr("naceCodes").length > 0) s += 15;
+    if (arr("cpvCodes").length > 0) s += 15;
+    if (data.annualRevenue || data.experienceCeiling) s += 8;
+    if (data.personnelCount) s += 7;
+    if (effectiveBrief.length >= 40) s += 20;
+    else if (effectiveBrief.length > 0) s += 8;
+    if (arr("certifications").length > 0) s += 10;
+    if (arr("preferredProvinces").length > 0) s += 5;
+    if ((data.discountStrategy ?? "").trim()) s += 5;
+    return Math.min(100, s);
+  })();
+
+  const checklist = [
+    { label: "Firma adı", done: !!(data.companyName ?? "").trim() },
+    { label: "NACE & CPV kodları", done: arr("naceCodes").length > 0 && arr("cpvCodes").length > 0 },
+    { label: "Finansal kapasite", done: !!(data.annualRevenue || data.experienceCeiling) },
+    { label: "Yapay zeka firma özeti", done: effectiveBrief.length >= 40 },
+    { label: "Sertifikalar", done: arr("certifications").length > 0 },
+    { label: "Strateji & iller", done: !!(data.discountStrategy ?? "").trim() },
+  ];
+
+  const composeBrief = () => {
+    if (!aiBriefComposed) {
+      toast.error("Önce uzmanlık veya güçlü yön seçin.");
+      return;
+    }
+    set("aiBrief", aiBriefComposed);
+    toast.success("Firma özeti oluşturuldu. Dilerseniz düzenleyebilirsiniz.");
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await mutation.mutateAsync({ data: sanitizeCompanyPayload(data) });
-      toast.success("Şirket bilgileri güncellendi.");
+      const payload = { ...data, aiBrief: effectiveBrief };
+      await mutation.mutateAsync({ data: sanitizeCompanyPayload(payload) });
+      toast.success("Şirket profili güncellendi.");
     } catch {
       toast.error("Kayıt başarısız. Lütfen tekrar deneyin.");
     } finally {
@@ -591,13 +730,18 @@ function SirketTab() {
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Temel Bilgiler</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
+      {/* ── Main column ─────────────────────────────────────── */}
+      <div className="space-y-6">
+        {/* Temel kimlik */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconBuilding className="h-4 w-4 text-primary" /> Firma Kimliği
+            </CardTitle>
+            <CardDescription>Yapay zekanın sizi tanıması için temel bilgiler.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <div className="space-y-1.5">
               <Label>Firma Adı</Label>
               <Input
@@ -606,97 +750,236 @@ function SirketTab() {
                 placeholder="Örn: ABC Yapı Ltd. Şti."
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Vergi Numarası</Label>
-              <Input
-                defaultValue={data.taxNumber ?? ""}
-                onChange={(e) => set("taxNumber", e.target.value)}
-                placeholder="1234567890"
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label>Yıllık Ciro (₺)</Label>
+                <Input
+                  type="number"
+                  defaultValue={data.annualRevenue ?? ""}
+                  onChange={(e) => set("annualRevenue", parseFloat(e.target.value) || null)}
+                  placeholder="10000000"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Personel Sayısı</Label>
+                <Input
+                  type="number"
+                  defaultValue={data.personnelCount ?? ""}
+                  onChange={(e) => set("personnelCount", parseInt(e.target.value) || null)}
+                  placeholder="50"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>İş Deneyim Tavanı (₺)</Label>
+                <Input
+                  type="number"
+                  defaultValue={data.experienceCeiling ?? ""}
+                  onChange={(e) => set("experienceCeiling", parseFloat(e.target.value) || null)}
+                  placeholder="50000000"
+                />
+              </div>
+            </div>
+            <WhyBox>
+              Ciro ve iş deneyim tavanı, bir ihalenin yaklaşık maliyetine göre <strong>yeterlilik
+              sınırınızı</strong> belirler. Böylece yapay zeka boyu aşan ihaleleri elemenize yardımcı olur.
+            </WhyBox>
+          </CardContent>
+        </Card>
+
+        {/* NACE / CPV finder */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconTargetArrow className="h-4 w-4 text-primary" /> Faaliyet Alanları (NACE & CPV)
+            </CardTitle>
+            <CardDescription>Ne iş yaptığınızı yazın, doğru kodları sizin için bulalım.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-muted-foreground">NACE Kodları</Label>
+              <CodeFinder type="nace" selected={arr("naceCodes")} onToggle={(c) => toggleArr("naceCodes", c)} />
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">Kodu elle eklemek istiyorum</summary>
+                <div className="pt-2">
+                  <TagInput value={arr("naceCodes")} onChange={(v) => set("naceCodes", v)} placeholder="Örn: 41.20 — Enter ile ekle" />
+                </div>
+              </details>
+            </div>
+            <div className="space-y-2 border-t border-border pt-4">
+              <Label className="text-xs font-semibold text-muted-foreground">CPV Kodları</Label>
+              <CodeFinder type="cpv" selected={arr("cpvCodes")} onToggle={(c) => toggleArr("cpvCodes", c)} />
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">Kodu elle eklemek istiyorum</summary>
+                <div className="pt-2">
+                  <TagInput value={arr("cpvCodes")} onChange={(v) => set("cpvCodes", v)} placeholder="Örn: 45000000 — Enter ile ekle" />
+                </div>
+              </details>
+            </div>
+            <WhyBox>
+              NACE ve CPV kodları ihale eşleştirmesinin <strong>en güçlü sinyalidir</strong>. Doğru kodlar,
+              size uygun ihalelerin kaçırılmadan önünüze gelmesini sağlar.
+            </WhyBox>
+          </CardContent>
+        </Card>
+
+        {/* Guided AI questions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconBrain className="h-4 w-4 text-primary" /> Yapay Zeka Profili
+            </CardTitle>
+            <CardDescription>Birkaç soruyu yanıtlayın; eşleşme doğruluğunuz belirgin şekilde artar.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><IconBriefcase className="h-3.5 w-3.5" /> Uzmanlık alanlarınız</Label>
+              <ChipSelector options={AI_EXPERTISE_OPTIONS} selected={aiExpertise} onToggle={(v) => toggleLocal(setAiExpertise, v)} />
+              <WhyBox>En iyi olduğunuz alanları seçin; yapay zeka bu alanlardaki ihaleleri öne çıkarır.</WhyBox>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><IconTrendingUp className="h-3.5 w-3.5" /> Rekabet avantajlarınız</Label>
+              <ChipSelector options={AI_STRENGTH_OPTIONS} selected={aiStrengths} onToggle={(v) => toggleLocal(setAiStrengths, v)} />
+              <WhyBox>Kazanma şansınızı artıran yönleriniz, kazanma olasılığı tahminini iyileştirir.</WhyBox>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="flex items-center gap-1.5"><IconRosette className="h-3.5 w-3.5" /> Sektör deneyiminiz: <span className="font-semibold text-primary">{aiExpYears} yıl{aiExpYears >= 20 ? "+" : ""}</span></Label>
+              <Slider value={[aiExpYears]} onValueChange={(v) => setAiExpYears(v[0])} min={0} max={20} step={1} />
+              <WhyBox>Deneyim, benzer büyüklükteki işlerde güvenilirliğinizin bir göstergesidir.</WhyBox>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><IconX className="h-3.5 w-3.5" /> Tercih etmediğiniz ihale tipleri</Label>
+              <ChipSelector options={AI_AVOID_OPTIONS} selected={aiAvoid} onToggle={(v) => toggleLocal(setAiAvoid, v)} />
+              <WhyBox>Girmek istemediğiniz işler; gereksiz bildirimleri ve düşük uyumlu önerileri azaltır.</WhyBox>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Yapay Zeka Firma Özeti</Label>
+              <Textarea
+                rows={4}
+                value={data.aiBrief ?? aiBriefComposed}
+                onChange={(e) => set("aiBrief", e.target.value)}
+                placeholder="Firmanızı birkaç cümleyle anlatın. Yukarıdaki seçimlerden otomatik oluşturabilir, sonra düzenleyebilirsiniz."
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={composeBrief}>
+                  <IconSparkles className="h-3.5 w-3.5" /> Seçimlerden özet oluştur
+                </Button>
+                <span className="text-[11px] text-muted-foreground">{(data.aiBrief ?? aiBriefComposed).length}/500 karakter</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Ek notlar (opsiyonel)</Label>
+              <Textarea
+                rows={2}
+                value={aiNotes}
+                onChange={(e) => setAiNotes(e.target.value)}
+                placeholder="Özetin sonuna eklenmesini istediğiniz serbest açıklama."
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Yıllık Ciro (₺)</Label>
-              <Input
-                type="number"
-                defaultValue={data.annualRevenue ?? ""}
-                onChange={(e) => set("annualRevenue", parseFloat(e.target.value) || null)}
-                placeholder="Örn: 10000000"
-              />
+          </CardContent>
+        </Card>
+
+        {/* Strategy */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconScale className="h-4 w-4 text-primary" /> Fiyatlama Stratejisi
+            </CardTitle>
+            <CardDescription>Yapay zekanın önerilerini iştahınıza göre ayarlar.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {STRATEGIES.map((s) => {
+                const Icon = s.icon;
+                const isSel = data.discountStrategy === s.key;
+                return (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => set("discountStrategy", s.key)}
+                    className={`rounded-xl border p-3 text-left transition-all ${isSel ? s.active : s.idle}`}
+                  >
+                    <Icon className="h-5 w-5 mb-1.5" />
+                    <div className="font-semibold text-sm">{s.label}</div>
+                    <div className="text-[11px] opacity-80 mt-0.5 leading-snug">{s.desc}</div>
+                  </button>
+                );
+              })}
             </div>
-            <div className="space-y-1.5">
-              <Label>Personel Sayısı</Label>
-              <Input
-                type="number"
-                defaultValue={data.personnelCount ?? ""}
-                onChange={(e) => set("personnelCount", parseInt(e.target.value) || null)}
-                placeholder="Örn: 50"
-              />
+            {STRATEGIES.find((s) => s.key === data.discountStrategy) && (
+              <WhyBox>{STRATEGIES.find((s) => s.key === data.discountStrategy)!.why}</WhyBox>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Certifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconShieldCheck className="h-4 w-4 text-primary" /> Sertifikalar & Belgeler
+            </CardTitle>
+            <CardDescription>Sahip olduğunuz kalite ve uyumluluk belgelerini işaretleyin.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ChipSelector options={CERTIFICATIONS} selected={arr("certifications")} onToggle={(v) => toggleArr("certifications", v)} />
+            <WhyBox>Birçok ihale belirli belgeleri şart koşar. Belgeleriniz, yeterlilik filtrelemesini netleştirir.</WhyBox>
+          </CardContent>
+        </Card>
+
+        {/* Provinces */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <IconMapPin className="h-4 w-4 text-primary" /> Tercih Edilen İller
+            </CardTitle>
+            <CardDescription>Boş bırakırsanız tüm Türkiye kapsanır.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChipSelector options={TR_PROVINCES} selected={arr("preferredProvinces")} onToggle={(v) => toggleArr("preferredProvinces", v)} />
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end pt-1">
+          <Button onClick={handleSave} disabled={saving} size="lg">
+            {saving ? "Kaydediliyor…" : "Profili Kaydet"}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Sticky score sidebar ────────────────────────────── */}
+      <div className="lg:sticky lg:top-6">
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <IconBrain className="h-4 w-4 text-primary" /> AI Doğruluk Skoru
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col items-center">
+              <CircularProgress value={score} />
+              <p className="text-xs text-center text-muted-foreground mt-3 leading-relaxed">
+                Profiliniz ne kadar eksiksizse, ihale eşleşmeleriniz o kadar isabetli olur.
+              </p>
             </div>
-            <div className="space-y-1.5">
-              <Label>İş Deneyim Tavanı (₺)</Label>
-              <Input
-                type="number"
-                defaultValue={data.experienceCeiling ?? ""}
-                onChange={(e) => set("experienceCeiling", parseFloat(e.target.value) || null)}
-                placeholder="Örn: 50000000"
-              />
+            <div className="space-y-2 border-t border-border pt-3">
+              {checklist.map((c) => (
+                <div key={c.label} className="flex items-center gap-2 text-xs">
+                  <span className={`h-4 w-4 rounded-full flex items-center justify-center shrink-0 ${c.done ? "bg-emerald-500 text-white" : "border border-muted-foreground/30"}`}>
+                    {c.done && <IconCheck className="h-3 w-3" />}
+                  </span>
+                  <span className={c.done ? "text-foreground" : "text-muted-foreground"}>{c.label}</span>
+                </div>
+              ))}
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Sertifikalar & Belgeler</CardTitle>
-          <CardDescription>Sahip olduğunuz kalite ve uyumluluk belgelerini işaretleyin.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChipSelector
-            options={CERTIFICATIONS}
-            selected={arr("certifications")}
-            onToggle={(v) => toggleArr("certifications", v)}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">CPV Kodları</CardTitle>
-          <CardDescription>Faaliyet alanlarınıza ait CPV kodları.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TagInput
-            value={arr("cpvCodes")}
-            onChange={(v) => set("cpvCodes", v)}
-            placeholder="Örn: 45000000 — Enter ile ekle"
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tercih Edilen İller</CardTitle>
-          <CardDescription>Boş bırakırsanız tüm Türkiye kapsanır.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChipSelector
-            options={TR_PROVINCES}
-            selected={arr("preferredProvinces")}
-            onToggle={(v) => toggleArr("preferredProvinces", v)}
-          />
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between pt-2">
-        <Link href="/basvuru-sihirbazi">
-          <a className="text-sm text-primary hover:underline inline-flex items-center gap-1">
-            <IconExternalLink className="h-3.5 w-3.5" />
-            Tam sihirbazı aç (gelişmiş ayarlar)
-          </a>
-        </Link>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? "Kaydediliyor…" : "Değişiklikleri Kaydet"}
-        </Button>
+            <Button onClick={handleSave} disabled={saving} className="w-full" size="sm">
+              {saving ? "Kaydediliyor…" : "Profili Kaydet"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -790,15 +1073,37 @@ function GuvenlikTab() {
   );
 }
 
+const VALID_TABS = ["profil", "sirket", "belgeler", "guvenlik"] as const;
+
 export default function AyarlarPage() {
+  const [location, navigate] = useLocation();
+
+  const tabFromUrl = (() => {
+    const qIndex = location.indexOf("?");
+    const search = qIndex >= 0 ? location.slice(qIndex + 1) : (typeof window !== "undefined" ? window.location.search.replace(/^\?/, "") : "");
+    const t = new URLSearchParams(search).get("tab");
+    return t && (VALID_TABS as readonly string[]).includes(t) ? t : "profil";
+  })();
+
+  const [tab, setTab] = useState<string>(tabFromUrl);
+
+  useEffect(() => {
+    setTab(tabFromUrl);
+  }, [tabFromUrl]);
+
+  const onTabChange = (v: string) => {
+    setTab(v);
+    navigate(`/ayarlar?tab=${v}`);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-heading tracking-tight">Ayarlar</h1>
-        <p className="text-muted-foreground text-sm">Profil, şirket bilgilerinizi ve şifrenizi yönetin.</p>
+        <p className="text-muted-foreground text-sm">Profil, şirket bilgilerinizi, belgelerinizi ve şifrenizi yönetin.</p>
       </div>
 
-      <Tabs defaultValue="profil">
+      <Tabs value={tab} onValueChange={onTabChange}>
         <TabsList className="mb-6">
           <TabsTrigger value="profil" className="gap-2">
             <IconUser className="h-4 w-4" />
@@ -807,6 +1112,10 @@ export default function AyarlarPage() {
           <TabsTrigger value="sirket" className="gap-2">
             <IconBuilding className="h-4 w-4" />
             Şirket
+          </TabsTrigger>
+          <TabsTrigger value="belgeler" className="gap-2">
+            <IconFolder className="h-4 w-4" />
+            Belgelerim
           </TabsTrigger>
           <TabsTrigger value="guvenlik" className="gap-2">
             <IconLock className="h-4 w-4" />
@@ -819,6 +1128,9 @@ export default function AyarlarPage() {
         </TabsContent>
         <TabsContent value="sirket">
           <SirketTab />
+        </TabsContent>
+        <TabsContent value="belgeler">
+          <BelgelerimTab />
         </TabsContent>
         <TabsContent value="guvenlik">
           <GuvenlikTab />

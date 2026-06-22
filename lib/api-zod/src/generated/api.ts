@@ -855,60 +855,6 @@ export const UpdateProposalResponse = zod.object({
 
 
 /**
- * @summary List competitor analysis data
- */
-export const ListCompetitorsResponseItem = zod.object({
-  "id": zod.number(),
-  "name": zod.string(),
-  "wonTenders": zod.number(),
-  "avgDiscountRate": zod.number().describe('Average discount (kırım) percentage'),
-  "encounters": zod.number().describe('How many times this competitor appeared in same tenders'),
-  "sectors": zod.array(zod.string()).describe('Unique tender categories\/sectors this competitor has won in'),
-  "regions": zod.array(zod.string()).describe('Unique provinces\/regions this competitor has won tenders in')
-})
-export const ListCompetitorsResponse = zod.array(ListCompetitorsResponseItem)
-
-
-/**
- * @summary Get AI-generated competitor insights and win-rate by category
- */
-export const GetCompetitorInsightsResponse = zod.object({
-  "aiInsight": zod.string().describe('AI-generated competitor analysis text'),
-  "categoryWinRates": zod.array(zod.object({
-  "category": zod.string(),
-  "applications": zod.number(),
-  "wins": zod.number(),
-  "winRate": zod.number()
-}))
-})
-
-
-/**
- * @summary Get tenders where this competitor won from the user's tender feed
- */
-export const GetCompetitorHeadToHeadParams = zod.object({
-  "company": zod.coerce.string()
-})
-
-export const GetCompetitorHeadToHeadResponse = zod.object({
-  "company": zod.string(),
-  "total": zod.number(),
-  "proxyBasis": zod.string().describe('Explains how \"head-to-head\" is approximated. EKAP only exposes the winner; individual participant lists are not available. Items are tenders surfaced to this business (by business_id in matches) where the competitor won — closest available proxy for user-vs-competitor encounters.\n'),
-  "items": zod.array(zod.object({
-  "ikn": zod.string(),
-  "agencyName": zod.string().nullish(),
-  "category": zod.string().nullish(),
-  "il": zod.string().nullish(),
-  "awardedPrice": zod.number().nullish(),
-  "estimatedValue": zod.number().nullish(),
-  "discountRate": zod.number().nullish(),
-  "awardDate": zod.string().nullish(),
-  "bidderCount": zod.number().nullish()
-}))
-})
-
-
-/**
  * @summary Get monthly agency spending trend
  */
 export const GetMoneyFlowMonthlyResponseItem = zod.object({

@@ -24,8 +24,6 @@ tags:
     description: Document management
   - name: proposals
     description: Proposal generation
-  - name: competitors
-    description: Competitor analysis
   - name: money-flow
     description: Agency spending analytics
   - name: reports
@@ -655,54 +653,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Proposal"
-
-  # ─── Competitors ──────────────────────────────────────────────────────────────
-  /competitors:
-    get:
-      operationId: listCompetitors
-      tags: [competitors]
-      summary: List competitor analysis data
-      responses:
-        "200":
-          description: Competitors list
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Competitor"
-
-  /competitors/insights:
-    get:
-      operationId: getCompetitorInsights
-      tags: [competitors]
-      summary: Get AI-generated competitor insights and win-rate by category
-      responses:
-        "200":
-          description: Competitor insights
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CompetitorInsights"
-
-  /competitors/{company}/head-to-head:
-    get:
-      operationId: getCompetitorHeadToHead
-      tags: [competitors]
-      summary: Get tenders where this competitor won from the user's tender feed
-      parameters:
-        - name: company
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Head-to-head results
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CompetitorHeadToHead"
 
   # ─── Money Flow ───────────────────────────────────────────────────────────────
   /money-flow/monthly:
@@ -1510,90 +1460,6 @@ components:
         status:
           type: string
           enum: [draft, finalized, submitted]
-
-    # ─── Competitors ─────────────────────────────────────────────────────────────
-    Competitor:
-      type: object
-      required: [id, name, wonTenders, avgDiscountRate, encounters, sectors, regions]
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        wonTenders:
-          type: integer
-        avgDiscountRate:
-          type: number
-          description: Average discount (kırım) percentage
-        encounters:
-          type: integer
-          description: How many times this competitor appeared in same tenders
-        sectors:
-          type: array
-          items:
-            type: string
-          description: Unique tender categories/sectors this competitor has won in
-        regions:
-          type: array
-          items:
-            type: string
-          description: Unique provinces/regions this competitor has won tenders in
-
-    CompetitorInsights:
-      type: object
-      required: [aiInsight, categoryWinRates]
-      properties:
-        aiInsight:
-          type: string
-          description: AI-generated competitor analysis text
-        categoryWinRates:
-          type: array
-          items:
-            $ref: "#/components/schemas/CategoryPerformance"
-
-    CompetitorHeadToHead:
-      type: object
-      required: [company, items, total, proxyBasis]
-      properties:
-        company:
-          type: string
-        total:
-          type: integer
-        proxyBasis:
-          type: string
-          description: >
-            Explains how "head-to-head" is approximated. EKAP only exposes the
-            winner; individual participant lists are not available. Items are
-            tenders surfaced to this business (by business_id in matches) where
-            the competitor won — closest available proxy for user-vs-competitor
-            encounters.
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/HeadToHeadItem"
-
-    HeadToHeadItem:
-      type: object
-      required: [ikn]
-      properties:
-        ikn:
-          type: string
-        agencyName:
-          type: ["string", "null"]
-        category:
-          type: ["string", "null"]
-        il:
-          type: ["string", "null"]
-        awardedPrice:
-          type: ["number", "null"]
-        estimatedValue:
-          type: ["number", "null"]
-        discountRate:
-          type: ["number", "null"]
-        awardDate:
-          type: ["string", "null"]
-        bidderCount:
-          type: ["integer", "null"]
 
     # ─── Money Flow ──────────────────────────────────────────────────────────────
     CategorySpend:
