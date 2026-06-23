@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
+import { isDevLoginEnabled } from "@/lib/devLogin";
 
 const FEATURES = [
   "AI uygunluk skoru",
@@ -141,7 +142,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
           {children}
 
-          <DevLoginButton />
+          {isDevLoginEnabled() && <DevLoginButton />}
         </div>
       </div>
     </div>

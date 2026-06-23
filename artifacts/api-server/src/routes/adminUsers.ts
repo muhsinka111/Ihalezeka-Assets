@@ -216,6 +216,15 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
 const ADMIN_CLERK_USER_ID = "user_3FXTJpEbRYjciktMvEP6P5DfimG";
 
 router.post("/admin/dev-token", async (req, res) => {
+  // Dev-only convenience: mints an admin sign-in token without auth. This MUST
+  // never be reachable in production — gate strictly on NODE_ENV so deployed
+  // builds (NODE_ENV=production) return 404 and cannot be used to impersonate
+  // the admin account.
+  if (process.env["NODE_ENV"] === "production") {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
   const clerkSecretKey = process.env["CLERK_SECRET_KEY"];
   if (!clerkSecretKey) {
     res.status(500).json({ error: "CLERK_SECRET_KEY not set" });

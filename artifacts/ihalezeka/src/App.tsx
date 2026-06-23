@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/queryClient";
 import { AppShell } from "@/components/AppShell";
 import { AuthLayout } from "@/components/AuthLayout";
 import { AdminLogin } from "@/components/AdminLogin";
+import { isDevLoginEnabled } from "@/lib/devLogin";
 import { Toaster } from "@/components/ui/sonner";
 
 import LandingPage from "@/pages/landing";
@@ -278,7 +279,7 @@ function ClerkProviderWithRoutes() {
         <FirstVisitRedirect />
         <Switch>
           <Route path="/" component={HomeRedirect} />
-          <Route path="/admin-login" component={AdminLoginPage} />
+          {isDevLoginEnabled() && <Route path="/admin-login" component={AdminLoginPage} />}
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
 
