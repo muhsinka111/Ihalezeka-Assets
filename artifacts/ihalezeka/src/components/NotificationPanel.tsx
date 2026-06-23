@@ -163,7 +163,7 @@ export function NotificationPanel({ open, onClose, onPrefsClick }: NotificationP
                     ? "bg-gradient-to-br from-emerald-500 to-emerald-600"
                     : n.fitScore && n.fitScore >= 50
                     ? "bg-gradient-to-br from-amber-500 to-orange-500"
-                    : "bg-gradient-to-br from-indigo-500 to-violet-600"
+                    : "bg-[#2D5BFF]"
                 )}>
                   <IconBriefcase className="h-3.5 w-3.5" />
                 </div>

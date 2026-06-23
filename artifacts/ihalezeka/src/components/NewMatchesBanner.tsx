@@ -44,28 +44,28 @@ export function NewMatchesBanner({ className }: Props) {
 
   return (
     <div className={cn(
-      "flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50/60 dark:from-indigo-950/30 dark:to-violet-950/20 dark:border-indigo-800/40 shadow-sm",
+      "flex items-center gap-3 px-4 py-3 rounded-xl border border-[#2D5BFF]/15 bg-[#EAEFFF]/60 dark:bg-[#2D5BFF]/10 dark:border-[#2D5BFF]/30 shadow-sm",
       className
     )}>
-      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-sm">
+      <div className="h-8 w-8 rounded-lg bg-[#2D5BFF] flex items-center justify-center shrink-0 shadow-sm">
         <IconSparkles className="h-4 w-4 text-white" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-100">
+        <p className="text-sm font-semibold text-[#14213D] dark:text-white">
           Son ziyaretinizden bu yana {data.count} yeni eşleşme
         </p>
-        <p className="text-xs text-indigo-600/70 dark:text-indigo-300/60 mt-0.5">
+        <p className="text-xs text-[#2D5BFF]/70 dark:text-[#6E8BFF]/60 mt-0.5">
           Profilinizle eşleşen yeni ihaleler bulundu
         </p>
       </div>
       <Link href="/firsatlarim">
-        <button className="flex items-center gap-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 transition-colors whitespace-nowrap shrink-0">
+        <button className="flex items-center gap-1 text-xs font-semibold text-[#2D5BFF] dark:text-[#6E8BFF] hover:text-[#1E45D6] dark:hover:text-white transition-colors whitespace-nowrap shrink-0">
           Görüntüle <IconChevronRight className="h-3.5 w-3.5" />
         </button>
       </Link>
       <button
         onClick={() => setDismissed(true)}
-        className="h-6 w-6 rounded-full flex items-center justify-center text-indigo-400 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors shrink-0"
+        className="h-6 w-6 rounded-full flex items-center justify-center text-[#6E8BFF] hover:text-[#2D5BFF] hover:bg-[#EAEFFF] dark:hover:bg-[#1B2C50]/40 transition-colors shrink-0"
       >
         <IconX className="h-3.5 w-3.5" />
       </button>

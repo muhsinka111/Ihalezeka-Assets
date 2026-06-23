@@ -147,9 +147,9 @@ const PIPELINE_STAGES = [
 const SOURCE_META: Record<string, { label: string; className: string }> = {
   ekap:            { label: "EKAP",           className: "bg-blue-100 text-blue-700 border-blue-200" },
   ilan_gov:        { label: "ilan.gov.tr",    className: "bg-amber-100 text-amber-700 border-amber-200" },
-  ted:             { label: "TED AB",         className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  ted:             { label: "TED AB",         className: "bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF]" },
   worldbank:       { label: "Dünya Bankası",  className: "bg-cyan-100 text-cyan-700 border-cyan-200" },
-  ebrd:            { label: "EBRD",           className: "bg-purple-100 text-purple-700 border-purple-200" },
+  ebrd:            { label: "EBRD",           className: "bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF]" },
   kit:             { label: "KİT",            className: "bg-slate-100 text-slate-700 border-slate-200" },
   tubitak:         { label: "TÜBİTAK",       className: "bg-orange-100 text-orange-700 border-orange-200" },
   kosgeb:          { label: "KOSGEB",         className: "bg-lime-100 text-lime-700 border-lime-200" },
@@ -183,8 +183,8 @@ function MatchBadge({ score }: { score?: number | null }) {
 
 function LiveBadge() {
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-violet-100 text-violet-700 border-violet-200">
-      <span className="h-1.5 w-1.5 rounded-full bg-violet-500 animate-pulse" />
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF]">
+      <span className="h-1.5 w-1.5 rounded-full bg-[#EAEFFF]0 animate-pulse" />
       Canlı
     </span>
   );
@@ -1038,7 +1038,7 @@ export default function IhaleAramaPage() {
                     <span className="ml-1 text-xs text-muted-foreground">(aktif/yaklaşan)</span>
                   )}
                   {applied.q && liveTotal > 0 && (
-                    <span className="ml-2 text-xs text-violet-600 font-medium">
+                    <span className="ml-2 text-xs text-[#2D5BFF] font-medium">
                       + EKAP'ta {liveTotal.toLocaleString("tr-TR")} canlı sonuç
                     </span>
                   )}

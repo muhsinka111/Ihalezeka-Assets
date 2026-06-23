@@ -241,7 +241,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Plan Card */}
       {!collapsed && (isPro ? (
-        <div className="mx-3 mb-3 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 p-3 shadow-lg">
+        <div className="mx-3 mb-3 rounded-xl bg-[#1B2C50] p-3 shadow-lg border border-[#2A3B62]/60">
           <div className="flex items-center gap-2 mb-1.5">
             <div className="h-6 w-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
               <IconCircleCheck className="h-3.5 w-3.5 text-white" />
@@ -259,7 +259,7 @@ export function AppShell({ children }: AppShellProps) {
           </button>
         </div>
       ) : (
-        <div className="mx-3 mb-3 rounded-xl bg-slate-800 border border-slate-700 p-3 shadow-sm">
+        <div className="mx-3 mb-3 rounded-xl bg-[#1B2C50] border border-[#2A3B62]/60 p-3 shadow-sm">
           <div className="flex items-center gap-2 mb-1.5">
             <div className="h-6 w-6 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
               <IconCrown className="h-3.5 w-3.5 text-amber-400" />
@@ -299,7 +299,7 @@ export function AppShell({ children }: AppShellProps) {
               "flex items-center gap-2.5 min-w-0 cursor-pointer rounded-lg transition-colors hover:bg-sidebar-accent",
               collapsed ? "p-1" : "flex-1 p-1 -m-1"
             )}>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 text-xs font-semibold text-white shadow-sm overflow-hidden">
+              <div className="h-8 w-8 rounded-full bg-[#2D5BFF] flex items-center justify-center shrink-0 text-xs font-semibold text-white shadow-sm overflow-hidden">
                 {user?.imageUrl ? (
                   <img src={user.imageUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
@@ -313,7 +313,7 @@ export function AppShell({ children }: AppShellProps) {
                     <Badge className={cn(
                       "text-[9px] px-1 py-0 h-3.5",
                       isPro
-                        ? "bg-indigo-500/30 text-indigo-200 border-indigo-500/30"
+                        ? "bg-[#2D5BFF]/30 text-white/80 border-[#2D5BFF]/30"
                         : "bg-sidebar-foreground/10 text-sidebar-foreground/60 border-sidebar-foreground/20"
                     )}>{isPro ? "Pro" : "Ücretsiz"}</Badge>
                   </div>

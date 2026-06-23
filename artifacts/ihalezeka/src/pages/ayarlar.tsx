@@ -473,7 +473,7 @@ function ProfilTab() {
         </CardHeader>
         <CardContent className="flex items-center gap-5">
           <div className="relative group">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-2xl font-bold text-white overflow-hidden shadow-md">
+            <div className="h-20 w-20 rounded-full bg-[#2D5BFF] flex items-center justify-center text-2xl font-bold text-white overflow-hidden shadow-md">
               {user?.imageUrl ? (
                 <img src={user.imageUrl} alt="" className="h-full w-full object-cover" />
               ) : (

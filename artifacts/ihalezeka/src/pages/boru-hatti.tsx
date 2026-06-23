@@ -10,7 +10,7 @@ const STAGES = [
   { id: "discovery", label: "Fırsat Keşfi", color: "bg-slate-100 border-slate-200" },
   { id: "preparation", label: "Teklif Hazırlığı", color: "bg-blue-50 border-blue-200" },
   { id: "applied", label: "Başvuru Yapıldı", color: "bg-amber-50 border-amber-200" },
-  { id: "evaluation", label: "Değerlendirme", color: "bg-violet-50 border-violet-200" },
+  { id: "evaluation", label: "Değerlendirme", color: "bg-[#EAEFFF] border-[#EAEFFF]" },
   { id: "won", label: "Kazanıldı", color: "bg-emerald-50 border-emerald-200" },
 ];
 

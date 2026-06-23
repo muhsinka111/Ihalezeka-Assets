@@ -92,7 +92,7 @@ export function PaywallCard({
   return (
     <Card className={cn("border-dashed", className)}>
       <CardContent className="flex flex-col items-center gap-3 px-6 py-8 text-center">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2D5BFF] shadow-sm">
           <Icon className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -174,7 +174,7 @@ export function RequirePro({
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <Card className="w-full max-w-lg overflow-hidden">
-        <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 px-6 py-8 text-center text-white">
+        <div className="bg-[#1B2C50] px-6 py-8 text-center text-white">
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
             <IconCrown className="h-6 w-6 text-yellow-300" />
           </div>

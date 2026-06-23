@@ -13,15 +13,15 @@ const modules = [
     title: "Otomatik Teklif Oluşturucu",
     description: "İdari ve teknik şartnameleri analiz ederek taslak teklif belgelerinizi saniyeler içinde hazırlar. Hata riskini minimize eder.",
     icon: IconFileText,
-    color: "text-indigo-500",
-    bg: "bg-indigo-500/10"
+    color: "text-[#2D5BFF]",
+    bg: "bg-[#EAEFFF]0/10"
   },
   {
     title: "Boru Hattı (Pipeline)",
     description: "İhaleleri 'İlgileniliyor', 'Hazırlanıyor', 'Teklif Verildi' ve 'Sonuçlandı' aşamalarında görsel bir kanban panosunda yönetin.",
     icon: IconListDetails,
-    color: "text-violet-500",
-    bg: "bg-violet-500/10"
+    color: "text-[#2D5BFF]",
+    bg: "bg-[#EAEFFF]0/10"
   },
   {
     title: "Para Akışı & Raporlar",

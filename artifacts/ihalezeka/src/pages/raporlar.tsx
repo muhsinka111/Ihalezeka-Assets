@@ -13,7 +13,7 @@ export default function RaporlarPage() {
     { label: "Toplam Başvuru", value: summary.totalApplications, icon: IconFileText, color: "text-primary" },
     { label: "Kazanılan", value: summary.wonCount, icon: IconTrophy, color: "text-emerald-500" },
     { label: "Başarı Oranı", value: `%${summary.successRate}`, icon: IconTrendingUp, color: "text-amber-500" },
-    { label: "Kazanılan Değer", value: `₺${((summary.totalWonValue ?? 0) / 1_000_000).toFixed(1)}M`, icon: IconTrendingUp, color: "text-violet-500" },
+    { label: "Kazanılan Değer", value: `₺${((summary.totalWonValue ?? 0) / 1_000_000).toFixed(1)}M`, icon: IconTrendingUp, color: "text-[#2D5BFF]" },
   ] : [];
 
   return (
@@ -70,7 +70,7 @@ export default function RaporlarPage() {
                   <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="applications" name="Başvuru" fill="#2C46D8" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="applications" name="Başvuru" fill="#2D5BFF" radius={[3, 3, 0, 0]} />
                   <Bar dataKey="wins" name="Kazanım" fill="#10b981" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -93,7 +93,7 @@ export default function RaporlarPage() {
                 <div className="h-2 bg-border rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
-                    style={{ width: `${c.winRate}%`, background: c.winRate >= 50 ? "#10b981" : c.winRate >= 35 ? "#f59e0b" : "#2C46D8" }}
+                    style={{ width: `${c.winRate}%`, background: c.winRate >= 50 ? "#10b981" : c.winRate >= 35 ? "#f59e0b" : "#2D5BFF" }}
                   />
                 </div>
               </div>

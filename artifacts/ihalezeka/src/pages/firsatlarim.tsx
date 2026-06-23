@@ -36,9 +36,9 @@ function AiThresholdPills({ aiSummary }: { aiSummary: AiSummary }) {
       {pills.slice(0, 2).map((pill) => (
         <span
           key={pill.label}
-          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/10 text-violet-600 border border-violet-200/50"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#EAEFFF]0/10 text-[#2D5BFF] border border-[#EAEFFF]/50"
         >
-          <span className="text-violet-400">{pill.label}:</span>
+          <span className="text-[#6E8BFF]">{pill.label}:</span>
           {pill.value}
         </span>
       ))}
@@ -91,7 +91,7 @@ export default function FirsatlarimPage() {
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-xs text-muted-foreground">{match.tender.ikn}</span>
                         {match.aiSummary && (
-                          <span className="inline-flex items-center px-1 py-px rounded text-[10px] font-bold tracking-wide bg-violet-500 text-white leading-none">
+                          <span className="inline-flex items-center px-1 py-px rounded text-[10px] font-bold tracking-wide bg-[#EAEFFF]0 text-white leading-none">
                             AI
                           </span>
                         )}

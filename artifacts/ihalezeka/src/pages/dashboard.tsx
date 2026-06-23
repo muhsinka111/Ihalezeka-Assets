@@ -68,7 +68,7 @@ const STAGE_LABELS: Record<string, string> = {
 };
 const KANBAN_STAGES = ["discovery", "preparation", "applied", "evaluation"] as const;
 
-const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd", "#e0e7ff"];
+const PIE_COLORS = ["#2D5BFF", "#6E8BFF", "#6E8BFF", "#EAEFFF", "#EAEFFF"];
 
 // ── Dashboard Component ────────────────────────────────────────────
 export default function DashboardPage() {
@@ -314,7 +314,7 @@ export default function DashboardPage() {
             <div className="px-4 pt-3 pb-1">
               <div className="flex gap-4 mb-2">
                 <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#6366f1" }} />
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#2D5BFF" }} />
                   <span className="text-[11px] text-muted-foreground">İhale Hacmi</span>
                 </div>
               </div>
@@ -322,8 +322,8 @@ export default function DashboardPage() {
                 <AreaChart data={cashFlow} margin={{ top: 0, right: 0, left: -22, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gHacim" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#2D5BFF" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#2D5BFF" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.4} vertical={false} />
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                     contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
                     formatter={(v: number) => [fmtTL(v), "Hacim"]}
                   />
-                  <Area type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} fill="url(#gHacim)" dot={false} />
+                  <Area type="monotone" dataKey="amount" stroke="#2D5BFF" strokeWidth={2} fill="url(#gHacim)" dot={false} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -492,7 +492,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Benim Adıma Başvur premium */}
-          <div className="rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 shadow-lg overflow-hidden p-4 text-white relative">
+          <div className="rounded-xl bg-[#1B2C50] shadow-lg overflow-hidden p-4 text-white relative">
             <div className="absolute top-3 right-3">
               <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-white/20 border-white/30 text-white">YENİ ÖZELLİK</Badge>
             </div>
@@ -552,7 +552,7 @@ export default function DashboardPage() {
                             <IconBuilding className="h-3 w-3 text-muted-foreground shrink-0" />
                             <p className="text-[10px] text-muted-foreground truncate">{card.tender.agencyName}</p>
                           </div>
-                          <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mt-1">{fmtTL(card.tender.estimatedValue)}</p>
+                          <p className="text-[11px] font-bold text-[#2D5BFF] dark:text-[#6E8BFF] mt-1">{fmtTL(card.tender.estimatedValue)}</p>
                         </div>
                       </Link>
                     ))}
@@ -622,7 +622,7 @@ export default function DashboardPage() {
                 <div className="h-7 w-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0"
                   style={{
                     backgroundColor: `rgba(99,102,241,${0.12 + (r.pct / 100) * 0.65})`,
-                    color: r.pct > 50 ? "#4338ca" : "#6366f1",
+                    color: r.pct > 50 ? "#1E45D6" : "#2D5BFF",
                   }}>
                   {r.count}
                 </div>
@@ -631,7 +631,7 @@ export default function DashboardPage() {
                     <span className="text-[11px] font-semibold text-foreground">{r.region}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-500 transition-all"
+                    <div className="h-full rounded-full bg-[#2D5BFF] transition-all"
                       style={{ width: `${r.pct}%` }} />
                   </div>
                 </div>

@@ -50,7 +50,7 @@ const clerkAppearance = {
     logoLinkUrl: basePath || "/",
   },
   variables: {
-    colorPrimary: "#2C46D8",
+    colorPrimary: "#2D5BFF",
     colorForeground: "hsl(222 47% 11%)",
     colorMutedForeground: "hsl(215 16% 47%)",
     colorDanger: "hsl(0 72% 51%)",
@@ -68,11 +68,11 @@ const clerkAppearance = {
     headerTitle: "text-slate-900 font-heading text-2xl font-bold",
     headerSubtitle: "text-slate-500 text-sm",
     formButtonPrimary:
-      "bg-[#2C46D8] text-white hover:bg-[#2338b8] rounded-lg font-semibold h-11 text-sm shadow-sm",
+      "bg-[#2D5BFF] text-white hover:bg-[#1E45D6] rounded-lg font-semibold h-11 text-sm shadow-sm",
     formFieldInput:
       "border-[#e2e8f0] bg-[#f8fafc] text-slate-900 rounded-lg h-10 text-sm placeholder:text-slate-300",
     formFieldLabel: "text-sm font-medium text-slate-700",
-    footerActionLink: "text-[#2C46D8] hover:text-[#2338b8] font-semibold",
+    footerActionLink: "text-[#2D5BFF] hover:text-[#1E45D6] font-semibold",
     footerAction: "bg-transparent",
     dividerText: "text-slate-400 text-xs",
     dividerLine: "bg-slate-200",
@@ -80,7 +80,7 @@ const clerkAppearance = {
       "border-[#e2e8f0] bg-[#f8fafc] text-slate-700 hover:bg-slate-100 rounded-lg h-10 text-sm font-medium",
     alert: "bg-destructive/10 border-destructive/20 text-destructive",
     identityPreviewText: "text-slate-700",
-    identityPreviewEditButton: "text-[#2C46D8]",
+    identityPreviewEditButton: "text-[#2D5BFF]",
   },
 };
 

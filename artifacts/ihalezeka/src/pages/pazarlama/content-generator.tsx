@@ -135,7 +135,7 @@ export default function ContentGeneratorPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <IconSparkles className="h-4 w-4 text-violet-500" />
+            <IconSparkles className="h-4 w-4 text-[#2D5BFF]" />
             İçerik Ayarları
           </CardTitle>
         </CardHeader>
@@ -219,7 +219,7 @@ export default function ContentGeneratorPage() {
       {isGenerating && (
         <Card>
           <CardContent className="py-12 text-center">
-            <IconLoader2 className="h-8 w-8 animate-spin text-violet-500 mx-auto mb-3" />
+            <IconLoader2 className="h-8 w-8 animate-spin text-[#2D5BFF] mx-auto mb-3" />
             <p className="text-sm font-medium">AI içerik üretiyor…</p>
             <p className="text-xs text-muted-foreground mt-1">Gönderi metni, blog yazısı ve görsel hazırlanıyor.</p>
           </CardContent>

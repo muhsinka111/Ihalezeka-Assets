@@ -70,7 +70,7 @@ const GROUNDING_META: Record<
 > = {
   document: { label: "Belge bazlı", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
   notice: { label: "İlan bazlı", cls: "bg-sky-100 text-sky-700 border-sky-200" },
-  source_page: { label: "Kaynak sayfadan", cls: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  source_page: { label: "Kaynak sayfadan", cls: "bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF]" },
   metadata: { label: "Künye bazlı", cls: "bg-slate-100 text-slate-600 border-slate-200" },
 };
 
@@ -116,7 +116,7 @@ function FitGauge({ score }: { score: number }) {
           transform="rotate(-90 70 70)"
           style={{ transition: "stroke-dashoffset 1s ease" }}
         />
-        <text x="70" y="68" textAnchor="middle" className="fill-foreground" style={{ fontSize: 28, fontWeight: 700, fontFamily: "Sora, sans-serif" }}>{score}</text>
+        <text x="70" y="68" textAnchor="middle" className="fill-foreground" style={{ fontSize: 28, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>{score}</text>
         <text x="70" y="86" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 11 }}>/ 100</text>
       </svg>
       <span className="text-sm text-muted-foreground font-medium">Uyum Skoru</span>
@@ -350,7 +350,7 @@ function AnalysisDetailsCard({ analysis }: { analysis: AiAnalysis }) {
             )}
             {analysis.personnelCount != null && (
               <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                <IconUsers className="h-5 w-5 text-violet-500 shrink-0" />
+                <IconUsers className="h-5 w-5 text-[#2D5BFF] shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Min. Personel</p>
                   <p className="text-sm font-semibold">{analysis.personnelCount} kişi</p>
@@ -1209,7 +1209,7 @@ export default function IhaleDetayPage() {
               ) : (
                 <>
                   {!analysis && remainingCredits > 0 && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#EAEFFF] border border-[#EAEFFF] text-[#2D5BFF] text-sm">
                       <IconBolt className="h-4 w-4 shrink-0" />
                       <span>
                         <span className="font-semibold">{remainingCredits}</span> ücretsiz yapay zeka analiziniz kaldı. Analiz Et'e tıklayarak kullanabilirsiniz.

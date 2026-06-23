@@ -29,9 +29,9 @@ function useCounter(target: number, duration = 1800, start = false) {
 function MatchMockup() {
   const items = [
     { title: "Okul Yapım İşi — MEB", match: 95, color: "#10b981" },
-    { title: "Altyapı Projesi — KGM", match: 82, color: "#6366f1" },
+    { title: "Altyapı Projesi — KGM", match: 82, color: "#2D5BFF" },
     { title: "Yazılım Alımı — TÜBİTAK", match: 71, color: "#f59e0b" },
-    { title: "Hastane İnşaatı — SB", match: 64, color: "#8b5cf6" },
+    { title: "Hastane İnşaatı — SB", match: 64, color: "#6E8BFF" },
   ];
   return (
     <div className="space-y-2 w-full">
@@ -69,15 +69,15 @@ function ScanMockup() {
   return (
     <div className="relative bg-white/70 dark:bg-white/5 border border-border/30 rounded-xl p-4 shadow-sm overflow-hidden w-full">
       <div className="flex items-center gap-2 mb-3">
-        <div className="h-5 w-5 rounded bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center">
-          <IconBrain className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+        <div className="h-5 w-5 rounded bg-[#EAEFFF] dark:bg-[#1B2C50]/50 flex items-center justify-center">
+          <IconBrain className="h-3 w-3 text-[#2D5BFF] dark:text-[#6E8BFF]" />
         </div>
         <span className="text-[11px] font-semibold text-foreground">Şartname_Analiz.pdf</span>
         <span className="ml-auto text-[10px] text-muted-foreground">284 sayfa</span>
       </div>
       {/* scan-line animation */}
       <motion.div
-        className="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-indigo-400 to-violet-400 opacity-80 rounded-full z-10"
+        className="absolute left-4 right-4 h-0.5 bg-[#2D5BFF] opacity-80 rounded-full z-10"
         animate={{ top: ["20%", "85%", "20%"] }}
         transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
       />
@@ -97,14 +97,14 @@ function ScanMockup() {
           <span key={t.label} className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${t.color}`}>{t.label}</span>
         ))}
       </div>
-      <div className="mt-2 text-[10px] text-muted-foreground">Analiz süresi: <span className="font-bold text-indigo-600 dark:text-indigo-400">28 saniye</span></div>
+      <div className="mt-2 text-[10px] text-muted-foreground">Analiz süresi: <span className="font-bold text-[#2D5BFF] dark:text-[#6E8BFF]">28 saniye</span></div>
     </div>
   );
 }
 
 function CompetitorMockup() {
   const bars = [
-    { name: "Sizin Teklifiniz", pct: 78, color: "#6366f1", highlight: true },
+    { name: "Sizin Teklifiniz", pct: 78, color: "#2D5BFF", highlight: true },
     { name: "Rakip A", pct: 52, color: "#94a3b8", highlight: false },
     { name: "Rakip B", pct: 44, color: "#94a3b8", highlight: false },
     { name: "Rakip C", pct: 38, color: "#94a3b8", highlight: false },
@@ -119,7 +119,7 @@ function CompetitorMockup() {
           transition={{ delay: 0.3 + i * 0.08 }}
           className="flex items-center gap-2"
         >
-          <span className={`text-[10px] w-24 shrink-0 truncate font-medium ${b.highlight ? "text-indigo-700 dark:text-indigo-400" : "text-muted-foreground"}`}>{b.name}</span>
+          <span className={`text-[10px] w-24 shrink-0 truncate font-medium ${b.highlight ? "text-[#2D5BFF] dark:text-[#6E8BFF]" : "text-muted-foreground"}`}>{b.name}</span>
           <div className="flex-1 h-5 rounded-md bg-gray-100 dark:bg-gray-800 overflow-hidden">
             <motion.div
               className="h-full rounded-md flex items-center justify-end pr-1.5"
@@ -150,10 +150,10 @@ function SearchMockup() {
   ];
   return (
     <div className="w-full space-y-2">
-      <div className="flex items-center gap-1.5 bg-white/70 dark:bg-white/5 border border-indigo-200/60 dark:border-indigo-800/40 rounded-lg px-2.5 py-1.5 shadow-sm">
-        <IconSearch className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+      <div className="flex items-center gap-1.5 bg-white/70 dark:bg-white/5 border border-[#EAEFFF]/60 dark:border-[#2D5BFF]/30 rounded-lg px-2.5 py-1.5 shadow-sm">
+        <IconSearch className="h-3.5 w-3.5 text-[#2D5BFF] shrink-0" />
         <span className="text-[11px] text-muted-foreground">İnşaat, Ankara, &lt;₺50M…</span>
-        <span className="ml-auto text-[10px] bg-indigo-600 text-white px-1.5 py-0.5 rounded font-semibold">Filtrele</span>
+        <span className="ml-auto text-[10px] bg-[#2D5BFF] text-white px-1.5 py-0.5 rounded font-semibold">Filtrele</span>
       </div>
       <div className="space-y-1.5">
         {results.map((r, i) => (
@@ -164,7 +164,7 @@ function SearchMockup() {
             transition={{ delay: 0.3 + i * 0.1 }}
             className="bg-white/70 dark:bg-white/5 border border-border/30 rounded-lg px-2.5 py-2 flex items-center gap-2 shadow-sm"
           >
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold shrink-0">{r.badge}</span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#EAEFFF] dark:bg-[#1B2C50]/50 text-[#2D5BFF] dark:text-[#6E8BFF] font-semibold shrink-0">{r.badge}</span>
             <span className="text-[11px] font-medium text-foreground flex-1 truncate">{r.title}</span>
             <span className="text-[10px] font-bold text-foreground shrink-0">{r.budget}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0 ${r.days <= 10 ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"}`}>{r.days}g</span>
@@ -179,8 +179,8 @@ function SearchMockup() {
 // ── Stats ──────────────────────────────────────────────────────────
 const STATS = [
   { value: 43, suffix: "%", prefix: "+", label: "Ortalama kazanma artışı", icon: IconTrendingUp, color: "text-emerald-600 dark:text-emerald-400" },
-  { value: 28, suffix: "sn", prefix: "<", label: "Şartname analiz süresi", icon: IconClock, color: "text-indigo-600 dark:text-indigo-400" },
-  { value: 50, suffix: "K+", prefix: "", label: "Aktif ihale tabanı", icon: IconSearch, color: "text-violet-600 dark:text-violet-400" },
+  { value: 28, suffix: "sn", prefix: "<", label: "Şartname analiz süresi", icon: IconClock, color: "text-[#2D5BFF] dark:text-[#6E8BFF]" },
+  { value: 50, suffix: "K+", prefix: "", label: "Aktif ihale tabanı", icon: IconSearch, color: "text-[#2D5BFF] dark:text-[#6E8BFF]" },
   { value: 98, suffix: "%", prefix: "", label: "Kullanıcı memnuniyeti", icon: IconShieldCheck, color: "text-blue-600 dark:text-blue-400" },
 ];
 
@@ -217,26 +217,26 @@ const FEATURES = [
   {
     icon: IconBrain,
     badge: "Şartname Analizi",
-    badgeColor: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300",
+    badgeColor: "bg-[#EAEFFF] text-[#2D5BFF] dark:bg-[#2D5BFF]/20 dark:text-[#6E8BFF]",
     title: "Yüzlerce sayfa, otuz saniye",
     description: "PDF şartnamelerini yapay zeka saniyeler içinde okur; kritik tarihleri, riskleri, teknik gereksinimleri ve uygunluk koşullarını çıkartır.",
     stat: { value: "<30sn", label: "ortalama analiz süresi" },
     mockup: <ScanMockup />,
-    gradient: "from-indigo-500/10 to-violet-500/5",
-    borderColor: "border-indigo-200/60 dark:border-indigo-800/30",
-    iconBg: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400",
+    gradient: "from-[#2D5BFF]/10 to-[#EAEFFF]/5",
+    borderColor: "border-[#2D5BFF]/20 dark:border-[#2D5BFF]/30",
+    iconBg: "bg-[#EAEFFF] dark:bg-[#2D5BFF]/20 text-[#2D5BFF] dark:text-[#6E8BFF]",
   },
   {
     icon: IconEye,
     badge: "Rakip İstihbaratı",
-    badgeColor: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+    badgeColor: "bg-[#EAEFFF] text-[#2D5BFF] dark:bg-[#2D5BFF]/20 dark:text-[#6E8BFF]",
     title: "Rakibinizin teklifini tahmin edin",
     description: "Geçmiş ihale verilerinden öğrenilen kırım oranları, favori idareler ve teklif stratejileriyle rakip davranışını öngörün.",
     stat: { value: "3,200+", label: "rakip firma analiz edildi" },
     mockup: <CompetitorMockup />,
-    gradient: "from-violet-500/10 to-purple-500/5",
-    borderColor: "border-violet-200/60 dark:border-violet-800/30",
-    iconBg: "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400",
+    gradient: "from-[#2D5BFF]/10 to-[#EAEFFF]/5",
+    borderColor: "border-[#2D5BFF]/20 dark:border-[#2D5BFF]/30",
+    iconBg: "bg-[#EAEFFF] dark:bg-[#2D5BFF]/20 text-[#2D5BFF] dark:text-[#6E8BFF]",
   },
   {
     icon: IconSearch,
@@ -275,7 +275,7 @@ export function ValueProps() {
           </div>
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold mb-5 text-foreground tracking-tight leading-[1.12]">
             Daha az çalışın,{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-violet-500">
+            <span className="text-[#2D5BFF]">
               çok daha fazla kazanın
             </span>
           </h2>

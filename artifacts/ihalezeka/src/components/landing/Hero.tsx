@@ -106,10 +106,10 @@ export function Hero() {
             </div>
             <div className="flex" style={{ minHeight: 340 }}>
               {/* Sidebar */}
-              <div className="hidden md:flex w-44 flex-col bg-[#0F172A] shrink-0 p-3 gap-1">
+              <div className="hidden md:flex w-44 flex-col bg-[#14213D] shrink-0 p-3 gap-1">
                 <div className="flex items-center gap-1.5 px-2 py-2 mb-2">
                   <span className="font-bold text-white text-xs">İhale</span>
-                  <span className="font-bold text-[#2C46D8] text-xs">Zeka</span>
+                  <span className="font-bold text-[#2D5BFF] text-xs">Zeka</span>
                 </div>
                 {[
                   { label: "Gösterge Paneli", active: true },
@@ -119,7 +119,7 @@ export function Hero() {
                   { label: "Rakip Analizi" },
                   { label: "Raporlar" },
                 ].map(({ label, active }) => (
-                  <div key={label} className={`h-7 rounded-md px-2 flex items-center text-[9px] font-medium ${active ? 'bg-[#2C46D8] text-white' : 'text-slate-400'}`}>
+                  <div key={label} className={`h-7 rounded-md px-2 flex items-center text-[9px] font-medium ${active ? 'bg-[#2D5BFF] text-white' : 'text-slate-400'}`}>
                     {label}
                   </div>
                 ))}
@@ -132,7 +132,7 @@ export function Hero() {
                     <div className="text-xs font-bold text-foreground">Hoş geldiniz, Mehmet 👋</div>
                     <div className="text-[9px] text-muted-foreground">Bugün sizin için derlediğimiz özet bilgiler</div>
                   </div>
-                  <div className="h-6 px-3 bg-[#2C46D8] rounded text-[9px] text-white flex items-center font-medium">Hızlı Eylemler</div>
+                  <div className="h-6 px-3 bg-[#2D5BFF] rounded text-[9px] text-white flex items-center font-medium">Hızlı Eylemler</div>
                 </div>
                 {/* Stats row */}
                 <div className="grid grid-cols-4 gap-2">
@@ -155,7 +155,7 @@ export function Hero() {
                   <div className="col-span-3 border border-border rounded-lg bg-background p-3 space-y-2">
                     <div className="flex justify-between items-center mb-1">
                       <div className="text-[9px] font-bold text-foreground">En Uygun İhaleler</div>
-                      <div className="text-[8px] text-[#2C46D8] font-medium">Tümünü Gör →</div>
+                      <div className="text-[8px] text-[#2D5BFF] font-medium">Tümünü Gör →</div>
                     </div>
                     {[
                       { name: "Okul Binası Yapım İşi", agency: "İstanbul İl Milli Eğitim", amount: "₺45.000.000", score: 95, days: "8 gün kaldı", daysColor: "bg-rose-100 text-rose-700" },
@@ -165,7 +165,7 @@ export function Hero() {
                       <div key={name} className="flex items-center gap-2 p-2 rounded border border-border/50 bg-muted/20">
                         <div className="w-8 text-center">
                           <div className="text-[8px] text-muted-foreground leading-none">uyum</div>
-                          <div className="text-[10px] font-bold text-[#2C46D8]">%{score}</div>
+                          <div className="text-[10px] font-bold text-[#2D5BFF]">%{score}</div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-[9px] font-semibold text-foreground truncate">{name}</div>
@@ -183,7 +183,7 @@ export function Hero() {
                     <div className="flex items-end gap-1 h-16 mb-2">
                       {[40, 55, 45, 70, 60, 85, 75].map((h, i) => (
                         <div key={i} className="flex-1 flex flex-col gap-0.5 items-center">
-                          <div className="w-full rounded-t" style={{ height: `${h}%`, background: i === 5 ? '#2C46D8' : '#2C46D820' }} />
+                          <div className="w-full rounded-t" style={{ height: `${h}%`, background: i === 5 ? '#2D5BFF' : '#2D5BFF20' }} />
                         </div>
                       ))}
                     </div>
@@ -192,7 +192,7 @@ export function Hero() {
                     </div>
                     <div className="mt-3 space-y-1">
                       {[
-                        { label: "Yapım İşleri", pct: "40%", color: "#2C46D8" },
+                        { label: "Yapım İşleri", pct: "40%", color: "#2D5BFF" },
                         { label: "Hizmet Alımı", pct: "25%", color: "#6366F1" },
                         { label: "Mal Alımı", pct: "20%", color: "#8B5CF6" },
                       ].map(({ label, pct, color }) => (

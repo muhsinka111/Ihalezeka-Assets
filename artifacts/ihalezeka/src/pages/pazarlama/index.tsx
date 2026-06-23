@@ -24,7 +24,7 @@ export default function PazarlamaPage() {
       icon: IconSparkles,
       title: "İçerik Üretici",
       description: "AI ile platform-optimize edilmiş sosyal medya içerikleri, blog yazıları ve görseller üretin.",
-      color: "from-violet-500 to-purple-600",
+      color: "from-[#2D5BFF] to-[#1E45D6]",
       badge: "AI",
     },
     {
@@ -32,7 +32,7 @@ export default function PazarlamaPage() {
       icon: IconCalendar,
       title: "İçerik Takvimi",
       description: "Taslak, zamanlanmış ve yayınlanmış gönderilerinizi tek ekranda takip edin.",
-      color: "from-blue-500 to-indigo-600",
+      color: "from-[#2D5BFF] to-[#1E45D6]",
       badge: null,
     },
     {

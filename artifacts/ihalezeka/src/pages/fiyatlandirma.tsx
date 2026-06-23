@@ -118,12 +118,12 @@ export default function FiyatlandirmaPage() {
 
       <Card className="relative overflow-hidden border-2 border-primary shadow-xl shadow-primary/10">
         {/* Top accent */}
-        <div className="h-1.5 bg-gradient-to-r from-primary to-violet-500" />
+        <div className="h-1.5 bg-[#2D5BFF]" />
 
         <CardContent className="flex flex-col gap-6 p-8">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/30">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2D5BFF] shadow-lg shadow-primary/30">
               <IconBolt className="h-6 w-6 text-white" />
             </div>
             <div>

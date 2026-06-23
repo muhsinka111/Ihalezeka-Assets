@@ -143,8 +143,8 @@ export default function AdminUsersTab() {
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                <IconCrown className="h-5 w-5 text-indigo-600" />
+              <div className="h-9 w-9 rounded-lg bg-[#EAEFFF] flex items-center justify-center shrink-0">
+                <IconCrown className="h-5 w-5 text-[#2D5BFF]" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Pro Aboneler</p>
@@ -217,7 +217,7 @@ export default function AdminUsersTab() {
                       <TableRow key={user.id}>
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-[11px] font-semibold text-white shrink-0">
+                            <div className="h-7 w-7 rounded-full bg-[#2D5BFF] flex items-center justify-center text-[11px] font-semibold text-white shrink-0">
                               {user.email?.[0]?.toUpperCase() ?? "?"}
                             </div>
                             <div className="min-w-0">
@@ -235,7 +235,7 @@ export default function AdminUsersTab() {
                         </TableCell>
                         <TableCell>
                           {user.isPro ? (
-                            <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 text-[11px] gap-1">
+                            <Badge className="bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF] text-[11px] gap-1">
                               <IconCrown className="h-3 w-3" /> Pro
                             </Badge>
                           ) : (
@@ -288,7 +288,7 @@ export default function AdminUsersTab() {
                             >
                               {user.isProOverride ? (
                                 <>
-                                  <IconToggleRight className="h-3.5 w-3.5 text-indigo-500" />
+                                  <IconToggleRight className="h-3.5 w-3.5 text-[#2D5BFF]" />
                                   Pro Kaldır
                                 </>
                               ) : (

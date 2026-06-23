@@ -74,7 +74,7 @@ export function PricingSection() {
           </div>
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold mb-5 text-foreground tracking-tight leading-[1.12]">
             Tek plan.{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-violet-500">
+            <span className="text-[#2D5BFF]">
               Her şey dahil.
             </span>
           </h2>
@@ -92,12 +92,12 @@ export function PricingSection() {
         >
           <div className="relative rounded-3xl border-2 border-primary bg-card shadow-2xl shadow-primary/10 overflow-hidden">
             {/* Top accent bar */}
-            <div className="h-1.5 bg-gradient-to-r from-primary to-violet-500" />
+            <div className="h-1.5 bg-[#2D5BFF]" />
 
             <div className="p-8 md:p-10">
               {/* Icon + name */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center shadow-lg shadow-primary/30">
+                <div className="h-12 w-12 rounded-2xl bg-[#2D5BFF] flex items-center justify-center shadow-lg shadow-primary/30">
                   <IconBolt className="h-6 w-6 text-white" />
                 </div>
                 <div>

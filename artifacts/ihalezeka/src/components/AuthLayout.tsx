@@ -7,7 +7,7 @@ const FEATURES = [
   "Teklif hazırlama ve boru hattı yönetimi",
 ];
 
-const AVATARS = ["#4f6ef7", "#2C46D8", "#7b9bff", "#1a2f5a"];
+const AVATARS = ["#2D5BFF", "#2D5BFF", "#6E8BFF", "#14213D"];
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -20,7 +20,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       <div
         className="hidden lg:flex lg:w-[45%] flex-col justify-between p-12 relative overflow-hidden"
         style={{
-          background: "linear-gradient(155deg, #0f1e3c 0%, #1a2f5a 60%, #1e3a7a 100%)",
+          background: "linear-gradient(155deg, #14213D 0%, #14213D 60%, #1B2C50 100%)",
         }}
       >
         {/* Dot-grid texture */}
@@ -34,11 +34,11 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         {/* Glow blobs */}
         <div
           className="absolute top-20 -left-20 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none"
-          style={{ background: "#2C46D8" }}
+          style={{ background: "#2D5BFF" }}
         />
         <div
           className="absolute bottom-10 right-0 w-64 h-64 rounded-full blur-3xl opacity-15 pointer-events-none"
-          style={{ background: "#4f6ef7" }}
+          style={{ background: "#2D5BFF" }}
         />
 
         {/* Logo */}
@@ -47,7 +47,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             <img src="/logo.svg" alt="İhaleZeka" className="w-9 h-9" />
             <span
               className="text-white font-bold text-xl tracking-tight"
-              style={{ fontFamily: "Sora, sans-serif" }}
+              style={{ fontFamily: "'Space Grotesk', sans-serif" }}
             >
               İhaleZeka
             </span>
@@ -58,11 +58,11 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="relative z-10 flex-1 flex flex-col justify-center py-12">
           <h1
             className="text-4xl font-bold text-white leading-tight mb-4"
-            style={{ fontFamily: "Sora, sans-serif" }}
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           >
             Türkiye'nin
             <br />
-            <span style={{ color: "#7b9bff" }}>akıllı ihale</span>
+            <span style={{ color: "#6E8BFF" }}>akıllı ihale</span>
             <br />
             platformu
           </h1>
@@ -76,14 +76,14 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 <span
                   className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
                   style={{
-                    background: "rgba(44,70,216,0.35)",
-                    border: "1px solid rgba(120,155,255,0.4)",
+                    background: "rgba(45,91,255,0.35)",
+                    border: "1px solid rgba(110,139,255,0.4)",
                   }}
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                     <path
                       d="M2 5l2.5 2.5L8 2.5"
-                      stroke="#7b9bff"
+                      stroke="#6E8BFF"
                       strokeWidth="1.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -104,7 +104,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 <div
                   key={i}
                   className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-white text-xs font-semibold"
-                  style={{ background: color, borderColor: "#0f1e3c" }}
+                  style={{ background: color, borderColor: "#14213D" }}
                 >
                   {["A", "B", "C", "+"][i]}
                 </div>
@@ -122,7 +122,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         {/* Mobile-only logo */}
         <div className="lg:hidden mb-8 flex items-center gap-2">
           <img src="/logo.svg" alt="İhaleZeka" className="w-8 h-8" />
-          <span className="font-bold text-lg text-slate-900" style={{ fontFamily: "Sora, sans-serif" }}>
+          <span className="font-bold text-lg text-slate-900" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
             İhaleZeka
           </span>
         </div>
