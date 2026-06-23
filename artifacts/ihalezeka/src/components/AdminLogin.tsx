@@ -16,7 +16,7 @@ export function AdminLogin() {
     try {
       const result = await (clerk.client as any).signIn.create({
         identifier: "admin@admin.com",
-        password: "1234567890",
+        password: "Admin@IhaleZeka2026",
       });
 
       if (result.status === "complete") {
@@ -51,7 +51,7 @@ export function AdminLogin() {
         </div>
         <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
           <span className="text-slate-500">Şifre</span>
-          <span className="font-medium text-slate-900">1234567890</span>
+          <span className="font-medium text-slate-900">Admin@IhaleZeka2026</span>
         </div>
       </div>
 
