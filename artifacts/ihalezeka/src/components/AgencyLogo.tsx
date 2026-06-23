@@ -4,12 +4,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const BRAND_COLORS = [
   "bg-blue-500",
   "bg-emerald-500",
-  "bg-[#EAEFFF]0",
+  "bg-[#EAEFFF]",
   "bg-amber-500",
   "bg-rose-500",
   "bg-fuchsia-500",
   "bg-cyan-500",
-  "bg-[#EAEFFF]0",
+  "bg-[#EAEFFF]",
 ];
 
 function getHashString(str: string): number {

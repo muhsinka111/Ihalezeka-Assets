@@ -14,7 +14,7 @@ const steps = [
   {
     num: "03",
     title: "Teklifinizi Hazırlayın",
-    desc: "Otomatik teklif oluşturucu ve başvuru sihirbazı ile günlerce süren evrak işlerini dakikalar içinde tamamlayın."
+    desc: "Otomatik teklif oluşturucu ve belge yönetimi ile günlerce süren evrak işlerini dakikalar içinde tamamlayın."
   },
   {
     num: "04",

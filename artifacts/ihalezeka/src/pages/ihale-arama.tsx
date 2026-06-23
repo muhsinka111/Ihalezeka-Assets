@@ -184,7 +184,7 @@ function MatchBadge({ score }: { score?: number | null }) {
 function LiveBadge() {
   return (
     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold border bg-[#EAEFFF] text-[#2D5BFF] border-[#EAEFFF]">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#EAEFFF]0 animate-pulse" />
+      <span className="h-1.5 w-1.5 rounded-full bg-[#2D5BFF] animate-pulse" />
       Canlı
     </span>
   );

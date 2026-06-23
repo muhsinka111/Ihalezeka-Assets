@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { IconLayoutDashboard, IconListDetails, IconFileText, IconCash, IconChartAreaLine, IconTruckDelivery } from "@tabler/icons-react";
+import { IconLayoutDashboard, IconListDetails, IconFileText, IconCash, IconChartAreaLine, IconTargetArrow } from "@tabler/icons-react";
 
 const modules = [
   {
@@ -14,14 +14,14 @@ const modules = [
     description: "İdari ve teknik şartnameleri analiz ederek taslak teklif belgelerinizi saniyeler içinde hazırlar. Hata riskini minimize eder.",
     icon: IconFileText,
     color: "text-[#2D5BFF]",
-    bg: "bg-[#EAEFFF]0/10"
+    bg: "bg-[#EAEFFF]/10"
   },
   {
     title: "Boru Hattı (Pipeline)",
     description: "İhaleleri 'İlgileniliyor', 'Hazırlanıyor', 'Teklif Verildi' ve 'Sonuçlandı' aşamalarında görsel bir kanban panosunda yönetin.",
     icon: IconListDetails,
     color: "text-[#2D5BFF]",
-    bg: "bg-[#EAEFFF]0/10"
+    bg: "bg-[#EAEFFF]/10"
   },
   {
     title: "Para Akışı & Raporlar",
@@ -31,9 +31,9 @@ const modules = [
     bg: "bg-emerald-500/10"
   },
   {
-    title: "Başvuru Sihirbazı",
-    description: "EKAP üzerinden yapılacak başvurular için dosyalarınızı adım adım eksiksiz hazırlamanızı sağlayan rehberli sihirbaz.",
-    icon: IconTruckDelivery,
+    title: "Uygunluk Analizi & Skor",
+    description: "Her ihale için yapay zeka destekli uygunluk skorunu; kapasite, deneyim ve şartname uyumu gibi faktörlere göre detaylı olarak inceleyin.",
+    icon: IconTargetArrow,
     color: "text-amber-500",
     bg: "bg-amber-500/10"
   },

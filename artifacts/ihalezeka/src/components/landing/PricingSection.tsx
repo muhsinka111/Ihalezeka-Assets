@@ -22,7 +22,7 @@ const FEATURES = [
   "Boru hattı ve teklif oluşturucu",
   "Rakip analizi ve para akışı raporları",
   "Kayıtlı arama uyarıları ve dışa aktarma",
-  "Başvuru sihirbazı ve belge yönetimi",
+  "Uygunluk analizi ve belge yönetimi",
 ];
 
 export function PricingSection() {
