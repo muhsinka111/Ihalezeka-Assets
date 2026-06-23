@@ -213,5 +213,37 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
   }
 });
 
+const ADMIN_CLERK_USER_ID = "user_3FXTJpEbRYjciktMvEP6P5DfimG";
+
+router.post("/admin/dev-token", async (req, res) => {
+  const clerkSecretKey = process.env["CLERK_SECRET_KEY"];
+  if (!clerkSecretKey) {
+    res.status(500).json({ error: "CLERK_SECRET_KEY not set" });
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${clerkSecretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ user_id: ADMIN_CLERK_USER_ID, expires_in_seconds: 120 }),
+    });
+
+    const data = (await response.json()) as { token?: string; errors?: unknown };
+    if (!data.token) {
+      res.status(500).json({ error: "Token alınamadı", detail: data.errors });
+      return;
+    }
+
+    res.json({ token: data.token });
+  } catch (err) {
+    logger.error({ err }, "Failed to generate admin sign-in token");
+    res.status(500).json({ error: "Token oluşturulamadı" });
+  }
+});
+
 export { checkIsAdmin };
 export default router;

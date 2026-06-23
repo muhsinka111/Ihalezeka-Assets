@@ -3,6 +3,8 @@ import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { Shield } from "lucide-react";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
 export function AdminLogin() {
   const clerk = useClerk();
   const [loading, setLoading] = useState(false);
@@ -14,18 +16,23 @@ export function AdminLogin() {
     setError(null);
 
     try {
+      const res = await fetch(`${API_BASE}/admin/dev-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const { token, error: apiError } = await res.json();
+      if (!token) throw new Error(apiError || "Token alınamadı");
+
       const result = await (clerk.client as any).signIn.create({
-        identifier: "admin@admin.com",
-        password: "Admin@IhaleZeka2026",
+        strategy: "ticket",
+        ticket: token,
       });
 
       if (result.status === "complete") {
         await clerk.setActive({ session: result.createdSessionId });
         setLocation("/dashboard");
-      } else if (result.status === "needs_first_factor") {
-        setError("Giriş tamamlanamadı. Admin hesabı Clerk'de doğru yapılandırılmamış.");
       } else {
-        setError("Beklenmeyen durum: " + result.status);
+        setError("Giriş tamamlanamadı: " + result.status);
       }
     } catch (err: any) {
       setError(err?.errors?.[0]?.message || err?.message || "Giriş başarısız");
@@ -50,8 +57,8 @@ export function AdminLogin() {
           <span className="font-medium text-slate-900">admin@admin.com</span>
         </div>
         <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
-          <span className="text-slate-500">Şifre</span>
-          <span className="font-medium text-slate-900">Admin@IhaleZeka2026</span>
+          <span className="text-slate-500">Yöntem</span>
+          <span className="font-medium text-slate-900">Tek tıkla giriş</span>
         </div>
       </div>
 
@@ -67,7 +74,7 @@ export function AdminLogin() {
         className="w-full h-11 rounded-lg text-white font-semibold text-sm transition-colors disabled:opacity-50"
         style={{ background: "#2D5BFF" }}
       >
-        {loading ? "Giriş yapılıyor..." : "Admin olarak giriş yap"}
+        {loading ? "Giriş yapılıyor..." : "Admin olarak giriş yap →"}
       </button>
 
       <a
