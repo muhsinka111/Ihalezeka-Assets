@@ -29,8 +29,6 @@ export function Navbar() {
         </div>
         
         <nav className="hidden md:flex items-center gap-8 font-medium text-sm text-muted-foreground">
-          <a href="#ozellikler" className="hover:text-foreground transition-colors">Özellikler</a>
-          <a href="#nasil-calisir" className="hover:text-foreground transition-colors">Nasıl Çalışır</a>
           <a href="#moduller" className="hover:text-foreground transition-colors">Modüller</a>
           <a href="#fiyatlandirma" className="hover:text-foreground transition-colors">Fiyatlandırma</a>
         </nav>
