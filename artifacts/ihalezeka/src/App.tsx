@@ -7,6 +7,7 @@ import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AppShell } from "@/components/AppShell";
 import { AuthLayout } from "@/components/AuthLayout";
+import { AdminLogin } from "@/components/AdminLogin";
 import { Toaster } from "@/components/ui/sonner";
 
 import LandingPage from "@/pages/landing";
@@ -88,6 +89,14 @@ function SignInPage() {
   return (
     <AuthLayout>
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+    </AuthLayout>
+  );
+}
+
+function AdminLoginPage() {
+  return (
+    <AuthLayout>
+      <AdminLogin />
     </AuthLayout>
   );
 }
@@ -269,6 +278,7 @@ function ClerkProviderWithRoutes() {
         <FirstVisitRedirect />
         <Switch>
           <Route path="/" component={HomeRedirect} />
+          <Route path="/admin-login" component={AdminLoginPage} />
           <Route path="/sign-in/*?" component={SignInPage} />
           <Route path="/sign-up/*?" component={SignUpPage} />
 
