@@ -14,3 +14,4 @@
 - [EKAP ISI access limitations](ekap-isi-access.md) — ihaleDurumlar codes for "concluded" and ISI endpoint both return 0; ihale-mcp doesn't index ISIs; award_results populates when access is resolved
 - [Matches endpoint tender fallback](matches-tender-fallback.md) — GET /matches/:tenderId inner-joins matchesTable; tenders without match records return 404; fix: fall back to raw tender query when no match row exists
 - [Drizzle array in ANY() pitfall](drizzle-array-any.md) — sql`ANY(${jsArray})` generates invalid row expression; use sql`ANY(ARRAY[${sql.join(arr.map(v => sql`${v}`), sql`, `)}])` instead
+- [Matches recompute must be fire-and-forget](matches-recompute-timeout.md) — full recompute = ~15k upserts/business >2min; endpoint returns 202 + bg job under in-flight guard, never await; ops via scripts/recompute-business.ts

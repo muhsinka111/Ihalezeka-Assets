@@ -611,12 +611,20 @@ interface ScoringPair {
   profile: typeof companyProfilesTable.$inferSelect;
 }
 
-export async function scoreNewTenders(newTenderIds: number[]): Promise<ScoredMatch[]> {
+export async function scoreNewTenders(
+  newTenderIds: number[],
+  opts: { businessId?: string } = {},
+): Promise<ScoredMatch[]> {
   if (newTenderIds.length === 0) return [];
 
   const [tenders, profiles] = await Promise.all([
     db.select().from(tendersTable).where(inArray(tendersTable.id, newTenderIds)),
-    db.select().from(companyProfilesTable),
+    opts.businessId
+      ? db
+          .select()
+          .from(companyProfilesTable)
+          .where(eq(companyProfilesTable.businessId, opts.businessId))
+      : db.select().from(companyProfilesTable),
   ]);
 
   if (tenders.length === 0 || profiles.length === 0) return [];

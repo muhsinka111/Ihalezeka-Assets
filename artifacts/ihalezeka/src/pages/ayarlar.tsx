@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
 import { useUser } from "@clerk/react";
-import { useGetCompanyProfile, useUpsertCompanyProfile } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGetCompanyProfile, useUpsertCompanyProfile, getGetCompanyProfileQueryKey } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -394,6 +395,7 @@ function ProfilTab() {
   const { user, isLoaded } = useUser();
   const { data: profile } = useGetCompanyProfile();
   const mutation = useUpsertCompanyProfile();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [firstName, setFirstName] = useState<string | null>(null);
@@ -454,6 +456,7 @@ function ProfilTab() {
           aiBrief: displayBio,
         },
       });
+      await queryClient.invalidateQueries({ queryKey: getGetCompanyProfileQueryKey() });
       toast.success("Firma özeti güncellendi.");
     } catch {
       toast.error("Firma özeti kaydedilemedi.");
@@ -656,6 +659,7 @@ function CodeFinder({
 function SirketTab() {
   const { data: profile, isLoading } = useGetCompanyProfile();
   const mutation = useUpsertCompanyProfile();
+  const queryClient = useQueryClient();
 
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -721,6 +725,7 @@ function SirketTab() {
     try {
       const payload = { ...data, aiBrief: effectiveBrief };
       await mutation.mutateAsync({ data: sanitizeCompanyPayload(payload) });
+      await queryClient.invalidateQueries({ queryKey: getGetCompanyProfileQueryKey() });
       toast.success("Şirket profili güncellendi.");
     } catch {
       toast.error("Kayıt başarısız. Lütfen tekrar deneyin.");

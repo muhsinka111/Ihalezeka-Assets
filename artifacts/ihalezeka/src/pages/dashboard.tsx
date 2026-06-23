@@ -18,6 +18,10 @@ import {
   useGetDashboardWinPredictions,
   useListPipelineItems,
   useListTenders,
+  getGetDashboardStatsQueryKey,
+  getGetDashboardWinPredictionsQueryKey,
+  getGetDashboardPipelineSummaryQueryKey,
+  getListPipelineItemsQueryKey,
 } from "@workspace/api-client-react";
 import { useState } from "react";
 import {
@@ -171,10 +175,10 @@ export default function DashboardPage() {
     undefined,
     (action) => {
       if (action.type === "pipeline_added" && action.ok) {
-        queryClient.invalidateQueries({ queryKey: ["/api/pipeline"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/pipeline-summary"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/dashboard/win-predictions"] });
+        queryClient.invalidateQueries({ queryKey: getListPipelineItemsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardStatsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardPipelineSummaryQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardWinPredictionsQueryKey() });
       }
     }
   );

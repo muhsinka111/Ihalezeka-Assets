@@ -1,0 +1,35 @@
+                                                                                                 
+    Fix 1 (CRITICAL): Make profile form actually save all fields                                                              
+                                                                                                                              
+    The form collects: expertise areas, competitive advantages, regions, certificates, pricing strategy, experience           
+    ceiling, annual revenue, company description. None of these are being saved. The cpvCodes, certifications,                
+    preferredProvinces, experienceCeiling, annualRevenue, discountStrategy, and aiBrief fields are all empty/null in the      
+    database.                                                                                                                 
+                                                                                                                              
+    This is the #1 reason scores are low and uncertain. The matching engine is working with just naceCodes: ["62.01",         
+    "62.02"] and nothing else. Fix the save handler to persist all form fields.                                               
+                                                                                                                              
+    Fix 2: Display fitScore on tender detail page                                                                             
+                                                                                                                              
+    The /api/matches endpoint has the score, but /ihale/[id] page doesn't show it. Fetch the match for that tender and        
+    display the fitScore, breakdown, reasoning, pros, and risks.                                                              
+                                                                                                                              
+                                                                                                                              
+    Dashboard shows "0 Eşleşen Fırsatlar" but API returns 89. The dashboard is either calling a different endpoint, caching   
+    old data, or the stats component isn't updating after profile save.                                                       
+                                                                                                                              
+    Fix 4: Show match breakdown on Fırsatlarım cards                                                                          
+                                                                                                                              
+    Currently the table shows only the overall score (%54). Show the 6-factor breakdown too — users need to see why a         
+    tender scored 54 (CPV: 55, Experience: 40, Financial: 45, etc.). This data is already in the API response.                
+                                                                                                                              
+    Fix 5: Add a "re-run matching" button                                                                                     
+                                                                                                                              
+    After a user updates their profile, matches should regenerate. Currently there's no manual trigger — matches seem to be   
+    pre-computed. Add a "Eşleşmeleri Yenile" (Refresh Matches) button.                                                        
+                                                                                                                              
+    Fix 6: Fix the 65% hardcoded issue on production                                                                          
+                                                                                                                              
+    On ihalezeka-assets.replit.app, every notification shows exactly 65% uyum. But on the dev URL, scores vary correctly      
+    (54, 49, 42, 41, 38). The production deployment may be running stale/old match data or a different code version. Make     
+    sure production runs the same matching engine as dev. 

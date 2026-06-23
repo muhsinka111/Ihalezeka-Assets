@@ -5,11 +5,65 @@ import { eq, and, gte, lte, desc, type SQL, count } from "drizzle-orm";
 import { ListMatchesQueryParams, GetMatchParams, UpdateMatchStatusParams, UpdateMatchStatusBody } from "@workspace/api-zod";
 import { computeCriteriaCompliance } from "../services/document-analyzer.js";
 import { requirePro, getBusinessId } from "../lib/authHelpers.js";
+import { scoreNewTenders } from "../lib/tenderScorer.js";
 
 const router = Router();
 
 // Premium-only: AI-derived matches (fit scores, pros/risks, criteria) are Pro.
 router.use("/matches", requirePro);
+
+// Guard against overlapping recompute runs for the same business.
+const recomputingBusinesses = new Set<string>();
+
+/**
+ * Re-run the matching engine for the CURRENT business against every tender.
+ * Triggered manually from the "Eşleşmeleri Yenile" button after a profile edit
+ * so fit scores + breakdowns reflect the latest company profile. The scorer's
+ * rule pre-filter keeps AI spend bounded (only candidates >= threshold are
+ * sent to the AI). Scoped to a single businessId so other tenants are untouched.
+ */
+router.post("/matches/recompute", async (req, res) => {
+  const businessId = getBusinessId(req);
+
+  try {
+    // Require a saved profile — scoring against an empty profile is meaningless.
+    const [profile] = await db
+      .select({ id: companyProfilesTable.id })
+      .from(companyProfilesTable)
+      .where(eq(companyProfilesTable.businessId, businessId))
+      .limit(1);
+    if (!profile) {
+      return res.status(400).json({ error: "no_profile", message: "Önce şirket profilinizi kaydedin." });
+    }
+
+    if (recomputingBusinesses.has(businessId)) {
+      return res.status(409).json({ error: "already_running", message: "Eşleştirme zaten çalışıyor." });
+    }
+
+    const tenderIds = await db.select({ id: tendersTable.id }).from(tendersTable);
+
+    // Scoring every tender does an upsert per pair, which far exceeds a normal
+    // HTTP timeout. Run it in the background and return immediately; the
+    // in-flight guard prevents overlapping runs and the client polls/refreshes
+    // for results.
+    recomputingBusinesses.add(businessId);
+    void scoreNewTenders(
+      tenderIds.map((t) => t.id),
+      { businessId },
+    )
+      .catch((err) => {
+        console.error("recompute failed", { businessId, err });
+      })
+      .finally(() => {
+        recomputingBusinesses.delete(businessId);
+      });
+
+    return res.status(202).json({ ok: true, started: true, tenders: tenderIds.length });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
 
 interface ResolvedContact {
   authority: string | null;
