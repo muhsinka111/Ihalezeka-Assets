@@ -18,9 +18,7 @@ async function postBilling(
 }
 
 /**
- * Start a Stripe Checkout session for the Pro subscription and redirect the
- * browser to it. `priceId` is optional — the backend resolves the default Pro
- * price when omitted.
+ * Redirect-based Stripe Checkout (fallback when embedded checkout fails).
  */
 export async function startCheckout(priceId?: string): Promise<void> {
   const { url } = await postBilling("/billing/checkout", priceId ? { priceId } : {});

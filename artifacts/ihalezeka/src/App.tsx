@@ -285,7 +285,7 @@ function ClerkProviderWithRoutes() {
 
           <Route path="/ihale-arama"><ProtectedRoute component={IhaleAramaPage} /></Route>
           <Route path="/ihale/:id"><ProtectedRoute component={IhaleDetayPage} /></Route>
-          <Route path="/fiyatlandirma"><ProtectedRoute component={FiyatlandirmaPage} /></Route>
+          <Route path="/fiyatlandirma" component={FiyatlandirmaPage} />
           <Route path="/ayarlar"><ProtectedRoute component={AyarlarPage} /></Route>
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>

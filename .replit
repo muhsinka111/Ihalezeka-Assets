@@ -48,4 +48,3 @@ STRIPE_DEFAULT_PRICE_ID = "price_1TjlBRHwO65W7EK00GcgiAuD"
 STRIPE_PRO_PRODUCT_ID = "prod_UjDcdkWZMv20x3"
 
 [userenv.development]
-ENTITLEMENTS_FORCE_PLAN = "pro"

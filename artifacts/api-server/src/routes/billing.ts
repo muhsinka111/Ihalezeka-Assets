@@ -374,6 +374,12 @@ router.get("/billing/config", (_req, res) => {
  * Falls back to { error: "no_publishable_key" } if STRIPE_PUBLISHABLE_KEY
  * is not set (caller should use the redirect-based /checkout instead).
  */
+/**
+ * POST /api/billing/checkout-session — create a hosted Stripe Checkout session
+ * and return { url } so the frontend can redirect to Stripe for payment.
+ * (Embedded checkout is disabled because the Stripe SDK version is too old for
+ * the new embedded_page API; revert to hosted once the SDK is upgraded.)
+ */
 router.post("/billing/checkout-session", async (req, res) => {
   const userId = ensureRealUser(req, res);
   if (!userId) return;
@@ -392,22 +398,23 @@ router.post("/billing/checkout-session", async (req, res) => {
 
     const email = getSessionEmail(req);
     const customerId = await ensureStripeCustomer(userId, email);
+    logger.info({ userId, customerId, priceId }, "Creating hosted checkout session");
 
     const stripe = await getUncachableStripeClient();
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      ui_mode: "embedded",
-      return_url: buildReturnUrl(req, "/ihale-arama?checkout=success"),
+      success_url: buildReturnUrl(req, "/ihale-arama?checkout=success"),
+      cancel_url: buildReturnUrl(req, "/fiyatlandirma?checkout=cancel"),
       allow_promotion_codes: true,
     });
 
     invalidateEntitlement(userId);
-    res.json({ clientSecret: session.client_secret });
-  } catch (err) {
-    logger.error({ err }, "Embedded checkout session error");
-    res.status(500).json({ error: "checkout_failed" });
+    res.json({ url: session.url });
+  } catch (err: any) {
+    logger.error({ err: err?.message ?? err, code: err?.code, type: err?.type }, "Checkout session error");
+    res.status(500).json({ error: "checkout_failed", detail: err?.message ?? "unknown" });
   }
 });
 
