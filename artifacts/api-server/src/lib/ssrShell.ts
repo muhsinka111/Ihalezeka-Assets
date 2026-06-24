@@ -26,6 +26,11 @@ export const pageShell = (title: string, meta: string, body: string, jsonLd: str
   ${meta}
   <script type="application/ld+json">${jsonLd}</script>
   <link rel="icon" type="image/svg+xml" href="${SITE_URL}/favicon.svg"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="${SITE_URL}/favicon-32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="${SITE_URL}/favicon-16.png"/>
+  <link rel="shortcut icon" href="${SITE_URL}/favicon.ico"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="${SITE_URL}/apple-touch-icon.png"/>
+  <link rel="manifest" href="${SITE_URL}/site.webmanifest"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
