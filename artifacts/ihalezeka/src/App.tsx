@@ -26,6 +26,8 @@ import BlogAdminPage from "@/pages/pazarlama/blog";
 import SocialConnectionsPage from "@/pages/pazarlama/social-connections";
 import FiyatlandirmaPage from "@/pages/fiyatlandirma";
 import AdminPage from "@/pages/admin/index";
+import BlogListPage from "@/pages/blog/index";
+import BlogPostPage from "@/pages/blog/post";
 import NotFound from "@/pages/not-found";
 import { RequirePro } from "@/components/PaywallOverlay";
 
@@ -300,6 +302,9 @@ function ClerkProviderWithRoutes() {
           <Route path="/pazarlama/baglantilar"><AdminRoute component={SocialConnectionsPage} /></Route>
 
           <Route path="/admin"><AdminRoute component={AdminPage} /></Route>
+
+          <Route path="/blog/:slug" component={BlogPostPage} />
+          <Route path="/blog" component={BlogListPage} />
 
           <Route component={NotFound} />
         </Switch>

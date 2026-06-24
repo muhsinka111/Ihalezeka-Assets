@@ -18,9 +18,11 @@ import aiChatRouter from "./aiChat";
 import billingRouter from "./billing";
 import creditsRouter from "./credits";
 import adminUsersRouter from "./adminUsers";
+import apiBlogRouter from "./apiBlog";
 
 const router: IRouter = Router();
 
+router.use(apiBlogRouter);
 router.use(aiChatRouter);
 router.use(healthRouter);
 router.use(dashboardRouter);
