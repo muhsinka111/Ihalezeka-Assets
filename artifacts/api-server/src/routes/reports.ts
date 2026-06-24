@@ -53,7 +53,7 @@ router.get("/reports/summary", async (req, res) => {
 
     const aiSummary =
       totalApplications === 0
-        ? "Henüz boru hattı aktivitesi yok. İhale fırsatlarını takip etmeye başlamak için Fırsatlarım sayfasını kullanın."
+        ? "Henüz pipeline aktivitesi yok. İhale fırsatlarını takip etmeye başlamak için Fırsatlarım sayfasını kullanın."
         : `Toplam ${totalApplications} ihale takibinde bulunuyorsunuz. Kazanılan: ${wonCount}, kaybedilen: ${lostCount}, devam eden: ${pendingCount}. Başarı oranınız %${successRate}.`;
 
     res.json({

@@ -1354,7 +1354,7 @@ export default function IhaleDetayPage() {
               <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
                 <div className="flex items-center gap-2">
                   <IconCheck className="h-4 w-4 shrink-0" />
-                  <span>{PIPELINE_STAGES.find(s => s.id === pipelineStage)?.label ?? "Boru Hattında"}</span>
+                  <span>{PIPELINE_STAGES.find(s => s.id === pipelineStage)?.label ?? "Pipeline'da"}</span>
                 </div>
                 <button
                   onClick={() => { setPipelineAdded(false); setPipelineError(null); }}
@@ -1371,7 +1371,7 @@ export default function IhaleDetayPage() {
                   onClick={() => setPipelineOpen((o) => !o)}
                 >
                   <IconLayoutKanban className="h-4 w-4" />
-                  Boru Hattına Ekle
+                  Pipeline'a Ekle
                   <IconChevronDown className="h-3.5 w-3.5 ml-auto" />
                 </Button>
                 {pipelineOpen && (

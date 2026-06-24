@@ -54,7 +54,7 @@ export default function BoruHattiPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold font-heading tracking-tight">Boru Hattı</h1>
+        <h1 className="text-2xl font-bold font-heading tracking-tight">Pipeline</h1>
         <p className="text-muted-foreground text-sm">İhalelerinizi aşamalar arasında sürükle-bırak ile yönetin.</p>
       </div>
 

@@ -115,7 +115,7 @@ export function Hero() {
                   { label: "Gösterge Paneli", active: true },
                   { label: "Fırsatlarım" },
                   { label: "İhale Arama" },
-                  { label: "Boru Hattı" },
+                  { label: "Pipeline" },
                   { label: "Rakip Analizi" },
                   { label: "Raporlar" },
                 ].map(({ label, active }) => (

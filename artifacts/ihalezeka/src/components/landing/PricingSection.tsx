@@ -19,7 +19,7 @@ const FEATURES = [
   "Sınırsız ihale araması (EKAP, İlan.gov ve daha fazlası)",
   "Yapay zeka uygunluk analizi — skor, artılar, riskler",
   "Şartname doküman sohbeti",
-  "Boru hattı ve teklif oluşturucu",
+  "Pipeline ve teklif oluşturucu",
   "Rakip analizi ve para akışı raporları",
   "Kayıtlı arama uyarıları ve dışa aktarma",
   "Uygunluk analizi ve belge yönetimi",

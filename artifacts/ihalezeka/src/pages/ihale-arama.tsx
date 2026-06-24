@@ -1153,12 +1153,12 @@ export default function IhaleAramaPage() {
                                     ) : (
                                       <>
                                         <button
-                                          title="Boru Hattına Ekle"
+                                          title="Pipeline'a Ekle"
                                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPipelinePopover(pipelinePopover === tender.id ? null : tender.id); }}
                                           className="flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-colors"
                                         >
                                           <IconLayoutKanban className="h-3.5 w-3.5" />
-                                          <span className="hidden sm:inline">Boru Hattı</span>
+                                          <span className="hidden sm:inline">Pipeline</span>
                                         </button>
                                         {pipelinePopover === tender.id && (
                                           <div className="absolute right-0 top-full mt-1 z-30 w-44 rounded-lg border bg-card shadow-lg py-1">

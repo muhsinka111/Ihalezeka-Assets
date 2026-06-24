@@ -139,7 +139,7 @@ export function CreditsExhaustedBanner() {
 const DEFAULT_PRO_FEATURES = [
   "Tüm ihalelerde yapay zeka uygunluk analizi",
   "Tam ilan metni, belgeler ve iletişim bilgileri",
-  "Boru hattı, teklif oluşturucu ve rakip analizi",
+  "Pipeline, teklif oluşturucu ve rakip analizi",
   "Kayıtlı arama uyarıları ve raporlar",
 ];
 

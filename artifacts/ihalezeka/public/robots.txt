@@ -5,7 +5,7 @@ Allow: /
 Disallow: /api/
 Disallow: /dashboard
 Disallow: /firsatlarim
-Disallow: /boru-hatti
+Disallow: /pipeline
 Disallow: /raporlar
 Disallow: /ayarlar
 Disallow: /pazarlama

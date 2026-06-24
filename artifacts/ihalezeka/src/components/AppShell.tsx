@@ -51,7 +51,7 @@ const NAV_ITEMS = [
   { href: "/ihale-arama", label: "İhale Arama", icon: IconSearch },
   { href: "/dashboard", label: "Gösterge Paneli", icon: IconLayoutDashboard, pro: true },
   { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled, pro: true },
-  { href: "/boru-hatti", label: "Boru Hattı", icon: IconListDetails, pro: true },
+  { href: "/pipeline", label: "Pipeline", icon: IconListDetails, pro: true },
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
   { href: "/ayarlar", label: "Ayarlar", icon: IconSettings },
 ];

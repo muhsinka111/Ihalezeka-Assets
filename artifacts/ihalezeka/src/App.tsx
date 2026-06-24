@@ -290,7 +290,7 @@ function ClerkProviderWithRoutes() {
 
           <Route path="/dashboard"><ProtectedRoute component={proGate(DashboardPage, { title: "Gösterge Paneli Pro'ya özeldir", description: "Eşleşmeleriniz, kazanma tahminleri ve performans özetiniz Pro planında." })} /></Route>
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
-          <Route path="/boru-hatti"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Boru Hattı Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
+          <Route path="/pipeline"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Pipeline Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
           <Route path="/raporlar"><ProtectedRoute component={proGate(RaporlarPage, { title: "Raporlar Pro'ya özeldir", description: "Başvuru performansı ve kategori raporlarınız için Pro planına geçin." })} /></Route>
 
           <Route path="/pazarlama"><AdminRoute component={PazarlamaPage} /></Route>

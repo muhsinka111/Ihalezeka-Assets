@@ -17,7 +17,7 @@ const modules = [
     bg: "bg-[#EAEFFF]/10"
   },
   {
-    title: "Boru Hattı (Pipeline)",
+    title: "Pipeline",
     description: "İhaleleri 'İlgileniliyor', 'Hazırlanıyor', 'Teklif Verildi' ve 'Sonuçlandı' aşamalarında görsel bir kanban panosunda yönetin.",
     icon: IconListDetails,
     color: "text-[#2D5BFF]",

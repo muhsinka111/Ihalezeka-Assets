@@ -442,7 +442,7 @@ export default function DashboardPage() {
               </div>
               {[
                 { icon: IconBolt, label: "Firma Profilini Tamamla", badge: "YENİ", badgeCls: "bg-emerald-500 text-white", to: "/ayarlar?tab=sirket" },
-                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "", to: "/boru-hatti" },
+                { icon: IconFileText, label: "Teklif Oluştur", badge: null, badgeCls: "", to: "/pipeline" },
                 { icon: IconDownload, label: "Belge Yükle", badge: null, badgeCls: "", to: "/ayarlar?tab=belgeler" },
               ].map((action) => (
                 <button key={action.label} onClick={() => navigate(action.to)}
@@ -533,7 +533,7 @@ export default function DashboardPage() {
         <div className="col-span-12 xl:col-span-6 rounded-xl border border-border/50 bg-card shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <h2 className="font-heading font-semibold text-sm text-foreground">Başvuru Süreçleri</h2>
-            <Link href="/boru-hatti">
+            <Link href="/pipeline">
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
                 Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
               </Button>
@@ -577,7 +577,7 @@ export default function DashboardPage() {
               <h2 className="font-heading font-semibold text-sm text-foreground">Kazanma Tahmini</h2>
               <Badge className="text-[9px] px-1.5 py-0 h-[17px] bg-primary text-primary-foreground border-0">AI</Badge>
             </div>
-            <Link href="/boru-hatti">
+            <Link href="/pipeline">
               <Button variant="ghost" size="sm" className="h-7 text-xs gap-0.5 text-primary px-2">
                 Tümünü Gör <IconChevronRight className="h-3.5 w-3.5" />
               </Button>
