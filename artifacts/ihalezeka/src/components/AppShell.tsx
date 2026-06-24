@@ -165,8 +165,16 @@ export function AppShell({ children }: AppShellProps) {
   const handleManageSubscription = async () => {
     try {
       await openBillingPortal();
-    } catch {
-      toast.error("Abonelik yönetimi açılamadı. Lütfen tekrar deneyin.");
+    } catch (err: any) {
+      const code = err?.message ?? "";
+      if (code === "portal_not_configured" || code.includes("portal")) {
+        // Billing portal not set up in Stripe dashboard — send to payment link
+        const paymentLink = "https://buy.stripe.com/14AfZh9p219Mddv4aG0Ny0b";
+        window.open(paymentLink, "_blank", "noopener");
+        toast.info("Abonelik yönetimi için Stripe sayfasına yönlendiriliyorsunuz.");
+      } else {
+        toast.error("Abonelik yönetimi açılamadı. Lütfen tekrar deneyin.");
+      }
     }
   };
 

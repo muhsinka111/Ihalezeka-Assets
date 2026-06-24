@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İhaleZeka — Marka Sistemi & Pazarlama Kiti · “Sinyal”</title>
+<style>
+  :root{
+    --ink:#0B1220; --navy:#14213D; --navy2:#1B2C50; --slate:#2A3B62;
+    --blue:#2D5BFF; --blue-press:#1E45D6; --blue-lt:#6E8BFF; --blue-tint:#EAEFFF;
+    --t2:#2B3340; --muted:#5B6472; --line:#E6E9F0; --line2:#C9D0DC;
+    --bg:#F7F8FB; --surf:#EEF1F6; --white:#fff;
+    --ok:#1E9E6A; --warn:#C98A2B; --danger:#D1495B;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    --disp:'Space Grotesk','Inter',system-ui,sans-serif;
+    --r-s:8px; --r-m:14px; --r-l:18px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;background:rgba(247,248,251,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav .row{max-width:1080px;margin:0 auto;padding:11px 28px;display:flex;align-items:center;gap:18px;overflow-x:auto}
+  nav .brand{display:flex;align-items:center;gap:9px;font-weight:700;color:var(--navy);font-family:var(--disp);white-space:nowrap}
+  nav a{font-size:12.5px;color:var(--muted);text-decoration:none;white-space:nowrap}
+  nav a:hover{color:var(--navy)}
+  /* SECTION */
+  section{padding:70px 0;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue)}
+  h2{font-family:var(--disp);font-size:31px;font-weight:700;letter-spacing:-.8px;color:var(--navy);margin:8px 0 8px}
+  h3{font-family:var(--disp);font-size:18px;color:var(--navy);margin:26px 0 12px;font-weight:600}
+  h4{font-size:13px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:18px 0 8px;font-weight:700}
+  .lead{font-size:15.5px;color:var(--t2);max-width:760px}
+  p{margin-bottom:10px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:var(--r-m);padding:22px}
+  .card.accent{border-top:3px solid var(--blue)}
+  .muted{color:var(--muted);font-size:13.5px}
+  ul.clean{list-style:none}
+  ul.clean li{font-size:13.8px;padding:5px 0 5px 18px;position:relative}
+  ul.clean li::before{content:"";position:absolute;left:0;top:11px;width:6px;height:6px;border-radius:2px;background:var(--blue)}
+  table{width:100%;border-collapse:collapse;font-size:13.3px;margin:8px 0}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  code{font-family:'SFMono-Regular',Consolas,monospace;background:var(--surf);padding:1px 6px;border-radius:5px;font-size:12.5px;color:var(--slate)}
+  /* HERO */
+  .hero{background:var(--navy);color:#fff;border:none;padding:90px 0}
+  .hero .eyebrow{color:var(--blue-lt)}
+  .hero h1{font-family:var(--disp);font-size:46px;font-weight:700;letter-spacing:-1.6px;margin:14px 0;line-height:1.04}
+  .hero p{color:#C5CEE2;font-size:16.5px;max-width:640px}
+  .hero .tags{margin-top:24px;display:flex;gap:9px;flex-wrap:wrap}
+  .hero .tags span{font-size:12px;color:#AEB9D4;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 13px}
+  /* LOGO PANES */
+  .pane{border:1px solid var(--line);border-radius:var(--r-m);min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px}
+  .pane.dark{background:var(--navy);border-color:var(--navy)}
+  .pane small,.cap{font-size:11px;color:var(--muted)}
+  .pane.dark small{color:#8B97B4}
+  .favset{display:flex;align-items:flex-end;gap:18px}
+  .favset .f{text-align:center}.favset .f span{display:block;font-size:10px;color:var(--muted);margin-top:5px}
+  .clearbox{position:relative;display:inline-block;padding:28px;border:1px dashed var(--line2);border-radius:8px}
+  .misuse{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted)}
+  .no{position:relative}
+  .no::after{content:"";position:absolute;inset:-6px;border:2px solid var(--danger);border-radius:50%;}
+  .no::before{content:"";position:absolute;left:-6px;top:50%;width:calc(100% + 12px);height:2px;background:var(--danger);transform:rotate(-45deg)}
+  /* SWATCH */
+  .swrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+  .sw{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+  .sw .c{height:56px}.sw .m{padding:9px 11px}
+  .sw .n{font-size:12.5px;font-weight:600}.sw .h{font-family:monospace;font-size:11px;color:var(--muted)}
+  .sw .u{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+  /* TYPE SPECIMEN */
+  .spec-d{font-family:var(--disp);color:var(--navy)}
+  .ramp div{border-bottom:1px solid var(--line);padding:10px 0}
+  .ramp .lbl{font-size:11px;color:var(--muted);font-family:var(--sans)}
+  /* MOCK FRAMES */
+  .mock{border:1px solid var(--line);border-radius:var(--r-m);overflow:hidden;background:#fff}
+  .mock .mh{font-size:11px;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surf)}
+  .mock .mb{padding:0}
+  .banner{height:150px;background:linear-gradient(120deg,#14213D 0%,#1B2C50 100%);position:relative;display:flex;align-items:center;padding:0 28px;color:#fff}
+  .banner .sig{position:absolute;right:0;top:0;bottom:0;width:120px;overflow:hidden}
+  .deckcover{aspect-ratio:16/9;background:var(--navy);color:#fff;padding:30px;display:flex;flex-direction:column;justify-content:space-between}
+  .pdfcover{aspect-ratio:3/4;background:#fff;border:1px solid var(--line);padding:24px;display:flex;flex-direction:column;justify-content:space-between}
+  .splash{aspect-ratio:16/10;background:var(--navy);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px}
+  .esig{font-size:12.5px;line-height:1.5}
+  .bcard{aspect-ratio:1.75/1;border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;justify-content:space-between;background:#fff}
+  .pill{display:inline-block;font-size:11px;font-weight:600;color:var(--blue);background:var(--blue-tint);border-radius:999px;padding:4px 11px}
+  .note{background:var(--blue-tint);border:1px solid #D5DEFF;border-radius:var(--r-m);padding:16px 18px;font-size:13.5px;color:var(--slate)}
+  .copyblock{background:var(--surf);border-radius:var(--r-s);padding:12px 14px;font-size:13.3px;margin:6px 0}
+  @media(max-width:780px){.grid2,.grid3,.grid4{grid-template-columns:1fr}.hero h1{font-size:34px}h2{font-size:25px}}
+</style>
+</head>
+<body>
+
+<nav><div class="row">
+  <div class="brand">
+    <svg width="14" height="18" viewBox="0 0 100 130"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></svg>
+    İhaleZeka
+  </div>
+  <a href="#s1">Özet</a><a href="#s2">Logo</a><a href="#s3">Görsel Dil</a><a href="#s4">Tipografi</a><a href="#s5">Renk</a><a href="#s6">Sistem</a><a href="#s7">Pazarlama</a><a href="#s8">Yol Haritası</a>
+</div></nav>
+
+<!-- HERO -->
+<div class="hero"><div class="wrap">
+  <div class="eyebrow">Marka Sistemi · Final</div>
+  <h1>Sinyal</h1>
+  <p>Kamu ihale gürültüsünü görünür sinyale çeviren bir B2B istihbarat platformunun uygulamaya hazır marka sistemi ve pazarlama kiti.</p>
+  <div class="tags"><span>Direction 01 — onaylandı</span><span>Designer + Web + Marketing + Sales hazır</span><span>EKAP & ilan.gov.tr</span></div>
+</div></div>
+
+<!-- 1. EXEC SUMMARY -->
+<section id="s1"><div class="wrap">
+  <div class="eyebrow">01 · Yönetici Özeti</div>
+  <h2>Direction 01 — “Sinyal”</h2>
+  <p class="lead">İhaleZeka'nın marka fikri tek cümlede: <b>ihale gürültüsünü görünür sinyale çevirmek.</b> Kimlik, Türkçe'nin <b>İ</b> harfi üzerine kurulu — yapılandırılmış dikey gövde (tender verisi) + odak noktası (çıkarılan fırsat/zeka). Premium, kurumsal-tech, ölçeksiz okunur, gösterişsiz.</p>
+  <div class="grid3" style="margin-top:26px">
+    <div class="card accent"><h4>Bu yön nedir</h4><p class="muted">İ = İhale. Gövdenin keskin faseti ile noktanın aynı açıdaki kesimi, negatif alanda bir “odaklanma düzlemi” kurar — lens çizmeden “okuma/analiz” hissi. İsmin ilk harfini sahiplenir.</p></div>
+    <div class="card accent"><h4>Neden kazandı</h4><p class="muted">Türkçe'ye özgü ve sahiplenilebilir; brief'in merkezindeki “gürültüden sinyal” fikrini forma gömer; hem güçlü mark hem güçlü favicon olan tek yön; birkaç tur rafine edildi — en düşük risk.</p></div>
+    <div class="card accent"><h4>Sistem ne hedefliyor</h4><p class="muted">Tek bir disiplinli görsel + sözel dil: web, ürün UI, teklif, deck, LinkedIn ve satış e-postasında aynı güveni veren, ekiplerin doğrudan uygulayabileceği bir sistem.</p></div>
+  </div>
+</div></section>
+
+<!-- 2. LOGO SYSTEM -->
+<section id="s2"><div class="wrap">
+  <div class="eyebrow">02 · Final Logo Sistemi</div>
+  <h2>“Sinyal” logo sistemi</h2>
+  <p class="lead"><b>Konsept:</b> Sinyal. <b>Anlatı:</b> İhaleZeka, yüz binlerce ihale ilanının gürültüsünden işinize uyanı çıkarır. İşaret bu fikri taşır: yapılandırılmış gövde tender verisidir; tepedeki odak noktası, sistemin çıkardığı net sinyaldir. Gövdenin faseti ve noktanın aynı açıdaki kesimi, aralarında bir “odak düzlemi” oluşturur — analiz ve kesinlik, bağırmadan. Hâlâ net bir İ, ama artık sadece bir harf değil; sahiplenilebilir bir marka işareti.</p>
+
+  <h3>İnşa mantığı & yapılan rafineler</h3>
+  <div class="grid2">
+    <ul class="clean">
+      <li><b>Gövde:</b> dikey, üst kenarı yukarı-sağa fasetli (≈ −29°). Faset = “ileri / odak” vektörü.</li>
+      <li><b>Nokta:</b> daire, alt tarafında gövde fasetiyle <b>paralel açılı kesim</b>. İki paralel düzlem = odak.</li>
+      <li><b>Rafine 1 (oran):</b> nokta/gövde kalınlık oranı sıkıştırıldı; nokta gövdeye optik olarak yaklaştırıldı (daha “kilitli” sinyal).</li>
+      <li><b>Rafine 2 (taban):</b> taban düz-kesime yakın yumuşatıldı → mimari, “oturmuş” denge.</li>
+      <li><b>Tek accent kuralı:</b> signal-blue yalnız odak noktasında. Wordmark tek renk (navy).</li>
+    </ul>
+    <div class="pane">
+      <svg width="92" height="120" viewBox="0 0 100 130"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></svg>
+      <small>Marka işareti (mark-only)</small>
+    </div>
+  </div>
+
+  <h3>Lockup'lar</h3>
+  <div class="grid3">
+    <div class="pane">
+      <svg width="230" height="55" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui,sans-serif" font-size="58" letter-spacing="-1.5" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <small>Yatay (birincil)</small>
+    </div>
+    <div class="pane">
+      <svg width="120" height="96" viewBox="0 0 200 200"><g transform="translate(78,26) scale(0.52)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></g><text x="100" y="176" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="34" letter-spacing="-.8" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <small>Dikey (stacked)</small>
+    </div>
+    <div class="pane">
+      <svg width="230" height="55" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#14213D"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui,sans-serif" font-size="58" letter-spacing="-1.5" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <small>Monokrom (tek renk)</small>
+    </div>
+  </div>
+  <div class="grid3" style="margin-top:16px">
+    <div class="pane dark">
+      <svg width="230" height="55" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#FFFFFF"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#6E8BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui,sans-serif" font-size="58" letter-spacing="-1.5" fill="#FFFFFF"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <small>Reverse (koyu zemin)</small>
+    </div>
+    <div class="pane">
+      <div class="favset">
+        <div class="f"><svg width="44" height="44" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#14213D"/><path d="M27,50 L27,29.5 Q27,27.9 28.3,27.4 L34.7,23.9 Q36,23.3 36,25.3 L36,50 Q36,50.5 31.5,50.5 Q27,50.5 27,50 Z" fill="#fff"/><circle cx="32" cy="17.5" r="5" fill="#2D5BFF"/></svg><span>48</span></div>
+        <div class="f"><svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#14213D"/><path d="M27,50 L27,30 Q27,28.4 28.3,27.9 L34.7,24.4 Q36,23.8 36,25.8 L36,50 Q36,50.5 31.5,50.5 Q27,50.5 27,50 Z" fill="#fff"/><circle cx="32" cy="17.5" r="5" fill="#2D5BFF"/></svg><span>32</span></div>
+        <div class="f"><svg width="24" height="24" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#14213D"/><rect x="28.5" y="27" width="7" height="23" rx="3.5" fill="#fff"/><circle cx="32" cy="17.5" r="5" fill="#2D5BFF"/></svg><span>24</span></div>
+        <div class="f"><svg width="16" height="16" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#14213D"/><rect x="28.5" y="27" width="7" height="23" rx="3.5" fill="#fff"/><circle cx="32" cy="17.5" r="5.2" fill="#2D5BFF"/></svg><span>16</span></div>
+      </div>
+      <small>Favicon / app icon — küçük ölçek sadeleşmesi</small>
+    </div>
+    <div class="pane">
+      <div class="clearbox">
+        <svg width="60" height="78" viewBox="0 0 100 130"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></svg>
+      </div>
+      <small>Koruma alanı = 1× nokta çapı (min)</small>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:18px"><b>Küçük ölçek davranışı (net kural):</b> <b>≥32px:</b> tam işaret (faset + açılı nokta kesimi). <b>24px:</b> gövde faseti korunur, <b>nokta düz daireye iner</b> (açılı kesim kalkar). <b>16px:</b> gövde düz stem'e iner (faset minimal), nokta düz daire. Yani açılı kesim ve faset, mikro ölçekte <b>bilinçli olarak sadeleşir</b> — işaret okunur ve net kalır, kırpık görünmez.</div>
+
+  <h3>Kullanım kuralları</h3>
+  <table>
+    <tr><th>Versiyon</th><th>Ne zaman</th></tr>
+    <tr><td>Mark-only</td><td>Favicon, app icon, sosyal avatar, daraltılmış UI header, watermark, büyük marka anları.</td></tr>
+    <tr><td>Yatay lockup</td><td><b>Varsayılan.</b> Web header, deck, doküman, e-imza, teklif kapağı.</td></tr>
+    <tr><td>Dikey (stacked)</td><td>Kare/dikey bağlam: sosyal avatar+isim, poster, splash, merch.</td></tr>
+    <tr><td>Reverse</td><td>Navy/koyu zeminler; nokta açık-mavi (#6E8BFF) tinte döner.</td></tr>
+    <tr><td>Monokrom</td><td>Tek renkli baskı, gravür, faks/oklava bağlamı, filigran.</td></tr>
+  </table>
+
+  <h3>Min boyut · Wordmark optiği · Yanlış kullanım</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Minimum boyut</h4>
+      <ul class="clean"><li>Yatay lockup: <code>min 120px</code> genişlik (baskıda 24mm)</li><li>Mark: <code>min 20px</code></li><li>Favicon: <code>16px</code> (sade versiyon)</li></ul>
+      <h4>Wordmark optik ayarı</h4>
+      <p class="muted">Wordmark cap-height'ı işaretin gövde yüksekliğine optik hizalanır; işaret tabanı wordmark baseline'ının hafif üstünde oturur. Mark ↔ wordmark boşluğu = ~1× nokta çapı. Wordmark'taki İ noktası <b>navy kalır</b> — tek mavi accent sadece işarettedir.</p>
+    </div>
+    <div class="card">
+      <h4>Yapılmayacaklar</h4>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;margin-top:6px">
+        <div class="misuse"><span class="no"><svg width="30" height="39" viewBox="0 0 100 130"><path d="M42,113 L42,56 L58,56 L58,113 Z" fill="#14213D"/><circle cx="50" cy="34" r="10.5" fill="#10B981"/></svg></span>Off-brand renk</div>
+        <div class="misuse"><span class="no"><svg width="30" height="39" viewBox="0 0 100 130"><path d="M42,113 L42,56 L58,56 L58,113 Z" fill="#14213D"/><circle cx="50" cy="34" r="10.5" fill="none" stroke="#2D5BFF" stroke-width="3"/><circle cx="50" cy="34" r="5" fill="#2D5BFF"/></svg></span>Noktaya halka</div>
+        <div class="misuse"><span class="no"><svg width="42" height="33" viewBox="0 0 130 100"><path d="M42,90 L42,40 L58,40 L58,90 Z" fill="#14213D"/><circle cx="50" cy="24" r="10" fill="#2D5BFF"/></svg></span>Yatay esnetme</div>
+      </div>
+      <p class="muted" style="margin-top:10px">Ayrıca: döndürme, gölge/glow ekleme, wordmark fontunu/ağırlığını değiştirme, düşük kontrastlı zemine konteynersiz yerleştirme.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 3. VISUAL LANGUAGE -->
+<section id="s3"><div class="wrap">
+  <div class="eyebrow">03 · Görsel Dil Sistemi</div>
+  <h2>“Sinyal” görsel dili</h2>
+  <p class="lead"><b>Çekirdek metafor:</b> yapı içinden çıkan net sinyal. Markanın imza jesti <b>tek tutarlı diyagonal (≈29°)</b> ve <b>odak noktası</b>dır. Bunlar logodan layout'a, UI'dan deck'e kadar her yerde tekrarlanır — tutarlılık buradan gelir.</p>
+  <div class="grid3" style="margin-top:24px">
+    <div class="card"><h4>Şekil grameri</h4><p class="muted">Dikey yapı + tek odak. Dikdörtgen/yuvarlatılmış kart formları; vurgu gereken yerde <b>tek açılı kesim</b> veya köşede <b>odak noktası</b>. Asla çoklu süs.</p></div>
+    <div class="card"><h4>Köşe yarıçapı</h4><p class="muted"><code>8</code> küçük UI · <code>14</code> kart · <code>18</code> büyük yüzey · <code>999</code> pill. Tutarlı ölçek, karışık yarıçap yok.</p></div>
+    <div class="card"><h4>Açı mantığı</h4><p class="muted">Tek marka açısı <b>≈29°</b>. Bölüm ayraçları, vurgu altı çizgileri, deck kapak kesimleri hep bu açıda. Rastgele eğim yok.</p></div>
+    <div class="card"><h4>Boşluk ritmi</h4><p class="muted">8px taban grid. Ölçek: <code>4 · 8 · 16 · 24 · 32 · 48 · 64</code>. Cömert boşluk = premium sinyali.</p></div>
+    <div class="card"><h4>Stroke / fill</h4><p class="muted">Fill baskın (kendinden emin, dolu). İkon stroke <code>1.5px</code>, yuvarlak uç. Signal-blue az ve isabetli bir fill accent.</p></div>
+    <div class="card"><h4>“Sinyal” motifi nerede</h4><p class="muted">Vurgu: kelime altına kısa <b>açılı mavi tick</b>. Kart: köşede odak noktası. Ayraç: ince çizgi + tek node. UI aktif durum: odak noktası. Skor/uyum: nokta motifi.</p></div>
+  </div>
+  <h3>Motif örnekleri</h3>
+  <div class="grid3">
+    <div class="card"><div style="font-family:var(--disp);font-size:20px;color:var(--navy);font-weight:600">Net <span style="border-bottom:3px solid var(--blue);padding-bottom:2px">sinyal</span></div><p class="muted" style="margin-top:8px">Vurgu altı = açılı mavi tick.</p></div>
+    <div class="card" style="position:relative"><span style="position:absolute;top:14px;right:14px;width:9px;height:9px;border-radius:50%;background:var(--blue)"></span><b style="color:var(--navy)">Fırsat kartı</b><p class="muted">Köşedeki odak noktası = aktif/öne çıkan sinyal.</p></div>
+    <div class="card"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:1px;background:var(--line)"></div><div style="width:8px;height:8px;border-radius:50%;background:var(--blue)"></div><div style="flex:1;height:1px;background:var(--line)"></div></div><p class="muted" style="margin-top:10px">Bölüm ayracı = çizgi + tek sinyal node.</p></div>
+  </div>
+  <div class="note" style="margin-top:16px"><b>Uygulanabildiği yerler:</b> web bölümleri, dashboard UI, deck kapakları, teklif PDF'leri, LinkedIn post layout'ları, reklam banner'ları — hepsinde aynı açı + odak noktası dili.</div>
+</div></section>
+
+<!-- 4. TYPOGRAPHY -->
+<section id="s4"><div class="wrap">
+  <div class="eyebrow">04 · Tipografi Sistemi</div>
+  <h2>İki tipografi, net roller</h2>
+  <p class="lead">Wordmark/başlık fontu ile arayüz fontu <b>farklı</b> olmalı — biri karakter, diğeri okunabilirlik taşır.</p>
+  <div class="grid2" style="margin-top:22px">
+    <div class="card accent">
+      <span class="pill">Wordmark + Display</span>
+      <h3 style="margin-top:10px">Space Grotesk</h3>
+      <p class="muted">Geometrik-grotesk; markanın faset/kesin dilini birebir yansıtır, karakterlidir ama gösterişsiz. Logo, büyük başlık ve marka anları için. Türkçe glifler (İ ı ş ğ ç) tam destekli.</p>
+      <div class="spec-d" style="font-size:30px;font-weight:700;letter-spacing:-1px;margin-top:8px">İhalede net sinyal</div>
+    </div>
+    <div class="card accent">
+      <span class="pill">UI + Gövde</span>
+      <h3 style="margin-top:10px">Inter</h3>
+      <p class="muted">Ekranda en yüksek okunabilirlik, kusursuz Türkçe desteği, <b>tabular figür</b> (dashboard sayıları için kritik). Tüm arayüz, gövde, tablo, form. Nötr ve güvenilir.</p>
+      <div style="font-size:15px;margin-top:8px;color:var(--t2)">EKAP ve ilan.gov.tr ile anlık senkronize; şirket profilinize uygun ihaleleri puanlayarak öne çıkarır.</div>
+    </div>
+  </div>
+  <h3>Neden bu ikili (Space Grotesk vs Inter/Sora/Manrope)</h3>
+  <p class="muted">Wordmark <b>Space Grotesk</b>'te kalmalı: faset dilini taşıyan tek aday. <b>Inter</b> arayüz için en güçlüsü (Türkçe + tabular). <b>Sora/Manrope</b> iyi ama: Manrope, Inter'e fazla yakın (ikisini birlikte kullanmak rolü bulanıklaştırır); Sora ise wordmark için Space Grotesk kadar karakterli değil. Bu yüzden net ayrım: <b>Space Grotesk = marka sesi, Inter = arayüz sesi.</b></p>
+  <h3>Hiyerarşi & kurallar</h3>
+  <div class="grid2">
+    <div class="ramp card">
+      <div><span class="lbl">Display / H1 · Space Grotesk 700 · tracking −1.5 · LH 1.05</span><div class="spec-d" style="font-size:34px;font-weight:700;letter-spacing:-1.5px">Gürültüyü sinyale</div></div>
+      <div><span class="lbl">H2 · Space Grotesk 600 · −0.8 · LH 1.1</span><div class="spec-d" style="font-size:24px;font-weight:600;letter-spacing:-.8px">Nasıl çalışır</div></div>
+      <div><span class="lbl">H3 / Subhead · Inter 600 · −0.2</span><div style="font-size:18px;font-weight:600;color:var(--navy)">Şartname analizi</div></div>
+      <div><span class="lbl">Body · Inter 400 · 0 · LH 1.6</span><div style="font-size:15px">Yüzlerce sayfayı saniyede okur.</div></div>
+      <div><span class="lbl">UI / Caption · Inter 500 · LH 1.4</span><div style="font-size:12.5px;color:var(--muted)">Son tarih · 8 gün kaldı</div></div>
+    </div>
+    <div class="card">
+      <h4>Kurallar</h4>
+      <table>
+        <tr><th>Rol</th><th>Font / Ağırlık</th><th>Tracking</th></tr>
+        <tr><td>Display/H1</td><td>Grotesk 700</td><td>−1.5</td></tr>
+        <tr><td>H2</td><td>Grotesk 600</td><td>−0.8</td></tr>
+        <tr><td>Subhead</td><td>Inter 600</td><td>−0.2</td></tr>
+        <tr><td>Body</td><td>Inter 400/500</td><td>0</td></tr>
+        <tr><td>UI/label</td><td>Inter 500</td><td>0 / +0.2 (caps)</td></tr>
+        <tr><td>Sayılar</td><td>Inter tabular</td><td>0</td></tr>
+      </table>
+      <p class="muted">Satır yüksekliği: başlık 1.05–1.15, gövde 1.6, UI 1.4. Fallback: <code>system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif</code>. Opsiyonel sayı/kod fontu: JetBrains Mono (yalnız ID/kod).</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- 5. COLOR -->
+<section id="s5"><div class="wrap">
+  <div class="eyebrow">05 · Renk Sistemi</div>
+  <h2>Sıkılaştırılmış palet</h2>
+  <p class="lead">Premium, kurumsal; ne çocuksu, ne fintech-jenerik, ne aşırı neon. Oran disiplini: <b>~%60 nötr/beyaz · %25 navy · %10 signal-blue · %5 accent.</b></p>
+
+  <h3>Çekirdek palet</h3>
+  <div class="swrow">
+    <div class="sw"><div class="c" style="background:#0B1220"></div><div class="m"><div class="n">Ink</div><div class="h">#0B1220</div><div class="u">Birincil metin</div></div></div>
+    <div class="sw"><div class="c" style="background:#14213D"></div><div class="m"><div class="n">Navy (primary)</div><div class="h">#14213D</div><div class="u">Logo, başlık, koyu yüzey</div></div></div>
+    <div class="sw"><div class="c" style="background:#1B2C50"></div><div class="m"><div class="n">Navy-2</div><div class="h">#1B2C50</div><div class="u">Yükseltilmiş koyu yüzey</div></div></div>
+    <div class="sw"><div class="c" style="background:#2A3B62"></div><div class="m"><div class="n">Slate-deep</div><div class="h">#2A3B62</div><div class="u">İkincil koyu / grafik</div></div></div>
+    <div class="sw"><div class="c" style="background:#2D5BFF"></div><div class="m"><div class="n">Signal Blue</div><div class="h">#2D5BFF</div><div class="u">Aksiyon, odak, link</div></div></div>
+    <div class="sw"><div class="c" style="background:#1E45D6"></div><div class="m"><div class="n">Blue-press</div><div class="h">#1E45D6</div><div class="u">Hover / pressed</div></div></div>
+    <div class="sw"><div class="c" style="background:#6E8BFF"></div><div class="m"><div class="n">Blue-light</div><div class="h">#6E8BFF</div><div class="u">Koyu zemin accent</div></div></div>
+    <div class="sw"><div class="c" style="background:#EAEFFF"></div><div class="m"><div class="n">Blue-tint</div><div class="h">#EAEFFF</div><div class="u">Vurgu yüzeyi</div></div></div>
+    <div class="sw"><div class="c" style="background:#5B6472"></div><div class="m"><div class="n">Muted</div><div class="h">#5B6472</div><div class="u">İkincil metin</div></div></div>
+    <div class="sw"><div class="c" style="background:#E6E9F0"></div><div class="m"><div class="n">Border</div><div class="h">#E6E9F0</div><div class="u">Kenar/ayraç</div></div></div>
+    <div class="sw"><div class="c" style="background:#F7F8FB;border-bottom:1px solid #E6E9F0"></div><div class="m"><div class="n">BG</div><div class="h">#F7F8FB</div><div class="u">Sayfa zemini</div></div></div>
+    <div class="sw"><div class="c" style="background:#fff;border-bottom:1px solid #E6E9F0"></div><div class="m"><div class="n">Surface</div><div class="h">#FFFFFF</div><div class="u">Kart</div></div></div>
+  </div>
+
+  <div class="grid2" style="margin-top:20px">
+    <div class="card"><h4>Mod 1 · Safe Corporate</h4><p class="muted">Navy baskın; signal-blue yalnız aksiyon/link'te. Zeminler saf beyaz/#F7F8FB. En kurumsal, en güvenli. Teklif, kurumsal sunum, enterprise satış.</p></div>
+    <div class="card"><h4>Mod 2 · Tech-Forward</h4><p class="muted">Signal-blue daha cömert; ikincil accent <b>#6E8BFF</b> + #EAEFFF yüzey tinti devrede. Biraz daha enerji/çağdaşlık. Web hero, lansman, sosyal, ürün UI.</p></div>
+  </div>
+
+  <h3>UI semantik & aksiyon renkleri</h3>
+  <div class="swrow">
+    <div class="sw"><div class="c" style="background:#2D5BFF"></div><div class="m"><div class="n">CTA</div><div class="h">#2D5BFF</div><div class="u">Birincil buton · hover #1E45D6</div></div></div>
+    <div class="sw"><div class="c" style="background:#2D5BFF"></div><div class="m"><div class="n">Link</div><div class="h">#2D5BFF</div><div class="u">Metin link</div></div></div>
+    <div class="sw"><div class="c" style="background:#1E9E6A"></div><div class="m"><div class="n">Success</div><div class="h">#1E9E6A</div><div class="u">Kazanım/pozitif (neon değil)</div></div></div>
+    <div class="sw"><div class="c" style="background:#C98A2B"></div><div class="m"><div class="n">Warning</div><div class="h">#C98A2B</div><div class="u">Yaklaşan son tarih</div></div></div>
+    <div class="sw"><div class="c" style="background:#D1495B"></div><div class="m"><div class="n">Alert</div><div class="h">#D1495B</div><div class="u">Risk/hata (muted kırmızı)</div></div></div>
+    <div class="sw"><div class="c" style="background:#2A3B62"></div><div class="m"><div class="n">Chart-1</div><div class="h">#2A3B62</div><div class="u">Grafik serisi</div></div></div>
+  </div>
+  <p class="muted" style="margin-top:8px"><b>Dashboard chart paleti:</b> <code>#2D5BFF · #14213D · #1E9E6A · #6E8BFF · #C98A2B · #5B6472</code> — bu sırayla. Tek vurgu serisi signal-blue, gerisi nötr/navy.</p>
+</div></section>
+
+<!-- 6. FULL BRAND SYSTEM -->
+<section id="s6"><div class="wrap">
+  <div class="eyebrow">06 · Tam Marka Sistemi</div>
+  <h2>Görsel + sözel sistem</h2>
+  <div class="grid2" style="margin-top:22px">
+    <div class="card"><h4>Layout & grid</h4><ul class="clean"><li>12 kolon, max genişlik ~1200px, gutter 24</li><li>Sol-hizalı, cömert boşluk, bölüm başına tek fikir</li><li>Güçlü dikey ritim (8px tabanı)</li></ul></div>
+    <div class="card"><h4>Kart kuralları</h4><ul class="clean"><li>Beyaz zemin, 1px <code>#E6E9F0</code> kenar, radius 14</li><li>Gölge çok hafif; öne çıkan kartta 3px üst accent veya köşe odak noktası</li><li>İç padding 22–24</li></ul></div>
+    <div class="card"><h4>İkonografi</h4><ul class="clean"><li>Line ikon, 1.5px stroke, yuvarlak uç (Lucide/Phosphor)</li><li>Geometrik, sade; duotone/dolu karmaşa yok</li><li>Aktif/öne çıkan ikonda signal-blue accent</li></ul></div>
+    <div class="card"><h4>İllüstrasyon</h4><ul class="clean"><li>Karakter yok; soyut “yapı + odak noktası” motifleri</li><li>Navy + tek signal accent, mono disiplin</li><li>Veri/sinyal görselleştirmeleri (bar/oran) sade</li></ul></div>
+    <div class="card"><h4>Görsel / fotoğraf</h4><ul class="clean"><li>Birincil görsel = gerçek ürün ekran görüntüsü (cihaz çerçeveli)</li><li>Stok AI/tokalaşma/robot yok</li><li>Foto kullanılırsa: soğuk ton, gerçek, sakin</li></ul></div>
+    <div class="card"><h4>Dashboard UI ruhu</h4><ul class="clean"><li>Sakin, yoğun-ama-net; beyaz zemin, navy metin</li><li>Signal-blue yalnız aksiyon/aktif/skor</li><li>Tabular sayılar; uyum skorunda odak noktası motifi</li></ul></div>
+  </div>
+  <h3>Motion / etkileşim tonu</h3>
+  <p class="muted">Amaçlı ve ölçülü. İmza animasyon: odak noktasının “yakınsama/pulse” ile odaklanması (yükleme, eşleşme anı). Süre 150–250ms, yumuşak ease. Gösteriş yok — hareket bilgi taşır.</p>
+  <h3>Ses tonu</h3>
+  <div class="grid2">
+    <div class="card"><h4>Türkçe ton</h4><p class="muted">Net, kendinden emin, kanıt-odaklı. Jargonu doğru kullanır (CPV, EKAP, şartname) ama erişilebilir kalır. Abartı ve baskı yok; “kazanmaya odaklan” enerjisi. Örn: <i>“Manuel takip bitti. Size uygun ihaleyi ilk siz görün.”</i></p></div>
+    <div class="card"><h4>English tone</h4><p class="muted">Confident, precise, plain. No hype, no buzzwords. States capability, not promises. E.g.: <i>“Turn procurement noise into visible signal.”</i></p></div>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>Bağlam</th><th>Nasıl hissetmeli</th></tr>
+    <tr><td>Website</td><td>Kendinden emin, net, kanıtla; gürültüden sinyale vaadini öne koy.</td></tr>
+    <tr><td>Ürün içi</td><td>Sakin, yardımcı, az kelime; kullanıcıyı eyleme götür.</td></tr>
+    <tr><td>Teklif/PDF</td><td>Kurumsal, ölçülü, güven; Safe Corporate modu.</td></tr>
+    <tr><td>LinkedIn</td><td>Otoriter ama erişilebilir; içgörü + tek net mesaj.</td></tr>
+    <tr><td>Satış e-posta/deck</td><td>Direkt, sonuç-odaklı, saygılı; somut değer.</td></tr>
+  </table>
+</div></section>
+
+<!-- 7. MARKETING KIT -->
+<section id="s7"><div class="wrap">
+  <div class="eyebrow">07 · Pazarlama Kiti</div>
+  <h2>Marka çekirdeği & mesajlar</h2>
+
+  <h3>A · Brand core</h3>
+  <div class="grid2">
+    <div class="card">
+      <h4>Konumlandırma</h4>
+      <p class="muted">İhaleZeka, Türkiye'deki kamu ihale verisini (EKAP/ilan.gov.tr) yapılandırılmış istihbarata çeviren bir B2B karar-destek platformudur. Gürültü içindeki doğru fırsatı görünür kılar, şartnameyi saniyede çözer, kazanma olasılığını yükseltir.</p>
+      <h4>Asansör cümlesi</h4>
+      <p class="muted">“Kamu ihalelerindeki gürültüyü, kazanılabilir net sinyale çeviriyoruz.”</p>
+      <h4>Kişilik</h4>
+      <p class="muted">Net · Kendinden emin · Analitik · Kurumsal · Hızlı · Gösterişsiz</p>
+    </div>
+    <div class="card">
+      <h4>Kısa tagline</h4>
+      <ul class="clean"><li>Gürültüyü sinyale çevirin.</li><li>İhalede net sinyal.</li><li>Doğru ihale, tam zamanında.</li></ul>
+      <h4>Enterprise tagline</h4>
+      <ul class="clean"><li>Kurumsal ihale istihbaratı, tek platformda.</li><li>İhale kararlarınızı veriyle yönetin.</li><li>Fırsatı görünür, riski okunur kılın.</li></ul>
+      <h4>Mesaj sütunları</h4>
+      <p class="muted">1) Sinyal (eşleştirme) · 2) Hız (şartname analizi) · 3) Güven (resmî veri) · 4) Kazanım (rakip + fiyatlama)</p>
+    </div>
+  </div>
+
+  <h3>B · Website başlangıç kiti</h3>
+  <div class="grid2">
+    <div class="card"><h4>Hero başlık (5)</h4><ul class="clean"><li>İhalelerdeki gürültüyü, kazanılabilir sinyale çevirin.</li><li>Doğru ihaleyi bulun, şartnameyi saniyede çözün, kazanmaya odaklanın.</li><li>Binlerce ihale arasından size uygun olanı ilk siz görün.</li><li>Kamu ihale istihbaratı: gürültü dışarıda, fırsat görünür.</li><li>Manuel takip bitti. İhalede net sinyal başladı.</li></ul></div>
+    <div class="card"><h4>Alt başlık (5)</h4><ul class="clean"><li>EKAP ve ilan.gov.tr ile anlık senkronize; profilinize uygun ihaleleri puanlayarak öne çıkarırız.</li><li>Yüzlerce sayfalık şartnameyi saniyede okur, kritik tarih ve riskleri çıkarırız.</li><li>AI eşleştirme, şartname analizi, boru hattı ve rakip istihbaratı tek platformda.</li><li>Manuel arama ve şartname okumaya harcadığınız saatleri geri alın.</li><li>Doğru ihale, doğru zaman, doğru karar — veriyle.</li></ul></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h4>CTA (10)</h4><p class="muted">14 Gün Ücretsiz Deneyin · Demo Talep Edin · Ücretsiz Başlayın · Canlı Demo İzleyin · Profilinizi Oluşturun · Size Uygun İhaleleri Görün · Kredi Kartı Gerekmez · Uzmanla Görüşün · Platformu Keşfedin · İlk Eşleşmenizi Görün</p></div>
+  <h4>Değer blokları (6)</h4>
+  <div class="grid3">
+    <div class="card accent"><b style="color:var(--navy)">Akıllı Eşleştirme</b><p class="muted">Profilinize uygun ihaleleri puanlayarak öne çıkarır.</p></div>
+    <div class="card accent"><b style="color:var(--navy)">Şartname Analizi</b><p class="muted">Yüzlerce sayfayı saniyede okur; tarih, risk, gereksinim çıkarır.</p></div>
+    <div class="card accent"><b style="color:var(--navy)">Boru Hattı</b><p class="muted">Tüm ihaleleri tek panoda; aşama, son tarih, takip.</p></div>
+    <div class="card accent"><b style="color:var(--navy)">Rakip İstihbaratı</b><p class="muted">Geçmiş kırım oranları ve davranıştan teklif öngörüsü.</p></div>
+    <div class="card accent"><b style="color:var(--navy)">Anlık EKAP Senkron</b><p class="muted">Resmî veriyle güncel; hiçbir ihaleyi kaçırmazsınız.</p></div>
+    <div class="card accent"><b style="color:var(--navy)">Raporlar</b><p class="muted">Kazanım, fırsat ve performans tek görünümde.</p></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h4>“Nasıl Çalışır” taslağı</h4><ol style="margin-left:16px;font-size:13.8px;color:var(--t2)"><li><b>Profil:</b> yetkinlik, faaliyet alanı, geçmiş işleriniz tanımlanır.</li><li><b>Eşleştirme:</b> AI her gün binlerce ihaleyi tarar, size uygunu puanlar.</li><li><b>Analiz & Teklif:</b> şartname saniyede çözülür, evrak hızlanır.</li><li><b>Kazan:</b> rakip analizi ve doğru fiyatlama ile odaklanırsınız.</li></ol></div>
+    <div class="card"><h4>“Neden İhaleZeka” taslağı</h4><ul class="clean"><li>Resmî veri kaynağı otoritesi (EKAP & ilan.gov.tr, anlık)</li><li>Saatlik manuel iş → saniyelik analiz</li><li>Tek platform: arama + analiz + takip + rakip</li><li>Kazanmaya odaklı: doğru ihale, doğru fiyat</li></ul></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h4>Güven / proof fikirleri (Faz 0)</h4><p class="muted">EKAP & ilan.gov.tr resmî kaynak rozeti · KVKK uyumu · anlık güncelleme · “50.000+ aktif ihale” (yalnız doğrulanırsa). Müşteri kanıtı geldikçe: isimli söz → vaka → logo duvarı.</p></div>
+    <div class="card"><h4>Kullanım senaryosu bölümleri</h4><p class="muted"><b>Satın alma/ihale ekipleri:</b> uygunluk + şartname hızı. <b>Satış/İş geliştirme:</b> fırsat keşfi + boru hattı + rakip. <b>İhale takip ekipleri:</b> hiçbir son tarihi kaçırmama.</p></div>
+  </div>
+
+  <h3>C · Sosyal / içerik kiti</h3>
+  <div class="grid2">
+    <div class="mock"><div class="mh">LinkedIn company banner (1584×396)</div><div class="banner">
+      <div><div style="font-family:var(--disp);font-weight:700;font-size:22px">Gürültüyü sinyale çevirin.</div><div style="color:#AEB9D4;font-size:12.5px;margin-top:6px">EKAP & ilan.gov.tr ile anlık · Kamu ihale istihbaratı</div></div>
+    </div></div>
+    <div class="card"><h4>Banner yönü</h4><p class="muted"><b>Amaç:</b> konumlandırma. <b>Layout:</b> navy zemin, sol blokta ana mesaj + tek destek satırı + KVKK/veri rozeti; ekran görüntüsü yok (kurumsal default). <b>Lockup:</b> reverse yatay. <b>Renk:</b> Mod 1.</p></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h4>LinkedIn post şablonu</h4><p class="muted">Üst: tek net başlık (Space Grotesk). Orta: 3 kısa madde veya tek ekran görüntüsü. Alt: küçük logo + CTA satırı. Tek mavi accent (vurgu/tick). Boşluk cömert.</p></div>
+  <div class="grid3">
+    <div class="card"><h4>Lansman postu 1</h4><div class="copyblock">İhaleZeka yayında. Kamu ihalelerindeki gürültüyü, işinize uyan net sinyale çeviriyoruz: EKAP ve ilan.gov.tr ile anlık senkron, saniyede şartname analizi, profilinize özel eşleştirme. Manuel takip bitti. → 14 gün ücretsiz.</div></div>
+    <div class="card"><h4>Post 2 (problem/içgörü)</h4><div class="copyblock">Bir ihale ekibi haftada ortalama saatlerini yalnızca doğru ihaleyi arayıp şartname okuyarak harcıyor. Asıl iş — kazanmak — bundan sonra başlıyor. Soru şu: bu saatler nereye gitmeli? İşte bu yüzden gürültüyü sinyale çeviriyoruz.</div></div>
+    <div class="card"><h4>Post 3 (özellik/değer)</h4><div class="copyblock">Yüzlerce sayfalık şartname. Otuz saniye. İhaleZeka şartnameyi okur; kritik tarihleri, riskleri ve uygunluk koşullarını çıkarır. Siz okumaya değil, karar vermeye odaklanırsınız.</div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card"><h4>Reklam/banner satırı (5)</h4><ul class="clean"><li>Gürültüyü sinyale çevirin.</li><li>Şartname yüzlerce sayfa. Cevap 30 saniye.</li><li>Size uygun ihaleyi ilk siz görün.</li><li>Manuel takip bitti.</li><li>İhalede net sinyal.</li></ul></div>
+    <div class="card"><h4>Mesaj hook'ları (10)</h4><ul class="clean"><li>Doğru ihale, doğru zaman.</li><li>Gürültü dışarıda, fırsat görünür.</li><li>Okumayın, anlayın.</li><li>Kazanmaya odaklanın.</li><li>Resmî veriden kazanan teklife.</li><li>Her ihalenin arkasındaki akıl.</li><li>Saatler değil, saniyeler.</li><li>Hiçbir son tarihi kaçırmayın.</li><li>Rakibi tahmin edin, fiyatı tutturun.</li><li>İhale istihbaratı, tek platformda.</li></ul></div>
+  </div>
+
+  <h3>D · Satış kiti</h3>
+  <div class="grid2">
+    <div class="mock"><div class="mh">Sales deck kapağı</div><div class="deckcover">
+      <svg width="150" height="34" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#fff"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#6E8BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui" font-size="58" letter-spacing="-1.5" fill="#fff"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <div><div style="font-family:var(--disp);font-size:20px;font-weight:700;line-height:1.2">Kamu ihalelerinde<br>net sinyal</div><div style="color:#AEB9D4;font-size:11px;margin-top:8px">EKAP & ilan.gov.tr · 2026</div></div>
+    </div></div>
+    <div class="mock"><div class="mh">Teklif / şartname analizi PDF kapağı</div><div class="pdfcover">
+      <svg width="130" height="30" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui" font-size="58" letter-spacing="-1.5" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg>
+      <div><div style="height:3px;width:48px;background:var(--blue);transform:skewX(-20deg);margin-bottom:12px"></div><div style="font-family:var(--disp);font-size:19px;font-weight:700;color:var(--navy);line-height:1.25">Şartname Analiz Raporu</div><div class="muted" style="font-size:11px;margin-top:8px">Hazırlayan: İhaleZeka · Tarih · İhale No</div></div>
+      <div class="muted" style="font-size:10px">ihalezeka.com · KVKK uyumlu</div>
+    </div></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card"><h4>Şirket tanımı — 50 kelime</h4><p class="muted">İhaleZeka, Türkiye'deki kamu ihalelerini AI ile takip eden bir B2B istihbarat platformudur. EKAP ve ilan.gov.tr verisiyle anlık senkronize çalışır; şirketinize uygun ihaleleri puanlayarak öne çıkarır, şartnameleri saniyede analiz eder ve kazanma oranınızı artırmanıza yardımcı olur. Gürültüyü görünür sinyale çeviririz.</p></div>
+    <div class="card"><h4>Şirket tanımı — 100 kelime</h4><p class="muted">İhaleZeka, KOBİ ve kurumların kamu ihalelerini akıllıca keşfetmesini, analiz etmesini ve takip etmesini sağlayan bir B2B karar-destek platformudur. EKAP ve ilan.gov.tr verisiyle anlık senkronize çalışır; şirket profilinize en uygun ihaleleri puanlayarak öne çıkarır, yüzlerce sayfalık şartnameyi saniyeler içinde okur, kritik tarih ve riskleri çıkarır, boru hattınızı tek panoda yönetir ve rakip davranışını öngörmenize yardımcı olur. Amaç tek: manuel arama ve okuma yükünü kaldırıp ekibinizi kazanmaya odaklamak. Kamu ihalelerindeki gürültüyü, kazanılabilir net sinyale çeviririz — resmî veriyle, hızla, güvenle.</p></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card"><h4>Enterprise sürüm</h4><p class="muted">Kurumsal ihale ekipleri için merkezi istihbarat: resmî veri kaynağına bağlı, denetlenebilir, çok kullanıcılı bir karar-destek katmanı. Eşleştirme, şartname analizi, boru hattı ve rakip istihbaratını tek platformda birleştirir; süreç riskini ve manuel iş yükünü düşürür.</p></div>
+    <div class="card"><h4>KOBİ sürümü</h4><p class="muted">Küçük ekip, büyük fırsat. İhaleZeka size uygun ihaleleri otomatik bulur, şartnameyi sizin için okur ve son tarihleri takip eder. Ayrı yazılıma, ayrı emeğe gerek yok — 14 gün ücretsiz deneyin.</p></div>
+  </div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="card"><h4>Değer maddeleri — Satın alma/ihale ekipleri</h4><ul class="clean"><li>Uygunluk kontrolü ve şartname özeti saniyede</li><li>Kritik tarih/risk otomatik çıkarılır</li><li>Hiçbir uygun ihale gözden kaçmaz</li><li>Evrak hazırlığı hızlanır, hata azalır</li></ul></div>
+    <div class="card"><h4>Değer maddeleri — Satış / İş geliştirme</h4><ul class="clean"><li>Profilinize uygun fırsatlar önceliklenir</li><li>Boru hattı + son tarih tek panoda</li><li>Rakip davranışı ve kırım oranı öngörüsü</li><li>Doğru fiyatlama ile kazanma oranı artar</li></ul></div>
+  </div>
+
+  <h3>E · Operasyonel marka varlıkları</h3>
+  <div class="grid3">
+    <div class="mock"><div class="mh">E-posta imzası</div><div style="padding:16px"><div class="esig"><b style="color:var(--navy)">Harun Kaya</b><br><span class="muted">Kurucu · İhaleZeka</span><br><span style="color:var(--blue)">ihalezeka.com</span> · +90 ___<br><svg width="96" height="22" viewBox="0 0 540 130" style="margin-top:6px"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui" font-size="58" letter-spacing="-1.5" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg></div></div></div>
+    <div class="mock"><div class="mh">Kartvizit (ön)</div><div style="padding:14px"><div class="bcard"><svg width="110" height="26" viewBox="0 0 540 130"><g transform="translate(20,22) scale(0.6)"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#14213D"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#2D5BFF"/></g><text x="108" y="84" font-family="'Space Grotesk',system-ui" font-size="58" letter-spacing="-1.5" fill="#14213D"><tspan font-weight="500">İhale</tspan><tspan font-weight="700">Zeka</tspan></text></svg><div><div style="font-weight:600;color:var(--navy);font-size:12px">Harun Kaya</div><div class="muted" style="font-size:11px">Kurucu · ihalezeka.com</div></div></div></div></div>
+    <div class="mock"><div class="mh">Dashboard splash</div><div style="padding:14px"><div class="splash"><svg width="46" height="60" viewBox="0 0 100 130"><path d="M42,113 L42,64 Q42,62 44,61.3 L56,54.6 Q58,54 58,56 L58,113 Q58,114.5 56.5,114.5 L43.5,114.5 Q42,114.5 42,113 Z" fill="#fff"/><path d="M45.97,42.23 A10.5,10.5 0 1 1 62.93,32.75 Z" fill="#6E8BFF"/></svg><div style="color:#AEB9D4;font-size:11px">Sinyal hazırlanıyor…</div></div></div></div>
+  </div>
+  <table style="margin-top:14px">
+    <tr><th>Varlık</th><th>Amaç & öne çıkan</th><th>Lockup / Renk</th></tr>
+    <tr><td>E-posta imzası</td><td>Mikro-marka tutarlılığı; isim + ünvan + tek CTA link. Sade.</td><td>Yatay küçük / Mod 1</td></tr>
+    <tr><td>Kartvizit</td><td>Ön: logo + isim; arka: navy zemin + tagline. Premium kağıt hissi.</td><td>Yatay (ön) / Reverse (arka)</td></tr>
+    <tr><td>Dashboard splash</td><td>Yükleme anı; reverse mark + “Sinyal hazırlanıyor…” + nokta pulse.</td><td>Mark reverse / Navy</td></tr>
+    <tr><td>Webinar/event banner</td><td>Başlık + tarih + konuşmacı; navy zemin, açılı mavi accent.</td><td>Reverse yatay / Mod 2</td></tr>
+    <tr><td>Rapor / insight brief kapağı</td><td>Otorite; büyük başlık + açılı tick + alt künye. Safe Corporate.</td><td>Yatay / Mod 1</td></tr>
+  </table>
+</div></section>
+
+<!-- 8. RECOMMENDATIONS -->
+<section id="s8" style="border-bottom:none"><div class="wrap">
+  <div class="eyebrow">08 · Yol Haritası</div>
+  <h2>Önce ne, sonra ne, neyi sabit tut</h2>
+  <div class="grid3" style="margin-top:22px">
+    <div class="card accent"><h4>Önce inşa et</h4><ul class="clean"><li>Logo üretim seti (SVG lockup/mark/mono/reverse/favicon + 16/24 mikro)</li><li>Renk + tipografi token'ları (web + UI)</li><li>Web header + hero + CTA + footer (Replit)</li><li>Favicon + OG/canonical → ihalezeka.com</li></ul></div>
+    <div class="card"><h4>Sonra (ilk satış döngüsü)</h4><ul class="clean"><li>One-pager + sales deck + teklif PDF kapağı</li><li>LinkedIn banner + post şablonu + lansman serisi</li><li>Dashboard UI'a marka token uygulaması</li><li>Rapor/insight kapak sistemi</li></ul></div>
+    <div class="card"><h4>Her zaman sabit kalmalı</h4><ul class="clean"><li>Tek accent kuralı: signal-blue yalnız odak/aksiyon</li><li>İ-odak işareti + ≈29° marka açısı</li><li>Space Grotesk (marka) / Inter (UI) ayrımı</li><li>Mor/gimmick yok; “gürültüden sinyal” fikri</li></ul></div>
+  </div>
+  <div class="note" style="margin-top:20px"><b>Tek cümlelik sistem sözü:</b> İhaleZeka her yerde aynı şeyi yapar — gürültüyü alır, tek net sinyali (odak noktası) gösterir. Logo, renk, tipografi, layout ve dil bu tek fikre hizmet ettiği sürece marka tutarlı ve güçlü kalır.</div>
+</div></section>
+
+<div style="padding:30px 0 60px;text-align:center;color:var(--muted);font-size:12px">İhaleZeka · Marka Sistemi & Pazarlama Kiti · Direction 01 “Sinyal” — final</div>
+
+</body>
+</html>

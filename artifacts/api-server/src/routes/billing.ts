@@ -367,25 +367,28 @@ router.post("/billing/portal", async (req, res) => {
   if (!userId) return;
 
   try {
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.userId, userId))
-      .limit(1);
+    // Resolve email from session claims so we can create a customer if needed.
+    const email = getSessionEmail(req);
 
-    if (!user?.stripeCustomerId) {
-      return res.status(404).json({ error: "no_customer" });
-    }
+    // Create a Stripe customer on-the-fly if the user has never gone through
+    // checkout (e.g. dev/force-pro accounts, or webhook delivery gap).
+    const customerId = await ensureStripeCustomer(userId, email);
 
     const stripe = await getUncachableStripeClient();
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: customerId,
       return_url: buildReturnUrl(req, "/fiyatlandirma"),
     });
 
     res.json({ url: session.url });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Portal error:", err);
+    // If the Stripe billing portal isn't configured in the dashboard, surface
+    // a specific code so the frontend can fall back to the payment link.
+    const stripeCode = err?.raw?.code ?? err?.code ?? "";
+    if (stripeCode === "configuration_not_found" || stripeCode === "portal_configuration_not_found") {
+      return res.status(503).json({ error: "portal_not_configured" });
+    }
     res.status(500).json({ error: "portal_failed" });
   }
 });
