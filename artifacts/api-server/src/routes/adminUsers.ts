@@ -1,10 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { usersTable, companyProfilesTable } from "@workspace/db";
-import { eq, sql, desc, ilike, or } from "drizzle-orm";
+import { usersTable, companyProfilesTable, emailLogsTable } from "@workspace/db";
+import { eq, sql, desc, ilike, or, isNotNull } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { invalidateEntitlement } from "../lib/authHelpers.js";
+import { sendEmail } from "../lib/emailService.js";
 
 const router = Router();
 
@@ -251,6 +252,99 @@ router.post("/admin/dev-token", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "Failed to generate admin sign-in token");
     res.status(500).json({ error: "Token oluşturulamadı" });
+  }
+});
+
+// ── Admin Email Composer ──────────────────────────────────────────────────
+
+router.use("/admin/email", requireAdmin);
+
+router.post("/admin/email/send", async (req, res) => {
+  try {
+    const { to, subject, html } = req.body as { to?: string; subject?: string; html?: string };
+
+    if (!subject?.trim() || !html?.trim()) {
+      res.status(400).json({ error: "subject ve html zorunludur" });
+      return;
+    }
+
+    if (!to || !to.trim()) {
+      res.status(400).json({ error: "Alıcı (to) zorunludur" });
+      return;
+    }
+
+    if (to === "__all__") {
+      const users = await db
+        .select({ email: usersTable.email })
+        .from(usersTable)
+        .where(isNotNull(usersTable.email));
+
+      const emails = users.map((u) => u.email).filter(Boolean) as string[];
+      let sent = 0;
+      let failed = 0;
+
+      for (const email of emails) {
+        const ok = await sendEmail({ to: email, subject, html });
+        if (ok) {
+          sent++;
+          await db.insert(emailLogsTable).values({ to: email, subject, status: "sent", triggeredBy: "admin:broadcast" }).catch(() => {});
+        } else {
+          failed++;
+          await db.insert(emailLogsTable).values({ to: email, subject, status: "failed", triggeredBy: "admin:broadcast" }).catch(() => {});
+        }
+      }
+
+      res.json({ ok: true, sent, failed, total: emails.length });
+      return;
+    }
+
+    const ok = await sendEmail({ to: to.trim(), subject, html });
+    await db.insert(emailLogsTable).values({
+      to: to.trim(),
+      subject,
+      status: ok ? "sent" : "failed",
+      triggeredBy: "admin:manual",
+    }).catch(() => {});
+
+    if (ok) {
+      res.json({ ok: true, sent: 1, failed: 0 });
+    } else {
+      res.status(503).json({ error: "E-posta gönderilemedi" });
+    }
+  } catch (err) {
+    logger.error({ err }, "Admin email send error");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/admin/email/logs", async (_req, res) => {
+  try {
+    const logs = await db
+      .select()
+      .from(emailLogsTable)
+      .orderBy(desc(emailLogsTable.sentAt))
+      .limit(50);
+
+    res.json({ logs });
+  } catch (err) {
+    logger.error({ err }, "Admin email logs fetch error");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/admin/email/users", async (_req, res) => {
+  try {
+    const users = await db
+      .select({ email: usersTable.email, userId: usersTable.userId })
+      .from(usersTable)
+      .where(isNotNull(usersTable.email))
+      .orderBy(desc(usersTable.createdAt))
+      .limit(500);
+
+    res.json({ users: users.filter((u) => u.email), total: users.length });
+  } catch (err) {
+    logger.error({ err }, "Admin email users fetch error");
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

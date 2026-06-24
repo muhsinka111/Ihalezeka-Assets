@@ -46,5 +46,6 @@ OPERATOR_EMAIL = "info@ihalezeka.com"
 STRIPE_PAYMENT_LINK = "https://buy.stripe.com/14AfZh9p219Mddv4aG0Ny0b"
 STRIPE_DEFAULT_PRICE_ID = "price_1TjlBRHwO65W7EK00GcgiAuD"
 STRIPE_PRO_PRODUCT_ID = "prod_UjDcdkWZMv20x3"
+RESEND_FROM = "İhaleZeka <info@ihalezeka.com>"
 
 [userenv.development]

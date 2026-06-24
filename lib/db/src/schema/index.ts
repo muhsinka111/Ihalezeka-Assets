@@ -13,3 +13,4 @@ export * from "./socialConnections";
 export * from "./socialPosts";
 export * from "./users";
 export * from "./awardResults";
+export * from "./emailLogs";

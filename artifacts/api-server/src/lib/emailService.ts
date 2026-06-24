@@ -295,6 +295,81 @@ export function buildSavedSearchEmailHtml(
 </html>`;
 }
 
+/**
+ * Welcome email sent immediately after a new user signs up via Clerk.
+ */
+export function buildWelcomeEmailHtml(opts: { name: string; email: string }): string {
+  const appUrl = (process.env.APP_URL ?? "https://ihalezeka.com").replace(/\/$/, "");
+  const safeName = escapeHtml(opts.name);
+
+  return `
+<!DOCTYPE html>
+<html lang="tr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:'Segoe UI',Arial,sans-serif;background:#f9fafb;margin:0;padding:32px 16px;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#2D5BFF,#7c3aed);padding:32px;">
+      <img src="${appUrl}/logo.png" alt="İhaleZeka" style="height:36px;margin-bottom:16px;display:block;" onerror="this.style.display='none'" />
+      <h1 style="color:#fff;margin:0;font-size:24px;font-weight:700;">Hoş Geldiniz, ${safeName}! 🎉</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:16px;">
+        İhaleZeka'ya üye olduğunuz için teşekkürler. Artık kamu ihalelerini takip etmek çok daha kolay.
+      </p>
+    </div>
+    <div style="padding:32px;color:#374151;font-size:15px;line-height:1.7;">
+      <p style="margin:0 0 24px;">İhaleZeka ile neler yapabilirsiniz:</p>
+
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:12px;background:#f0f4ff;border-radius:8px;margin-bottom:12px;vertical-align:top;width:44px;">
+            <span style="font-size:24px;">🔍</span>
+          </td>
+          <td style="padding:12px 12px 12px 16px;vertical-align:top;">
+            <strong style="color:#111827;">Akıllı İhale Arama</strong>
+            <div style="color:#6b7280;font-size:14px;margin-top:2px;">EKAP ve diğer kaynaklardan binlerce ihaleye tek yerden ulaşın</div>
+          </td>
+        </tr>
+        <tr><td colspan="2" style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px;background:#f0fdf4;border-radius:8px;vertical-align:top;width:44px;">
+            <span style="font-size:24px;">🤖</span>
+          </td>
+          <td style="padding:12px 12px 12px 16px;vertical-align:top;">
+            <strong style="color:#111827;">Yapay Zeka Uygunluk Skoru</strong>
+            <div style="color:#6b7280;font-size:14px;margin-top:2px;">Her ihale için şirketinize özel uygunluk analizi ve risk değerlendirmesi</div>
+          </td>
+        </tr>
+        <tr><td colspan="2" style="height:8px;"></td></tr>
+        <tr>
+          <td style="padding:12px;background:#fdf4ff;border-radius:8px;vertical-align:top;width:44px;">
+            <span style="font-size:24px;">🔔</span>
+          </td>
+          <td style="padding:12px 12px 12px 16px;vertical-align:top;">
+            <strong style="color:#111827;">Kayıtlı Arama Bildirimleri</strong>
+            <div style="color:#6b7280;font-size:14px;margin-top:2px;">Yeni ihaleler yayınlandığında anında e-posta ile bildirim alın</div>
+          </td>
+        </tr>
+      </table>
+
+      <div style="margin:32px 0;text-align:center;">
+        <a href="${appUrl}/ihale-arama"
+           style="display:inline-block;background:#2D5BFF;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:700;font-size:16px;letter-spacing:0.01em;">
+          İhale Aramaya Başla →
+        </a>
+      </div>
+
+      <p style="color:#6b7280;font-size:14px;margin:0;">
+        Herhangi bir sorunuz olursa <a href="mailto:info@ihalezeka.com" style="color:#2D5BFF;">info@ihalezeka.com</a> adresinden bize ulaşabilirsiniz.
+      </p>
+    </div>
+    <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;text-align:center;">
+      Bu e-posta, İhaleZeka'ya kayıt olduğunuz için gönderilmiştir.<br/>
+      © 2025 İhaleZeka — Tüm hakları saklıdır.
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export function buildMatchEmailHtml(
   matches: Array<{ title: string; fitScore: number; agencyName: string; sourceUrl?: string | null }>
 ): string {

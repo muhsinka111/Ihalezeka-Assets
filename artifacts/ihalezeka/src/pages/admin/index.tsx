@@ -1,8 +1,9 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { IconUsers, IconDatabase, IconSpeakerphone } from "@tabler/icons-react";
+import { IconUsers, IconDatabase, IconSpeakerphone, IconMail } from "@tabler/icons-react";
 import AdminUsersTab from "./users";
 import AdminScrapersTab from "./scrapers";
 import AdminMarketingTab from "./marketing";
+import AdminEmailComposer from "./email-composer";
 
 export default function AdminPage() {
   return (
@@ -26,6 +27,10 @@ export default function AdminPage() {
             <IconSpeakerphone className="h-4 w-4" />
             Pazarlama
           </TabsTrigger>
+          <TabsTrigger value="email" className="gap-2">
+            <IconMail className="h-4 w-4" />
+            E-posta
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -38,6 +43,10 @@ export default function AdminPage() {
 
         <TabsContent value="marketing">
           <AdminMarketingTab />
+        </TabsContent>
+
+        <TabsContent value="email">
+          <AdminEmailComposer />
         </TabsContent>
       </Tabs>
     </div>

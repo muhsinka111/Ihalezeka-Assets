@@ -8,6 +8,7 @@ import blogRouter from "./routes/blog";
 import legalRouter from "./routes/legal";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
+import { handleClerkWebhook } from "./routes/clerkWebhook";
 import {
   CLERK_PROXY_PATH,
   clerkProxyMiddleware,
@@ -38,6 +39,10 @@ app.use(
 );
 
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+
+// Clerk webhook — raw body required for Svix signature verification,
+// must be registered BEFORE express.json().
+app.post("/api/webhooks/clerk", express.raw({ type: "application/json" }), handleClerkWebhook);
 
 // Stripe webhook MUST be registered with a raw body BEFORE express.json(),
 // otherwise the signature verification fails (the SDK needs the exact bytes).
