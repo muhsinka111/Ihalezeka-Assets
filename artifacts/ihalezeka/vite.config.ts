@@ -47,6 +47,12 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": { target: "http://localhost:9090", changeOrigin: true },
+      "/blog": { target: "http://localhost:9090", changeOrigin: true },
+      "/sitemap.xml": { target: "http://localhost:9090", changeOrigin: true },
+      "/gizlilik": { target: "http://localhost:9090", changeOrigin: true },
+      "/kvkk": { target: "http://localhost:9090", changeOrigin: true },
+      "/kullanim-sartlari": { target: "http://localhost:9090", changeOrigin: true },
+      "/uluslararasi-ihaleler": { target: "http://localhost:9090", changeOrigin: true },
     },
     fs: {
       strict: true,
@@ -58,6 +64,12 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       "/api": { target: "http://localhost:9090", changeOrigin: true },
+      "/blog": { target: "http://localhost:9090", changeOrigin: true },
+      "/sitemap.xml": { target: "http://localhost:9090", changeOrigin: true },
+      "/gizlilik": { target: "http://localhost:9090", changeOrigin: true },
+      "/kvkk": { target: "http://localhost:9090", changeOrigin: true },
+      "/kullanim-sartlari": { target: "http://localhost:9090", changeOrigin: true },
+      "/uluslararasi-ihaleler": { target: "http://localhost:9090", changeOrigin: true },
     },
   },
 });
