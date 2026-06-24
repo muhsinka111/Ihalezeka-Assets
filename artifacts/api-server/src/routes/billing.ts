@@ -359,6 +359,186 @@ router.post("/billing/checkout", async (req, res) => {
 });
 
 /**
+ * GET /api/billing/config — return the Stripe publishable key so the frontend
+ * can initialise Stripe.js without baking the key into the build.
+ */
+router.get("/billing/config", (_req, res) => {
+  const publishableKey = process.env["STRIPE_PUBLISHABLE_KEY"] ?? "";
+  res.json({ publishableKey });
+});
+
+/**
+ * POST /api/billing/checkout-session — create an embedded Stripe Checkout
+ * session and return { clientSecret } so the frontend can mount
+ * <EmbeddedCheckout> without redirecting away from the site.
+ * Falls back to { error: "no_publishable_key" } if STRIPE_PUBLISHABLE_KEY
+ * is not set (caller should use the redirect-based /checkout instead).
+ */
+router.post("/billing/checkout-session", async (req, res) => {
+  const userId = ensureRealUser(req, res);
+  if (!userId) return;
+
+  if (!process.env["STRIPE_PUBLISHABLE_KEY"]) {
+    return res.status(503).json({ error: "no_publishable_key" });
+  }
+
+  try {
+    const bodyPriceId = req.body?.priceId as string | undefined;
+    const priceId = bodyPriceId ?? (await resolveDefaultPriceId());
+
+    if (!priceId || priceId === "payment_link") {
+      return res.status(503).json({ error: "no_price_configured" });
+    }
+
+    const email = getSessionEmail(req);
+    const customerId = await ensureStripeCustomer(userId, email);
+
+    const stripe = await getUncachableStripeClient();
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      ui_mode: "embedded",
+      return_url: buildReturnUrl(req, "/ihale-arama?checkout=success"),
+      allow_promotion_codes: true,
+    });
+
+    invalidateEntitlement(userId);
+    res.json({ clientSecret: session.client_secret });
+  } catch (err) {
+    logger.error({ err }, "Embedded checkout session error");
+    res.status(500).json({ error: "checkout_failed" });
+  }
+});
+
+/**
+ * GET /api/billing/subscription — return the active Stripe subscription for
+ * the signed-in user so the frontend can show plan details and billing date.
+ */
+router.get("/billing/subscription", async (req, res) => {
+  const userId = getUserId(req);
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId))
+      .limit(1);
+
+    if (!user?.stripeCustomerId) {
+      return res.json({ subscription: null });
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const list = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: "all",
+      limit: 1,
+      expand: ["data.default_payment_method"],
+    });
+
+    const sub = list.data[0];
+    if (!sub) return res.json({ subscription: null });
+
+    const item = sub.items.data[0];
+    const pm = sub.default_payment_method as any;
+
+    res.json({
+      subscription: {
+        id: sub.id,
+        status: sub.status,
+        currentPeriodEnd: sub.current_period_end,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+        amount: item?.price.unit_amount,
+        currency: item?.price.currency,
+        interval: item?.price.recurring?.interval,
+        cardBrand: pm?.card?.brand ?? null,
+        cardLast4: pm?.card?.last4 ?? null,
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Subscription fetch error");
+    res.status(500).json({ error: "fetch_failed" });
+  }
+});
+
+/**
+ * POST /api/billing/cancel — cancel the active subscription at the end of the
+ * current billing period (not immediately). Returns { cancelAtPeriodEnd: true }.
+ */
+router.post("/billing/cancel", async (req, res) => {
+  const userId = ensureRealUser(req, res);
+  if (!userId) return;
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId))
+      .limit(1);
+
+    if (!user?.stripeCustomerId) {
+      return res.status(404).json({ error: "no_customer" });
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const list = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: "active",
+      limit: 1,
+    });
+
+    const sub = list.data[0];
+    if (!sub) return res.status(404).json({ error: "no_subscription" });
+
+    await stripe.subscriptions.update(sub.id, { cancel_at_period_end: true });
+    invalidateEntitlement(userId);
+    res.json({ success: true, cancelAtPeriodEnd: true });
+  } catch (err) {
+    logger.error({ err }, "Cancel subscription error");
+    res.status(500).json({ error: "cancel_failed" });
+  }
+});
+
+/**
+ * POST /api/billing/reactivate — undo a pending cancellation so the
+ * subscription renews normally at period end.
+ */
+router.post("/billing/reactivate", async (req, res) => {
+  const userId = ensureRealUser(req, res);
+  if (!userId) return;
+
+  try {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.userId, userId))
+      .limit(1);
+
+    if (!user?.stripeCustomerId) {
+      return res.status(404).json({ error: "no_customer" });
+    }
+
+    const stripe = await getUncachableStripeClient();
+    const list = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: "active",
+      limit: 1,
+    });
+
+    const sub = list.data[0];
+    if (!sub) return res.status(404).json({ error: "no_subscription" });
+
+    await stripe.subscriptions.update(sub.id, { cancel_at_period_end: false });
+    invalidateEntitlement(userId);
+    res.json({ success: true, cancelAtPeriodEnd: false });
+  } catch (err) {
+    logger.error({ err }, "Reactivate subscription error");
+    res.status(500).json({ error: "reactivate_failed" });
+  }
+});
+
+/**
  * POST /api/billing/portal — open the Stripe billing portal so the user can
  * manage or cancel their subscription. Body: { basePath? }. Returns { url }.
  */

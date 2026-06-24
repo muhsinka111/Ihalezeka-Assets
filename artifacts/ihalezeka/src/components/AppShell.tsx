@@ -43,9 +43,10 @@ import {
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
-import { startCheckout, openBillingPortal } from "@/lib/billing";
 import { ProLockBadge } from "@/components/PaywallOverlay";
 import { toast } from "sonner";
+import { CheckoutModal } from "@/components/CheckoutModal";
+import { SubscriptionManagement } from "@/components/SubscriptionManagement";
 
 const NAV_ITEMS = [
   { href: "/ihale-arama", label: "İhale Arama", icon: IconSearch },
@@ -89,7 +90,8 @@ export function AppShell({ children }: AppShellProps) {
   const { data: notifData } = useNotifications();
   const { isPro } = useEntitlement();
   const qc = useQueryClient();
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { data: creditsData } = useQuery<{ credits: number }>({
     queryKey: ["/api/credits"],
@@ -146,37 +148,8 @@ export function AppShell({ children }: AppShellProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleUpgrade = async () => {
-    if (upgradeLoading) return;
-    setUpgradeLoading(true);
-    try {
-      await startCheckout();
-    } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      toast.error(
-        code === "no_price_configured"
-          ? "Abonelik planı henüz hazır değil. Lütfen daha sonra tekrar deneyin."
-          : "Ödeme başlatılamadı. Lütfen tekrar deneyin.",
-      );
-      setUpgradeLoading(false);
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    try {
-      await openBillingPortal();
-    } catch (err: any) {
-      const code = err?.message ?? "";
-      if (code === "portal_not_configured" || code.includes("portal")) {
-        // Billing portal not set up in Stripe dashboard — send to payment link
-        const paymentLink = "https://buy.stripe.com/14AfZh9p219Mddv4aG0Ny0b";
-        window.open(paymentLink, "_blank", "noopener");
-        toast.info("Abonelik yönetimi için Stripe sayfasına yönlendiriliyorsunuz.");
-      } else {
-        toast.error("Abonelik yönetimi açılamadı. Lütfen tekrar deneyin.");
-      }
-    }
-  };
+  const handleUpgrade = () => setCheckoutOpen(true);
+  const handleManageSubscription = () => setManageOpen(true);
 
   const handleAiAssistant = () => {
     if (!isPro) {
@@ -279,11 +252,10 @@ export function AppShell({ children }: AppShellProps) {
           </p>
           <button
             onClick={handleUpgrade}
-            disabled={upgradeLoading}
-            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5 disabled:opacity-60"
+            className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-[11px] font-semibold py-1.5 rounded-lg transition-colors flex items-center justify-center gap-1.5"
           >
             <IconBolt className="h-3 w-3 text-amber-400" />
-            {upgradeLoading ? "Yönlendiriliyor…" : "Planı Yükselt"}
+            Planı Yükselt
           </button>
         </div>
       ))}
@@ -466,6 +438,10 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Notification Preferences Modal */}
       <NotificationPrefsModal open={prefsModalOpen} onClose={() => setPrefsModalOpen(false)} />
+
+      {/* Checkout & Subscription modals */}
+      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      <SubscriptionManagement open={manageOpen} onClose={() => setManageOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,10 +9,11 @@ import {
   IconArrowRight,
   IconShieldCheck,
 } from "@tabler/icons-react";
-import { startCheckout, openBillingPortal } from "@/lib/billing";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { useAuth } from "@clerk/react";
 import { Link } from "wouter";
+import { CheckoutModal } from "@/components/CheckoutModal";
+import { SubscriptionManagement } from "@/components/SubscriptionManagement";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
@@ -63,8 +63,8 @@ function formatPrice(price: BillingPrice | null): { amount: string; interval: st
 export default function FiyatlandirmaPage() {
   const { isPro } = useEntitlement();
   const { isSignedIn } = useAuth();
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { data } = useQuery<{ data: BillingProduct[] }>({
     queryKey: ["/api/billing/products"],
@@ -80,32 +80,8 @@ export default function FiyatlandirmaPage() {
   const proPrice = proProduct?.prices?.[0] ?? null;
   const { amount, interval } = formatPrice(proPrice);
 
-  const handleUpgrade = async () => {
-    if (checkoutLoading) return;
-    setCheckoutLoading(true);
-    try {
-      await startCheckout(proPrice?.id);
-    } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      toast.error(
-        code === "no_price_configured"
-          ? "Abonelik planı henüz hazır değil. Lütfen daha sonra tekrar deneyin."
-          : "Ödeme başlatılamadı. Lütfen tekrar deneyin.",
-      );
-      setCheckoutLoading(false);
-    }
-  };
-
-  const handleManage = async () => {
-    if (portalLoading) return;
-    setPortalLoading(true);
-    try {
-      await openBillingPortal();
-    } catch {
-      toast.error("Abonelik yönetimi açılamadı. Lütfen tekrar deneyin.");
-      setPortalLoading(false);
-    }
-  };
+  const handleUpgrade = () => setCheckoutOpen(true);
+  const handleManage = () => setManageOpen(true);
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -149,19 +125,17 @@ export default function FiyatlandirmaPage() {
               variant="outline"
               className="w-full gap-2 h-12"
               onClick={handleManage}
-              disabled={portalLoading}
             >
               <IconSettings className="h-4 w-4" />
-              {portalLoading ? "Açılıyor…" : "Aboneliği Yönet"}
+              Aboneliği Yönet
             </Button>
           ) : isSignedIn ? (
             <Button
               className="w-full gap-2 h-12 text-base font-bold shadow-lg shadow-primary/20"
               onClick={handleUpgrade}
-              disabled={checkoutLoading}
             >
               <IconBolt className="h-4 w-4" />
-              {checkoutLoading ? "Yönlendiriliyor…" : "Pro'ya Geç"}
+              Pro'ya Geç
             </Button>
           ) : (
             <Link href="/sign-up">
@@ -190,6 +164,16 @@ export default function FiyatlandirmaPage() {
         <IconShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
         Ödemeler Stripe ile güvenli şekilde işlenir
       </div>
+
+      <CheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        priceId={proPrice?.id}
+      />
+      <SubscriptionManagement
+        open={manageOpen}
+        onClose={() => setManageOpen(false)}
+      />
     </div>
   );
 }
