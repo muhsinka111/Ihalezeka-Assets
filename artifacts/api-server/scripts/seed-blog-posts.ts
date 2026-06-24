@@ -18,11 +18,13 @@ type Seed = {
   metaDescription: string;
   body: string;
   blogBody: string;
+  imageUrl: string;
 };
 
 const POSTS: Seed[] = [
   {
     slug: "ekap-nedir-nasil-kullanilir",
+    imageUrl: "https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=800&auto=format&fit=crop&q=80",
     title: "EKAP Nedir ve Nasıl Kullanılır? Kayıt ve E-İmza Rehberi",
     topic: "EKAP",
     metaDescription:
@@ -75,6 +77,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "kamu-ihalesine-nasil-girilir-adim-adim-rehber",
+    imageUrl: "https://images.unsplash.com/photo-1521737604082-b3814eb46a23?w=800&auto=format&fit=crop&q=80",
     title: "Kamu İhalesine Nasıl Girilir? Adım Adım Başvuru Rehberi",
     topic: "İhale Rehberi",
     metaDescription:
@@ -133,6 +136,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "gecici-ve-kesin-teminat-oranlar-iade-surecleri",
+    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80",
     title: "Geçici ve Kesin Teminat: Oranlar, Türler ve İade Süreçleri",
     topic: "Teminat",
     metaDescription:
@@ -191,6 +195,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "yaklasik-maliyet-nedir-nasil-hesaplanir",
+    imageUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&auto=format&fit=crop&q=80",
     title: "Yaklaşık Maliyet Nedir, Nasıl Hesaplanır? Kapsamlı Rehber",
     topic: "Maliyet",
     metaDescription:
@@ -247,6 +252,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "asiri-dusuk-teklif-sorgulamasi-ve-aciklama",
+    imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
     title: "Aşırı Düşük Teklif Sorgulaması ve Açıklama Nasıl Yapılır?",
     topic: "Teklif Değerlendirme",
     metaDescription:
@@ -301,6 +307,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "e-ihale-elektronik-ihale-sureci",
+    imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=80",
     title: "e-İhale (Elektronik İhale) Süreci: e-Teklif Adım Adım",
     topic: "e-İhale",
     metaDescription:
@@ -364,6 +371,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "4734-kamu-ihale-kanunu-temel-ilkeleri-ve-usuller",
+    imageUrl: "https://images.unsplash.com/photo-1589829545856-2b7aa2a49f28?w=800&auto=format&fit=crop&q=80",
     title: "4734 Sayılı Kamu İhale Kanunu: Temel İlkeler ve İhale Usulleri",
     topic: "Mevzuat",
     metaDescription:
@@ -417,6 +425,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "is-deneyim-belgesi-nedir-nasil-alinir",
+    imageUrl: "https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=800&auto=format&fit=crop&q=80",
     title: "İş Deneyim Belgesi Nedir, Nasıl Alınır ve Nasıl Kullanılır?",
     topic: "Belgeler",
     metaDescription:
@@ -476,6 +485,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "ihalelerde-itiraz-ve-sikayet-sureci-kik-basvurusu",
+    imageUrl: "https://images.unsplash.com/photo-1589994965851-a8f479c573a9?w=800&auto=format&fit=crop&q=80",
     title: "İhalelerde İtiraz ve Şikayet Süreci: KİK Başvurusu Rehberi",
     topic: "İtiraz ve Şikayet",
     metaDescription:
@@ -534,6 +544,7 @@ const POSTS: Seed[] = [
   },
   {
     slug: "uluslararasi-ihaleler-dunya-bankasi-ab-ted-firsatlar",
+    imageUrl: "https://images.unsplash.com/photo-1526304640581-9a75d00484a6?w=800&auto=format&fit=crop&q=80",
     title: "Uluslararası İhaleler: Dünya Bankası ve AB/TED Fırsatları",
     topic: "Uluslararası İhaleler",
     metaDescription:
@@ -626,7 +637,7 @@ async function main() {
       blogSlug: p.slug,
       status: "published" as const,
       platforms: [] as string[],
-      imageUrl: null,
+      imageUrl: p.imageUrl,
       publishedAt: published,
       // The public blog SSR sorts/displays by created_at, so align it with the
       // intended publish date for a correct, spread-out listing.
