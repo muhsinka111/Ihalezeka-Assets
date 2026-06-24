@@ -17,27 +17,34 @@ async function initStripe() {
   const databaseUrl = process.env["DATABASE_URL"];
   if (!databaseUrl) throw new Error("DATABASE_URL is required for Stripe");
 
+  // Step 1: create stripe.* schema and tables (idempotent DDL).
   await runMigrations({ databaseUrl });
   logger.info("Stripe schema ready");
 
+  // Step 2: initialise the sync client.
   const stripeSync = await getStripeSync();
 
+  // Step 3: auto-register a webhook endpoint for this environment (non-fatal).
   const domain = process.env["REPLIT_DOMAINS"]?.split(",")[0];
   if (domain) {
-    const webhookResult = await stripeSync.findOrCreateManagedWebhook(
-      `https://${domain}/api/stripe/webhook`,
-    );
-    logger.info(
-      { url: webhookResult?.url ?? "setup complete" },
-      "Stripe webhook configured",
-    );
+    try {
+      const webhookResult = await stripeSync.findOrCreateManagedWebhook(
+        `https://${domain}/api/stripe/webhook`,
+      );
+      logger.info(
+        { url: webhookResult?.url ?? "setup complete" },
+        "Stripe webhook configured",
+      );
+    } catch (err) {
+      logger.warn({ err }, "Stripe webhook auto-registration failed (non-fatal)");
+    }
   }
 
-  // Backfill runs in the background so startup is not blocked.
+  // Step 4: backfill current Stripe data into synced tables (background, non-blocking).
   stripeSync
     .syncBackfill()
     .then(() => logger.info("Stripe data synced"))
-    .catch((err) => logger.error({ err }, "Stripe backfill failed"));
+    .catch((err) => logger.warn({ err }, "Stripe backfill failed (non-fatal)"));
 }
 
 const rawPort = process.env["PORT"];

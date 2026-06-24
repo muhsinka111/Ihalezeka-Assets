@@ -143,3 +143,15 @@ id = "8x2GlKw-autbg0_dX-SgV"
 uri = "file://artifacts/tanitim/public/audio/bg_music.mp3"
 type = "audio"
 title = "background music"
+
+[[outputs]]
+id = "B8DoDdgXe7due6zg2oP_F"
+uri = "file://artifacts/ihalezeka/public/logo.svg"
+type = "image"
+title = "İhaleZeka Logo (SVG)"
+
+[[outputs]]
+id = "j2YIja0GHcKDSGkwcNv-o"
+uri = "file://artifacts/ihalezeka/public/logo.png"
+type = "image"
+title = "İhaleZeka Logo (PNG)"
