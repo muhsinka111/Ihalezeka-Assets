@@ -2,29 +2,33 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { socialPostsTable } from "@workspace/db";
 import { isNotNull, desc, eq, and } from "drizzle-orm";
+import { SITE_URL } from "../lib/site.js";
 
 const router = Router();
 
-router.get("/sitemap.xml", async (req, res) => {
-  try {
-    const baseUrl = `${req.protocol}://${req.get("host")}`;
+const today = () => new Date().toISOString().split("T")[0];
 
+router.get("/sitemap.xml", async (_req, res) => {
+  try {
     const posts = await db
       .select({ blogSlug: socialPostsTable.blogSlug, updatedAt: socialPostsTable.updatedAt })
       .from(socialPostsTable)
       .where(and(isNotNull(socialPostsTable.blogSlug), eq(socialPostsTable.status, "published")))
       .orderBy(desc(socialPostsTable.updatedAt));
 
+    // Only public, crawlable pages. Auth-gated app routes (/dashboard,
+    // /ihale-arama, /firsatlarim, etc.) are intentionally excluded.
     const staticUrls = [
-      { loc: `${baseUrl}/`, priority: "1.0", changefreq: "weekly" },
-      { loc: `${baseUrl}/dashboard`, priority: "0.8", changefreq: "daily" },
-      { loc: `${baseUrl}/ihale-arama`, priority: "0.8", changefreq: "daily" },
-      { loc: `${baseUrl}/firsatlarim`, priority: "0.7", changefreq: "daily" },
-      { loc: `${baseUrl}/blog`, priority: "0.9", changefreq: "weekly" },
+      { loc: `${SITE_URL}/`, priority: "1.0", changefreq: "weekly", lastmod: today() },
+      { loc: `${SITE_URL}/blog`, priority: "0.9", changefreq: "weekly", lastmod: today() },
+      { loc: `${SITE_URL}/uluslararasi-ihaleler`, priority: "0.7", changefreq: "monthly", lastmod: today() },
+      { loc: `${SITE_URL}/gizlilik`, priority: "0.4", changefreq: "yearly", lastmod: today() },
+      { loc: `${SITE_URL}/kvkk`, priority: "0.4", changefreq: "yearly", lastmod: today() },
+      { loc: `${SITE_URL}/kullanim-sartlari`, priority: "0.4", changefreq: "yearly", lastmod: today() },
     ];
 
     const blogUrls = posts.map((p) => ({
-      loc: `${baseUrl}/blog/${p.blogSlug}`,
+      loc: `${SITE_URL}/blog/${p.blogSlug}`,
       lastmod: new Date(p.updatedAt).toISOString().split("T")[0],
       priority: "0.7",
       changefreq: "monthly",
@@ -47,7 +51,7 @@ ${urlEntries}
 
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
     res.send(xml);
-  } catch (err) {
+  } catch {
     res.status(500).send("<?xml version='1.0'?><urlset/>");
   }
 });

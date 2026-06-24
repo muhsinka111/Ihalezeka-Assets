@@ -7,7 +7,7 @@ kind = "api"
   [[services]]
   localPort = 9090
   name = "API Server"
-  paths = ["/api"]
+  paths = ["/api", "/sitemap.xml", "/blog", "/gizlilik", "/kvkk", "/kullanim-sartlari", "/uluslararasi-ihaleler"]
 
   [services.development]
   run = "pnpm --filter @workspace/api-server run dev"
@@ -32,4 +32,3 @@ kind = "api"
 
   [services.production.health.startup]
   path = "/api/healthz"
-  

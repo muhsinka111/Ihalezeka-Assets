@@ -3,6 +3,7 @@ import { Hero } from "@/components/landing/Hero";
 import { ValueProps } from "@/components/landing/ValueProps";
 import { Modules } from "@/components/landing/Modules";
 import { HowItWorks } from "@/components/landing/HowItWorks";
+import { International } from "@/components/landing/International";
 import { PricingSection } from "@/components/landing/PricingSection";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { Footer } from "@/components/landing/Footer";
@@ -16,6 +17,7 @@ export default function LandingPage() {
         <ValueProps />
         <HowItWorks />
         <Modules />
+        <International />
         <PricingSection />
         <FinalCta />
       </main>

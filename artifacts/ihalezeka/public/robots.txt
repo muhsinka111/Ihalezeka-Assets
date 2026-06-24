@@ -1,2 +1,17 @@
 User-agent: *
 Allow: /
+
+# Kullanıcıya özel / kimlik doğrulaması gereken alanlar (SEO değeri yok)
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /firsatlarim
+Disallow: /boru-hatti
+Disallow: /raporlar
+Disallow: /ayarlar
+Disallow: /pazarlama
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /sign-in
+Disallow: /sign-up
+
+Sitemap: https://ihalezeka.com/sitemap.xml

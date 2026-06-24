@@ -5,6 +5,7 @@ import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
 import blogRouter from "./routes/blog";
+import legalRouter from "./routes/legal";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
 import {
@@ -77,9 +78,12 @@ app.use(clerkMiddleware());
 
 app.use("/api", router);
 
-// Sitemap and blog served at root level (no /api prefix) for SEO crawlability
+// Sitemap, blog, and legal/marketing pages served at root level (no /api
+// prefix) for SEO crawlability. The api-server artifact must claim these
+// root paths in artifact.toml so the production router forwards them here.
 app.use(sitemapRouter);
 app.use(blogRouter);
+app.use(legalRouter);
 
 // Unknown /api routes → JSON 404
 app.use("/api", (_req, res) => {

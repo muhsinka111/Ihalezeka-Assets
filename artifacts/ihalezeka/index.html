@@ -7,50 +7,79 @@
     <meta name="description" content="İhaleZeka, Türkiye'deki KOBİ'lerin kamu ihalelerini AI destekli eşleştirme ile otomatik takip etmesini sağlayan akıllı ihale platformudur." />
     <meta name="robots" content="index, follow" />
     <meta name="keywords" content="ihale takip, kamu ihale, EKAP, ihale yazılımı, KOBİ ihale, AI ihale eşleştirme, Türkiye ihale" />
+    <meta name="author" content="İhaleZeka" />
+    <meta name="theme-color" content="#2D5BFF" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://ihalezeka.com/" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="İhaleZeka" />
+    <meta property="og:locale" content="tr_TR" />
     <meta property="og:title" content="İhaleZeka – Akıllı İhale Takip Platformu" />
     <meta property="og:description" content="Kamu ihalelerini AI ile otomatik takip edin. EKAP ve ilan.gov.tr'den gelen ihaleleri profilinize göre eşleştirin." />
-    <meta property="og:url" content="https://ihalezeka.replit.app/" />
+    <meta property="og:url" content="https://ihalezeka.com/" />
+    <meta property="og:image" content="https://ihalezeka.com/opengraph.jpg" />
+    <meta property="og:image:secure_url" content="https://ihalezeka.com/opengraph.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="İhaleZeka – Akıllı İhale Takip Platformu" />
 
     <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="İhaleZeka – Akıllı İhale Takip Platformu" />
     <meta name="twitter:description" content="Kamu ihalelerini AI ile otomatik takip edin. EKAP ve ilan.gov.tr'den gelen ihaleleri profilinize göre eşleştirin." />
+    <meta name="twitter:image" content="https://ihalezeka.com/opengraph.jpg" />
+    <meta name="twitter:image:alt" content="İhaleZeka – Akıllı İhale Takip Platformu" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo.png" />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <!-- JSON-LD: WebSite + SoftwareApplication -->
+    <!-- JSON-LD: Organization + WebSite + SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
         {
+          "@type": "Organization",
+          "@id": "https://ihalezeka.com/#organization",
+          "name": "İhaleZeka",
+          "url": "https://ihalezeka.com/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://ihalezeka.com/logo.png"
+          },
+          "description": "Türkiye'deki kamu ihalelerini AI destekli eşleştirme ile otomatik takip eden SaaS platformu.",
+          "email": "info@ihalezeka.com",
+          "sameAs": []
+        },
+        {
           "@type": "WebSite",
-          "@id": "https://ihalezeka.replit.app/#website",
-          "url": "https://ihalezeka.replit.app/",
+          "@id": "https://ihalezeka.com/#website",
+          "url": "https://ihalezeka.com/",
           "name": "İhaleZeka",
           "description": "Akıllı İhale Takip Platformu",
-          "inLanguage": "tr-TR"
+          "inLanguage": "tr-TR",
+          "publisher": { "@id": "https://ihalezeka.com/#organization" }
         },
         {
           "@type": "SoftwareApplication",
-          "@id": "https://ihalezeka.replit.app/#app",
+          "@id": "https://ihalezeka.com/#app",
           "name": "İhaleZeka",
-          "url": "https://ihalezeka.replit.app/",
+          "url": "https://ihalezeka.com/",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
           "description": "Türkiye'deki kamu ihalelerini AI destekli eşleştirme ile otomatik takip eden SaaS platformu.",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
-          "publisher": { "@type": "Organization", "name": "İhaleZeka", "url": "https://ihalezeka.replit.app/" }
+          "publisher": { "@id": "https://ihalezeka.com/#organization" }
         }
       ]
     }

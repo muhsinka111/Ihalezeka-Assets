@@ -54,6 +54,18 @@ uri = "file://attached_assets/logo_geo_v3.png"
 type = "image"
 title = "ihalezeka sharp typographic wordmark"
 
+[[generated]]
+id = "pQ51OEH-1W6A53RM1SwcO"
+uri = "file://artifacts/tanitim/public/images/bg_data.png"
+type = "image"
+title = "Data flow background"
+
+[[generated]]
+id = "UoLwV2lfcfGliMgAfNvaZ"
+uri = "file://artifacts/tanitim/public/images/bg_network.png"
+type = "image"
+title = "AI network background"
+
 [[outputs]]
 id = "AUZLaFPQlxXFsIpA4Xvxh"
 uri = "file://attached_assets/logo_v1.png"
@@ -125,3 +137,9 @@ id = "HatfT9IxgiFVKcgWXf3AE"
 uri = "file://.local/exports/ihale-zeka-logo.svg"
 type = "image"
 title = "İhaleZeka Logo — SVG (vector, infinitely scalable)"
+
+[[outputs]]
+id = "8x2GlKw-autbg0_dX-SgV"
+uri = "file://artifacts/tanitim/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
