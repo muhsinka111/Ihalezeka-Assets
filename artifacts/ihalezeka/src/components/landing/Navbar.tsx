@@ -25,7 +25,7 @@ export function Navbar() {
     >
       <div className="container mx-auto px-6 md:px-12 flex items-center justify-between">
         <div className="flex items-center">
-          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg`} alt="İhaleZeka" className="h-8 md:h-9 w-auto" />
+          <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/logo.svg?v=2`} alt="İhaleZeka" className="h-8 md:h-9 w-auto" />
         </div>
         
         <nav className="hidden md:flex items-center gap-8 font-medium text-sm text-muted-foreground">

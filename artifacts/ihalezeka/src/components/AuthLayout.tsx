@@ -91,7 +91,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
           <div className="relative">
             <a href="/" className="flex items-center gap-2 mb-7 w-fit">
-              <img src="/logo.svg" alt="İhaleZeka" className="w-8 h-8" />
+              <img src="/logo.svg?v=2" alt="İhaleZeka" className="w-8 h-8" />
               <span className="text-white font-bold text-base" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
                 İhaleZeka
               </span>
@@ -134,7 +134,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         <div className="flex-1 bg-white p-8 flex flex-col justify-center min-w-0">
           {/* Mobile-only logo */}
           <div className="sm:hidden mb-6 flex items-center gap-2">
-            <img src="/logo.svg" alt="İhaleZeka" className="w-7 h-7" />
+            <img src="/logo.svg?v=2" alt="İhaleZeka" className="w-7 h-7" />
             <span className="font-bold text-base text-slate-900" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
               İhaleZeka
             </span>

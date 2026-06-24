@@ -173,7 +173,7 @@ export function AppShell({ children }: AppShellProps) {
           <span className="font-heading font-bold text-lg text-white tracking-tight select-none">İZ</span>
         ) : (
           <div className="bg-white rounded-lg px-2 py-1">
-            <img src={`${basePath}/logo.svg`} alt="İhaleZeka" className="h-6 w-auto" />
+            <img src={`${basePath}/logo.svg?v=2`} alt="İhaleZeka" className="h-6 w-auto" />
           </div>
         )}
       </div>
