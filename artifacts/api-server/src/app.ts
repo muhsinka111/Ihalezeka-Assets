@@ -1,3 +1,6 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import fs from "node:fs";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -94,6 +97,22 @@ app.use(legalRouter);
 app.use("/api", (_req, res) => {
   res.status(404).json({ title: "Not Found", status: 404 });
 });
+
+// Serve the built React/Vite frontend (artifacts/ihalezeka/dist/public) from
+// this same process, single-port. Replit used a separate path-based router
+// across two services for this; Railway runs one service, so the API server
+// takes over serving the SPA's static files and its catch-all fallback.
+const frontendDist = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../ihalezeka/dist/public",
+);
+
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
 
 startScraperScheduler();
 startSocialPostScheduler();
