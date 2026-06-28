@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,18 @@ const CHART_COLORS = ["#2D5BFF", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#E
 export default function RakiplerPage() {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const qc = useQueryClient();
+
+  const discoverMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`${API_BASE}/competitors/discover`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Failed to discover competitors");
+      return res.json() as Promise<{ added: number; total: number }>;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["competitors"] });
+    },
+  });
 
   const { data: competitors, isLoading } = useQuery<Competitor[]>({
     queryKey: ["competitors", search],
@@ -263,9 +275,21 @@ export default function RakiplerPage() {
             <div className="text-center py-16">
               <IconUsers className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-muted-foreground font-medium">Henüz rakip verisi yok</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                İhale sonuçları toplandıkça rakipleriniz otomatik olarak görünecektir.
+              <p className="text-xs text-muted-foreground mt-1 mb-4">
+                İhale sonuç verilerinden rakiplerinizi otomatik keşfedebilirsiniz.
               </p>
+              <Button
+                onClick={() => discoverMutation.mutate()}
+                disabled={discoverMutation.isPending}
+                size="sm"
+              >
+                {discoverMutation.isPending ? "Keşfediliyor..." : "Rakipleri Keşfet"}
+              </Button>
+              {discoverMutation.isSuccess && (
+                <p className="text-xs text-emerald-600 mt-2">
+                  {discoverMutation.data.added} yeni rakip eklendi!
+                </p>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

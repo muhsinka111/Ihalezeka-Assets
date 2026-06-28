@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 import { db } from "@workspace/db";
 import { competitorsTable, awardResultsTable } from "@workspace/db";
-import { eq, desc, sql, ilike } from "drizzle-orm";
+import { eq, desc, sql, ilike, and } from "drizzle-orm";
 
 const router = Router();
 
@@ -23,6 +23,11 @@ router.get("/competitors", async (req, res) => {
       )
       .orderBy(desc(competitorsTable.encounters))
       .limit(100);
+
+    if (rows.length === 0) {
+      res.json([]);
+      return;
+    }
 
     const enriched = await Promise.all(
       rows.map(async (c) => {
@@ -52,6 +57,49 @@ router.get("/competitors", async (req, res) => {
     );
 
     res.json(enriched);
+  } catch {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/competitors/discover", async (req, res) => {
+  try {
+    const businessId = getBusinessId(req);
+
+    const topCompanies = await db
+      .select({
+        company: awardResultsTable.awardedCompany,
+        wins: sql<number>`COUNT(*)::int`,
+        avgDiscount: sql<number>`AVG(CASE WHEN estimated_value > 0 AND awarded_price > 0 THEN ((estimated_value - awarded_price) / estimated_value) * 100 ELSE NULL END)`,
+      })
+      .from(awardResultsTable)
+      .where(sql`awarded_company IS NOT NULL AND awarded_company != ''`)
+      .groupBy(awardResultsTable.awardedCompany)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(50);
+
+    let added = 0;
+    for (const c of topCompanies) {
+      if (!c.company) continue;
+      const existing = await db
+        .select({ id: competitorsTable.id })
+        .from(competitorsTable)
+        .where(and(eq(competitorsTable.businessId, businessId), ilike(competitorsTable.name, c.company)))
+        .limit(1);
+
+      if (existing.length === 0) {
+        await db.insert(competitorsTable).values({
+          businessId,
+          name: c.company,
+          wonTenders: c.wins,
+          avgDiscountRate: c.avgDiscount ?? 0,
+          encounters: c.wins,
+        });
+        added++;
+      }
+    }
+
+    res.json({ added, total: topCompanies.length });
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }
