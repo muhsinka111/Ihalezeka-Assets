@@ -120,7 +120,7 @@ async function alreadyProcessed(ikn: string): Promise<boolean> {
  *  2. ihale-mcp keyword search for ISI text as a fallback.
  * Returns deduplicated EkapTender candidates.
  */
-async function searchForAwardCandidates(daysBack = 120): Promise<EkapTender[]> {
+async function searchForAwardCandidates(daysBack = 180): Promise<EkapTender[]> {
   const seen = new Map<string, EkapTender>();
 
   // Primary: direct EKAP concluded-tender search
@@ -152,7 +152,7 @@ async function searchForAwardCandidates(daysBack = 120): Promise<EkapTender[]> {
         searchText,
         announcementDateStart: startDate,
         announcementDateEnd: endDate,
-        take: 50,
+        take: 200,
       });
       for (const t of res.list) {
         if (t.ikn && !seen.has(t.ikn)) seen.set(t.ikn, t);
@@ -185,7 +185,7 @@ async function getPendingFromDb(): Promise<{ ikn: string; estimated_value: numbe
           SELECT 1 FROM award_results ar WHERE ar.ikn = t.ikn OR ar.original_ikn = t.ikn
         )
       ORDER BY t.deadline DESC
-      LIMIT 40
+      LIMIT 200
     `,
   );
   return rows.rows;
@@ -236,7 +236,7 @@ async function upsertAwardResult(
 
 // ── Main scraper ─────────────────────────────────────────────────────────────
 
-const BATCH_SIZE = 30;
+const BATCH_SIZE = 100;
 
 export async function runAwardScraper(): Promise<ScraperResult> {
   const startedAt = new Date();

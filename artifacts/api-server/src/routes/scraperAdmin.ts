@@ -5,6 +5,7 @@ import { db } from "@workspace/db";
 import { scraperRunsTable, tendersTable } from "@workspace/db";
 import { runEkapScraper } from "../scrapers/ekap-scraper.js";
 import { runIlanScraper } from "../scrapers/ilan-scraper.js";
+import { runAwardScraper } from "../scrapers/award-scraper.js";
 import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { logger } from "../lib/logger.js";
 import { isScraperRunning } from "../scrapers/scheduler.js";
@@ -159,6 +160,11 @@ router.post("/admin/scraper/run", async (req, res) => {
         );
       }
       return res.json({ source: "ilan_gov", result });
+    }
+
+    if (source === "awards") {
+      const result = await runAwardScraper();
+      return res.json({ source: "awards", result });
     }
 
     const [ekapResult, ilanResult] = await Promise.allSettled([

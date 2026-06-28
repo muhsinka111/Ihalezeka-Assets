@@ -481,7 +481,7 @@ export async function searchEkapAwardedTenders(daysBack = 120): Promise<EkapTend
         ilanTarihSaatBaslangic: start,
         ilanTarihSaatBitis: end,
         paginationSkip: 0,
-        paginationTake: 50,
+        paginationTake: 200,
         ihaleTipler: [],
         ihaleUsuller: [],
         ihaleDurumlar,
@@ -513,7 +513,7 @@ export async function searchEkapAwardedTenders(daysBack = 120): Promise<EkapTend
       ilanTarihSaatBaslangic: start,
       ilanTarihSaatBitis: end,
       paginationSkip: 0,
-      paginationTake: 50,
+      paginationTake: 200,
     };
     const res = await client.post(
       "/b_ihalearama/api/IhaleSonucIlan/GetListByParameters",
