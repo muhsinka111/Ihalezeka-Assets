@@ -19,6 +19,7 @@ import billingRouter from "./billing";
 import creditsRouter from "./credits";
 import adminUsersRouter from "./adminUsers";
 import apiBlogRouter from "./apiBlog";
+import competitorsRouter from "./competitors";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(marketingRouter);
 router.use(billingRouter);
 router.use(creditsRouter);
 router.use(adminUsersRouter);
+router.use(competitorsRouter);
 
 export default router;

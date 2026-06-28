@@ -28,6 +28,7 @@ import FiyatlandirmaPage from "@/pages/fiyatlandirma";
 import AdminPage from "@/pages/admin/index";
 import BlogListPage from "@/pages/blog/index";
 import BlogPostPage from "@/pages/blog/post";
+import RakiplerPage from "@/pages/rakipler";
 import NotFound from "@/pages/not-found";
 import { RequirePro } from "@/components/PaywallOverlay";
 
@@ -294,6 +295,7 @@ function ClerkProviderWithRoutes() {
           <Route path="/firsatlarim"><ProtectedRoute component={proGate(FirsatlarimPage, { title: "Fırsatlarım Pro'ya özeldir", description: "Yapay zeka uygunluk skoruyla size en uygun ihaleleri görmek için Pro'ya geçin." })} /></Route>
           <Route path="/pipeline"><ProtectedRoute component={proGate(BoruHattiPage, { title: "Pipeline Pro'ya özeldir", description: "İhale sürecinizi aşamalara göre takip etmek için Pro'ya geçin." })} /></Route>
           <Route path="/raporlar"><ProtectedRoute component={proGate(RaporlarPage, { title: "Raporlar Pro'ya özeldir", description: "Başvuru performansı ve kategori raporlarınız için Pro planına geçin." })} /></Route>
+          <Route path="/rakipler"><ProtectedRoute component={proGate(RakiplerPage, { title: "Rakip Analizi Pro'ya özeldir", description: "Rakiplerinizi, iskonto oranlarını ve ihale geçmişlerini görmek için Pro'ya geçin." })} /></Route>
 
           <Route path="/pazarlama"><AdminRoute component={PazarlamaPage} /></Route>
           <Route path="/pazarlama/icerik-uretici"><AdminRoute component={ContentGeneratorPage} /></Route>

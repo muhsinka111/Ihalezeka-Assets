@@ -40,6 +40,7 @@ import {
   IconLock,
   IconSettings,
   IconZoomMoney,
+  IconSwords,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
@@ -54,6 +55,7 @@ const NAV_ITEMS = [
   { href: "/firsatlarim", label: "Fırsatlarım", icon: IconStarFilled, pro: true },
   { href: "/pipeline", label: "Pipeline", icon: IconListDetails, pro: true },
   { href: "/raporlar", label: "Raporlar", icon: IconChartAreaLine, pro: true },
+  { href: "/rakipler", label: "Rakip Analizi", icon: IconSwords, pro: true },
   { href: "/ayarlar", label: "Ayarlar", icon: IconSettings },
 ];
 
