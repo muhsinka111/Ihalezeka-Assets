@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requirePro, getBusinessId } from "../lib/authHelpers.js";
 import { db } from "@workspace/db";
-import { competitorsTable, awardResultsTable } from "@workspace/db";
+import { competitorsTable, awardResultsTable, tendersTable } from "@workspace/db";
 import { eq, desc, sql, ilike, and } from "drizzle-orm";
 
 const router = Router();
@@ -189,7 +189,44 @@ router.get("/competitors/market-overview", async (req, res) => {
       .orderBy(sql`COUNT(*) DESC`)
       .limit(20);
 
-    res.json({ topWinners, categoryStats });
+    // When award_results is empty, fall back to tenders table aggregates
+    if (topWinners.length === 0) {
+      const tendersByAgency = await db
+        .select({
+          company: sql<string>`agency_name`,
+          wins: sql<number>`COUNT(*)::int`,
+          avgDiscount: sql<number>`NULL::real`,
+          totalValue: sql<number>`COALESCE(SUM(estimated_value), 0)`,
+          avgBidders: sql<number>`NULL::real`,
+        })
+        .from(tendersTable)
+        .where(sql`agency_name IS NOT NULL AND agency_name != ''`)
+        .groupBy(sql`agency_name`)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(50);
+
+      const tendersByCategory = await db
+        .select({
+          category: tendersTable.category,
+          count: sql<number>`COUNT(*)::int`,
+          avgDiscount: sql<number>`NULL::real`,
+          avgBidders: sql<number>`NULL::real`,
+          avgPrice: sql<number>`AVG(estimated_value)`,
+        })
+        .from(tendersTable)
+        .where(sql`category IS NOT NULL AND category != ''`)
+        .groupBy(tendersTable.category)
+        .orderBy(sql`COUNT(*) DESC`)
+        .limit(20);
+
+      return res.json({
+        topWinners: tendersByAgency,
+        categoryStats: tendersByCategory,
+        source: "tenders",
+      });
+    }
+
+    res.json({ topWinners, categoryStats, source: "awards" });
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }

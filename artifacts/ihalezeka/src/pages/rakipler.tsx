@@ -79,6 +79,7 @@ interface MarketOverview {
     avgBidders: number | null;
     avgPrice: number | null;
   }[];
+  source?: "awards" | "tenders";
 }
 
 function formatCurrency(v: number | null | undefined): string {
@@ -181,7 +182,7 @@ export default function RakiplerPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <IconTrophy className="h-5 w-5 text-amber-500" />
-              En Çok Kazanan Firmalar
+              {marketData?.source === "tenders" ? "En Aktif Kurumlar" : "En Çok Kazanan Firmalar"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -201,7 +202,7 @@ export default function RakiplerPage() {
                   />
                   <Tooltip
                     formatter={(value: number, name: string) =>
-                      name === "wins" ? [`${value} ihale`, "Kazanılan"] : [formatCurrency(value), "Toplam Değer"]
+                      name === "wins" ? [`${value} ihale`, marketData?.source === "tenders" ? "İhale Sayısı" : "Kazanılan"] : [formatCurrency(value), "Toplam Değer"]
                     }
                     labelFormatter={(label: string) => label}
                   />
@@ -223,7 +224,7 @@ export default function RakiplerPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <IconPercentage className="h-5 w-5 text-emerald-500" />
-              Kategoriye Göre Ort. İskonto
+              {marketData?.source === "tenders" ? "Kategoriye Göre İhale Sayısı" : "Kategoriye Göre Ort. İskonto"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -231,17 +232,23 @@ export default function RakiplerPage() {
               <Skeleton className="h-64 w-full" />
             ) : marketData?.categoryStats && marketData.categoryStats.length > 0 ? (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={marketData.categoryStats.filter((c) => c.avgDiscount != null).slice(0, 8)}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="category"
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 13) + "…" : v}
-                  />
-                  <YAxis tickFormatter={(v) => `%${v.toFixed(0)}`} />
-                  <Tooltip formatter={(value: number) => [`%${value.toFixed(1)}`, "Ort. İskonto"]} />
-                  <Bar dataKey="avgDiscount" fill="#10B981" radius={[4, 4, 0, 0]} name="avgDiscount" />
-                </BarChart>
+                {marketData.source === "tenders" ? (
+                  <BarChart data={marketData.categoryStats.slice(0, 8)}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="category" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 13) + "…" : v} />
+                    <YAxis />
+                    <Tooltip formatter={(value: number) => [`${value} ihale`, "İhale Sayısı"]} />
+                    <Bar dataKey="count" fill="#2D5BFF" radius={[4, 4, 0, 0]} name="count" />
+                  </BarChart>
+                ) : (
+                  <BarChart data={marketData.categoryStats.filter((c) => c.avgDiscount != null).slice(0, 8)}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="category" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.length > 15 ? v.slice(0, 13) + "…" : v} />
+                    <YAxis tickFormatter={(v) => `%${v.toFixed(0)}`} />
+                    <Tooltip formatter={(value: number) => [`%${value.toFixed(1)}`, "Ort. İskonto"]} />
+                    <Bar dataKey="avgDiscount" fill="#10B981" radius={[4, 4, 0, 0]} name="avgDiscount" />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-12">Henüz veri yok.</p>

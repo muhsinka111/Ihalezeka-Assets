@@ -322,7 +322,7 @@ export async function runAwardScraper(): Promise<ScraperResult> {
     logger.info({ count: dbPending.length }, "Award scraper: past-deadline DB tenders pending enrichment");
 
     if (dbPending.length > 0) {
-      for (const row of dbPending.slice(0, 20)) {
+      for (const row of dbPending.slice(0, BATCH_SIZE)) {
         try {
           if (await alreadyProcessed(row.ikn)) continue;
           let text: string | null = null;
