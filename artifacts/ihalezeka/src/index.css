@@ -156,6 +156,13 @@
   }
 }
 
+@layer clerk {
+  [data-clerk-dev-mode-overlay],
+  [data-clerk-dev-mode-notice] {
+    display: none !important;
+  }
+}
+
 @keyframes scraper-slide {
   0% { left: -40%; }
   50% { left: 60%; }
