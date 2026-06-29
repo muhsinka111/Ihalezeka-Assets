@@ -465,12 +465,10 @@ let _aiAvailable: boolean | null = null;
 
 function isAiAvailable(): boolean {
   if (_aiAvailable === null) {
-    _aiAvailable =
-      !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL &&
-      !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    _aiAvailable = !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     if (!_aiAvailable) {
       logger.warn(
-        "AI_INTEGRATIONS_ANTHROPIC_BASE_URL or AI_INTEGRATIONS_ANTHROPIC_API_KEY not set — " +
+        "AI_INTEGRATIONS_ANTHROPIC_API_KEY not set — " +
           "tender scoring will use rule-based fallback only"
       );
     }
