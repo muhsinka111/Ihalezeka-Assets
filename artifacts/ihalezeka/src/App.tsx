@@ -89,7 +89,22 @@ const clerkAppearance = {
   },
 };
 
+function ClerkNotConfigured() {
+  return (
+    <div className="text-center py-8 px-4">
+      <h3 className="text-lg font-semibold text-slate-800 mb-2">Giriş sistemi yapılandırılıyor</h3>
+      <p className="text-sm text-slate-500 mb-4">
+        Clerk kimlik doğrulama servisi henüz yapılandırılmamış.
+      </p>
+      <p className="text-xs text-slate-400">
+        VITE_CLERK_PUBLISHABLE_KEY ortam değişkenini ayarlayın ve uygulamayı yeniden derleyin.
+      </p>
+    </div>
+  );
+}
+
 function SignInPage() {
+  if (!clerkPubKey) return <AuthLayout><ClerkNotConfigured /></AuthLayout>;
   return (
     <AuthLayout>
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
@@ -106,6 +121,7 @@ function AdminLoginPage() {
 }
 
 function SignUpPage() {
+  if (!clerkPubKey) return <AuthLayout><ClerkNotConfigured /></AuthLayout>;
   return (
     <AuthLayout>
       <SignUp
@@ -263,9 +279,26 @@ function FirstVisitRedirect() {
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
+  if (!clerkPubKey) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Switch>
+          <Route path="/" component={HomeRedirect} />
+          <Route path="/sign-in/*?" component={SignInPage} />
+          <Route path="/sign-up/*?" component={SignUpPage} />
+          <Route path="/fiyatlandirma" component={FiyatlandirmaPage} />
+          <Route path="/blog" component={BlogListPage} />
+          <Route path="/blog/:slug" component={BlogPostPage} />
+          <Route component={SignInPage} />
+        </Switch>
+        <Toaster position="top-right" richColors />
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <ClerkProvider
-      publishableKey={clerkPubKey!}
+      publishableKey={clerkPubKey}
       proxyUrl={clerkProxyUrl}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}

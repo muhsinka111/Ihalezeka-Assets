@@ -1,5 +1,6 @@
 import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
+import { Link } from "wouter";
 import {
   IconTargetArrow, IconBrain, IconEye, IconSearch,
   IconTrendingUp, IconCheck, IconArrowRight, IconClock,
@@ -213,6 +214,7 @@ const FEATURES = [
     gradient: "from-emerald-500/10 to-teal-500/5",
     borderColor: "border-emerald-200/60 dark:border-emerald-800/30",
     iconBg: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400",
+    link: "/sign-up",
   },
   {
     icon: IconBrain,
@@ -225,6 +227,7 @@ const FEATURES = [
     gradient: "from-[#2D5BFF]/10 to-[#EAEFFF]/5",
     borderColor: "border-[#2D5BFF]/20 dark:border-[#2D5BFF]/30",
     iconBg: "bg-[#EAEFFF] dark:bg-[#2D5BFF]/20 text-[#2D5BFF] dark:text-[#6E8BFF]",
+    link: "/sign-up",
   },
   {
     icon: IconEye,
@@ -237,6 +240,7 @@ const FEATURES = [
     gradient: "from-[#2D5BFF]/10 to-[#EAEFFF]/5",
     borderColor: "border-[#2D5BFF]/20 dark:border-[#2D5BFF]/30",
     iconBg: "bg-[#EAEFFF] dark:bg-[#2D5BFF]/20 text-[#2D5BFF] dark:text-[#6E8BFF]",
+    link: "/sign-up",
   },
   {
     icon: IconSearch,
@@ -249,6 +253,7 @@ const FEATURES = [
     gradient: "from-blue-500/10 to-sky-500/5",
     borderColor: "border-blue-200/60 dark:border-blue-800/30",
     iconBg: "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400",
+    link: "/sign-up",
   },
 ];
 
@@ -345,9 +350,9 @@ export function ValueProps() {
                   <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">{f.stat.value}</span>
                   <span className="text-xs text-muted-foreground">{f.stat.label}</span>
                 </div>
-                <button className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
+                <Link href={f.link} className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
                   Keşfet <IconArrowRight className="h-3.5 w-3.5" />
-                </button>
+                </Link>
               </div>
             </motion.div>
           ))}
