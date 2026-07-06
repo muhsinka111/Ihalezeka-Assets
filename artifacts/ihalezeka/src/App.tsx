@@ -149,7 +149,17 @@ function HomeRedirect() {
  * users to /sign-in. Signed-in users without a company profile are nudged to
  * the wizard (unless they are already on it or explicitly skipped it this session).
  */
+const BYPASS_AUTH = import.meta.env.VITE_BYPASS_AUTH === "true";
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  if (BYPASS_AUTH) {
+    return (
+      <AppShell>
+        <Component />
+      </AppShell>
+    );
+  }
+
   return (
     <>
       <Show when="signed-in">
