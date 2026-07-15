@@ -3,19 +3,15 @@ import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
-import { clerkMiddleware } from "@clerk/express";
 import router from "./routes";
 import sitemapRouter from "./routes/sitemap";
 import blogRouter from "./routes/blog";
 import legalRouter from "./routes/legal";
 import { logger } from "./lib/logger";
 import { WebhookHandlers } from "./lib/webhookHandlers";
-import { handleClerkWebhook } from "./routes/clerkWebhook";
-import {
-  CLERK_PROXY_PATH,
-  clerkProxyMiddleware,
-} from "./middlewares/clerkProxyMiddleware";
+import { sessionAuthMiddleware } from "./middlewares/sessionAuth";
 import { startScraperScheduler } from "./scrapers/scheduler";
 import { startSocialPostScheduler } from "./routes/marketing";
 
@@ -40,12 +36,6 @@ app.use(
     },
   }),
 );
-
-app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
-
-// Clerk webhook — raw body required for Svix signature verification,
-// must be registered BEFORE express.json().
-app.post("/api/webhooks/clerk", express.raw({ type: "application/json" }), handleClerkWebhook);
 
 // Stripe webhook MUST be registered with a raw body BEFORE express.json(),
 // otherwise the signature verification fails (the SDK needs the exact bytes).
@@ -79,10 +69,8 @@ app.post(
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Use env-var keys directly — avoids dynamic key computation that can
-// produce a mismatched publishable key under the Replit proxy headers.
-app.use(clerkMiddleware());
+app.use(cookieParser());
+app.use(sessionAuthMiddleware());
 
 app.use("/api", router);
 

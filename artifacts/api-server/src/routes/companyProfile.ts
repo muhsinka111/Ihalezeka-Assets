@@ -8,10 +8,10 @@ import { getUserId } from "../lib/authHelpers.js";
 const router = Router();
 
 /**
- * Resolve the businessId for the current request. When the user is authenticated
- * via Clerk, their Clerk userId IS their businessId (1:1 mapping). When running
- * in dev-bypass mode the shared "demo-business" sentinel is preserved so local
- * dev still works without any auth.
+ * Resolve the businessId for the current request. When the user is authenticated,
+ * their userId IS their businessId (1:1 mapping). When running in dev-bypass mode
+ * the shared "demo-business" sentinel is preserved so local dev still works
+ * without any auth.
  */
 function getBusinessId(req: Parameters<typeof getUserId>[0]): string {
   const userId = getUserId(req);

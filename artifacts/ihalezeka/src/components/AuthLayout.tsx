@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { isDevLoginEnabled } from "@/lib/devLogin";
+import { useAuth } from "@/lib/auth";
 
 const FEATURES = [
   "AI uygunluk skoru",
@@ -12,7 +12,7 @@ const FEATURES = [
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 function DevLoginButton() {
-  const clerk = useClerk();
+  const { refresh } = useAuth();
   const [loading, setLoading] = useState(false);
   const [, setLocation] = useLocation();
 
@@ -20,10 +20,8 @@ function DevLoginButton() {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/admin/dev-token`, { method: "POST", credentials: "include" });
-      const { token } = await res.json();
-      const result = await (clerk.client as any).signIn.create({ strategy: "ticket", ticket: token });
-      if (result.status === "complete") {
-        await clerk.setActive({ session: result.createdSessionId });
+      if (res.ok) {
+        await refresh();
         setLocation("/dashboard");
       }
     } catch {

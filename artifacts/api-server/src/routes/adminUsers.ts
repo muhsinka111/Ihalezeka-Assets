@@ -1,10 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable, companyProfilesTable, emailLogsTable } from "@workspace/db";
 import { eq, sql, desc, ilike, or, isNotNull } from "drizzle-orm";
+import crypto from "node:crypto";
 import { logger } from "../lib/logger.js";
-import { invalidateEntitlement } from "../lib/authHelpers.js";
+import { getUserId, invalidateEntitlement, DEFAULT_USER_ID } from "../lib/authHelpers.js";
+import { createSession, setSessionCookie } from "../lib/sessionHelpers.js";
 import { sendEmail } from "../lib/emailService.js";
 
 const router = Router();
@@ -12,8 +13,8 @@ const router = Router();
 const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 
 async function checkIsAdmin(req: Request): Promise<boolean> {
-  const { userId } = getAuth(req);
-  if (!userId) return false;
+  const userId = getUserId(req);
+  if (!userId || userId === DEFAULT_USER_ID) return false;
   if (ADMIN_USER_ID && userId === ADMIN_USER_ID) return true;
   try {
     const [row] = await db
@@ -214,44 +215,43 @@ router.patch("/admin/users/:id", requireAdmin, async (req, res) => {
   }
 });
 
-const ADMIN_CLERK_USER_ID = "user_3FXTJpEbRYjciktMvEP6P5DfimG";
+const DEV_ADMIN_EMAIL = "dev-admin@ihalezeka.local";
 
 router.post("/admin/dev-token", async (req, res) => {
-  // Dev-only convenience: mints an admin sign-in token without auth. This MUST
-  // never be reachable in production — gate strictly on NODE_ENV so deployed
-  // builds (NODE_ENV=production) return 404 and cannot be used to impersonate
-  // the admin account.
+  // Dev-only convenience: signs the caller in as a standing dev-admin account
+  // directly (no external identity provider round-trip). This MUST never be
+  // reachable in production — gate strictly on NODE_ENV so deployed builds
+  // (NODE_ENV=production) return 404 and cannot be used to impersonate an admin.
   if (process.env["NODE_ENV"] === "production") {
     res.status(404).json({ error: "Not found" });
     return;
   }
 
-  const clerkSecretKey = process.env["CLERK_SECRET_KEY"];
-  if (!clerkSecretKey) {
-    res.status(500).json({ error: "CLERK_SECRET_KEY not set" });
-    return;
-  }
-
   try {
-    const response = await fetch("https://api.clerk.com/v1/sign_in_tokens", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${clerkSecretKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ user_id: ADMIN_CLERK_USER_ID, expires_in_seconds: 120 }),
-    });
+    let [devAdmin] = await db
+      .select({ userId: usersTable.userId })
+      .from(usersTable)
+      .where(eq(usersTable.email, DEV_ADMIN_EMAIL))
+      .limit(1);
 
-    const data = (await response.json()) as { token?: string; errors?: unknown };
-    if (!data.token) {
-      res.status(500).json({ error: "Token alınamadı", detail: data.errors });
-      return;
+    if (!devAdmin) {
+      const userId = `usr_${crypto.randomUUID().replace(/-/g, "")}`;
+      await db.insert(usersTable).values({
+        userId,
+        email: DEV_ADMIN_EMAIL,
+        name: "Dev Admin",
+        isAdmin: true,
+        isProOverride: true,
+      });
+      devAdmin = { userId };
     }
 
-    res.json({ token: data.token });
+    const token = await createSession(devAdmin.userId);
+    setSessionCookie(res, token);
+    res.json({ ok: true });
   } catch (err) {
-    logger.error({ err }, "Failed to generate admin sign-in token");
-    res.status(500).json({ error: "Token oluşturulamadı" });
+    logger.error({ err }, "Failed to create dev-admin session");
+    res.status(500).json({ error: "Oturum oluşturulamadı" });
   }
 });
 

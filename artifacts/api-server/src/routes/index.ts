@@ -20,9 +20,11 @@ import creditsRouter from "./credits";
 import adminUsersRouter from "./adminUsers";
 import apiBlogRouter from "./apiBlog";
 import competitorsRouter from "./competitors";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(apiBlogRouter);
 router.use(aiChatRouter);
 router.use(healthRouter);

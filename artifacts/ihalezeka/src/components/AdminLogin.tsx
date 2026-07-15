@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useClerk } from "@clerk/react";
 import { useLocation } from "wouter";
 import { Shield } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export function AdminLogin() {
-  const clerk = useClerk();
+  const { refresh } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [, setLocation] = useLocation();
@@ -20,22 +20,14 @@ export function AdminLogin() {
         method: "POST",
         credentials: "include",
       });
-      const { token, error: apiError } = await res.json();
-      if (!token) throw new Error(apiError || "Token alınamadı");
-
-      const result = await (clerk.client as any).signIn.create({
-        strategy: "ticket",
-        ticket: token,
-      });
-
-      if (result.status === "complete") {
-        await clerk.setActive({ session: result.createdSessionId });
-        setLocation("/dashboard");
-      } else {
-        setError("Giriş tamamlanamadı: " + result.status);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Giriş başarısız");
       }
+      await refresh();
+      setLocation("/dashboard");
     } catch (err: any) {
-      setError(err?.errors?.[0]?.message || err?.message || "Giriş başarısız");
+      setError(err?.message || "Giriş başarısız");
     } finally {
       setLoading(false);
     }
