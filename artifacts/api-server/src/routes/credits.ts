@@ -10,7 +10,7 @@ const router = Router();
  * GET /api/credits — return the current user's remaining AI search credits.
  * Returns { credits: number }. Pro users are not subject to credit limits, but
  * this endpoint still returns their stored value (irrelevant to them).
- * Requires a verified Clerk session — returns 401 for unauthenticated callers.
+ * Requires a verified session — returns 401 for unauthenticated callers.
  */
 router.get("/credits", requireAuth, async (req, res) => {
   try {

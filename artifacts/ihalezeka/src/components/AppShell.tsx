@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useUser, useClerk } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { useAiPanelStore } from "@/store/aiPanelStore";
 import { Button } from "@/components/ui/button";
@@ -69,8 +69,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export function AppShell({ children }: AppShellProps) {
   const [location, navigate] = useLocation();
-  const { user } = useUser();
-  const { signOut } = useClerk();
+  const { user, signOut } = useAuth();
   const { isOpen: aiOpen, togglePanel, closePanel } = useAiPanelStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [topSearch, setTopSearch] = useState("");
@@ -282,16 +281,12 @@ export function AppShell({ children }: AppShellProps) {
               collapsed ? "p-1" : "flex-1 p-1 -m-1"
             )}>
               <div className="h-8 w-8 rounded-full bg-[#2D5BFF] flex items-center justify-center shrink-0 text-xs font-semibold text-white shadow-sm overflow-hidden">
-                {user?.imageUrl ? (
-                  <img src={user.imageUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  user?.firstName?.[0] ?? "M"
-                )}
+                {user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? "M"}
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.firstName ?? "Mehmet Yılmaz"}</p>
+                    <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.name ?? "Mehmet Yılmaz"}</p>
                     <Badge className={cn(
                       "text-[9px] px-1 py-0 h-3.5",
                       isPro
@@ -299,14 +294,14 @@ export function AppShell({ children }: AppShellProps) {
                         : "bg-sidebar-foreground/10 text-sidebar-foreground/60 border-sidebar-foreground/20"
                     )}>{isPro ? "Pro" : "Ücretsiz"}</Badge>
                   </div>
-                  <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.emailAddresses?.[0]?.emailAddress ?? "mehmet@firma.com"}</p>
+                  <p className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email ?? "mehmet@firma.com"}</p>
                 </div>
               )}
             </a>
           </Link>
           {!collapsed && (
             <Button variant="ghost" size="icon" className="h-7 w-7 text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent shrink-0"
-              onClick={() => signOut()}>
+              onClick={() => { signOut(); navigate("/"); }}>
               <IconLogout className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -424,7 +419,7 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-xs font-semibold text-white ml-1 cursor-pointer">
-              {user?.firstName?.[0] ?? <IconUser className="h-3.5 w-3.5" />}
+              {user?.name?.[0] ?? user?.email?.[0]?.toUpperCase() ?? <IconUser className="h-3.5 w-3.5" />}
             </div>
           </div>
         </header>

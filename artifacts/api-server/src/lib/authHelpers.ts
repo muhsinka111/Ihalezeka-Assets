@@ -1,5 +1,4 @@
 import type { Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, sql, gt, and } from "drizzle-orm";
@@ -8,12 +7,12 @@ import { getUncachableStripeClient } from "./stripeClient.js";
 /**
  * Returns the businessId to scope all queries against.
  *
- * For authenticated Clerk sessions the Clerk userId IS the businessId (1:1).
+ * For authenticated sessions the userId IS the businessId (1:1).
  * For the dev-bypass sentinel ("demo-user") we return "demo-business" so that
  * all existing seed data remains accessible during local development — the same
  * mapping already applied in companyProfile.ts.
  *
- * Real Clerk users start with empty state and build their own data under their
+ * Real users start with empty state and build their own data under their
  * userId; no "demo-business" data is ever surfaced to them.
  */
 export function getBusinessId(req: Request): string {
@@ -25,36 +24,35 @@ export function getBusinessId(req: Request): string {
 /**
  * Shared sentinel for the anonymous/dev-bypass user.
  *
- * DEV BYPASS: while the Clerk auth gate in the SPA is disabled, every visitor
- * resolves to this single id. That means one Stripe checkout flips EVERYONE to
- * Pro. This is acceptable for the current pre-launch phase. In production
- * (NODE_ENV=production) the billing routes refuse to operate for this sentinel
- * so checkout/portal require a real authenticated Clerk session.
+ * DEV BYPASS: while the frontend auth gate is disabled (VITE_BYPASS_AUTH), every
+ * visitor resolves to this single id. That means one Stripe checkout flips
+ * EVERYONE to Pro. This is acceptable for the current pre-launch phase. In
+ * production the billing routes refuse to operate for this sentinel so
+ * checkout/portal require a real authenticated session.
  */
 export const DEFAULT_USER_ID = "demo-user";
 
 /**
- * Centralized resolver for the current user's id. Returns the Clerk userId when
- * a session is present, otherwise the shared dev-bypass sentinel.
+ * Centralized resolver for the current user's id. Returns the session userId
+ * (attached by sessionAuthMiddleware) when a valid session cookie is present,
+ * otherwise the shared dev-bypass sentinel.
  */
 export function getUserId(req: Request): string {
-  const { userId } = getAuth(req);
-  return userId ?? DEFAULT_USER_ID;
+  return req.authUserId ?? DEFAULT_USER_ID;
 }
 
 /**
- * Express middleware that requires a verified Clerk session. Returns 401 for
- * any request that lacks a valid JWT (unauthenticated or expired session).
- * Use this on credit-gated or user-scoped endpoints that are available to both
- * free and Pro users, as an alternative to the stronger `requirePro` guard.
+ * Express middleware that requires a verified session. Returns 401 for any
+ * request without a valid session cookie. Use this on credit-gated or
+ * user-scoped endpoints that are available to both free and Pro users, as an
+ * alternative to the stronger `requirePro` guard.
  */
 export function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
 ): void {
-  const { userId } = getAuth(req);
-  if (!userId) {
+  if (!req.authUserId) {
     res.status(401).json({ error: "auth_required", message: "Giriş yapmanız gerekiyor." });
     return;
   }

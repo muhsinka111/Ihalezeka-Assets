@@ -1,5 +1,4 @@
-import { Router } from "express";
-import { getAuth } from "@clerk/express";
+import { Router, type Request } from "express";
 import { desc, eq, sql, count } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { scraperRunsTable, tendersTable } from "@workspace/db";
@@ -10,6 +9,7 @@ import { scoreAndNotify } from "../lib/notificationDispatcher.js";
 import { logger } from "../lib/logger.js";
 import { isScraperRunning } from "../scrapers/scheduler.js";
 import { SOURCE_LABELS } from "../scrapers/utils.js";
+import { getUserId } from "../lib/authHelpers.js";
 
 const router = Router();
 
@@ -18,10 +18,9 @@ const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 /** All known sources — derived from SOURCE_LABELS so new scrapers appear automatically. */
 const ALL_SOURCES = Object.keys(SOURCE_LABELS);
 
-function isAdmin(req: Parameters<typeof getAuth>[0]): boolean {
+function isAdmin(req: Request): boolean {
   if (!ADMIN_USER_ID) return true;
-  const { userId } = getAuth(req);
-  return userId === ADMIN_USER_ID;
+  return getUserId(req) === ADMIN_USER_ID;
 }
 
 interface RecentRunRow {

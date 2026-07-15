@@ -22,6 +22,8 @@ export const usersTable = pgTable(
     id: serial("id").primaryKey(),
     userId: text("user_id").notNull(),
     email: text("email"),
+    name: text("name"),
+    passwordHash: text("password_hash"),
     stripeCustomerId: text("stripe_customer_id"),
     stripeSubscriptionId: text("stripe_subscription_id"),
     searchCredits: integer("search_credits").notNull().default(2),

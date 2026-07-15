@@ -10,7 +10,7 @@ import {
   IconShieldCheck,
   IconSettings,
 } from "@tabler/icons-react";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { startCheckout, openBillingPortal } from "@/lib/billing";
 import { toast } from "sonner";

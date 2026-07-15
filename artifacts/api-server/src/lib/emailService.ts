@@ -296,7 +296,7 @@ export function buildSavedSearchEmailHtml(
 }
 
 /**
- * Welcome email sent immediately after a new user signs up via Clerk.
+ * Welcome email sent immediately after a new user signs up.
  */
 export function buildWelcomeEmailHtml(opts: { name: string; email: string }): string {
   const appUrl = (process.env.APP_URL ?? "https://ihalezeka.com").replace(/\/$/, "");

@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useUser } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useGetCompanyProfile, useUpsertCompanyProfile, getGetCompanyProfileQueryKey } from "@workspace/api-client-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +15,6 @@ import {
   IconUser,
   IconBuilding,
   IconLock,
-  IconCamera,
   IconCheck,
   IconX,
   IconPlus,
@@ -391,51 +390,36 @@ function TagInput({
   );
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+
 function ProfilTab() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, refresh } = useAuth();
   const { data: profile } = useGetCompanyProfile();
   const mutation = useUpsertCompanyProfile();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [firstName, setFirstName] = useState<string | null>(null);
-  const [lastName, setLastName] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null);
   const [bio, setBio] = useState<string | null>(null);
   const [savingName, setSavingName] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   if (!isLoaded) return <Skeleton className="h-64 w-full" />;
 
-  const displayFirstName = firstName ?? user?.firstName ?? "";
-  const displayLastName = lastName ?? user?.lastName ?? "";
+  const displayName = name ?? user?.name ?? "";
   const displayBio = bio ?? (profile as any)?.aiBrief ?? "";
 
-  const handleAvatarClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingAvatar(true);
-    try {
-      await user?.setProfileImage({ file });
-      toast.success("Profil fotoğrafı güncellendi.");
-    } catch {
-      toast.error("Fotoğraf yüklenemedi. Lütfen tekrar deneyin.");
-    } finally {
-      setUploadingAvatar(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
   const handleSaveName = async () => {
-    if (savingName) return;
+    if (savingName || !displayName.trim()) return;
     setSavingName(true);
     try {
-      await user?.update({
-        firstName: displayFirstName,
-        lastName: displayLastName,
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: displayName }),
       });
+      if (!res.ok) throw new Error();
+      await refresh();
       toast.success("İsim güncellendi.");
     } catch {
       toast.error("İsim güncellenemedi.");
@@ -465,68 +449,26 @@ function ProfilTab() {
     }
   };
 
-  const initials = ((user?.firstName?.[0] ?? "") + (user?.lastName?.[0] ?? "")).toUpperCase() || "U";
+  const initials = (user?.name?.[0] ?? user?.email?.[0] ?? "U").toUpperCase();
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Profil Fotoğrafı</CardTitle>
-          <CardDescription>JPEG veya PNG, en fazla 5 MB.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center gap-5">
-          <div className="relative group">
-            <div className="h-20 w-20 rounded-full bg-[#2D5BFF] flex items-center justify-center text-2xl font-bold text-white overflow-hidden shadow-md">
-              {user?.imageUrl ? (
-                <img src={user.imageUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                initials
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handleAvatarClick}
-              disabled={uploadingAvatar}
-              className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-            >
-              <IconCamera className="h-5 w-5 text-white" />
-            </button>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <Button variant="outline" size="sm" onClick={handleAvatarClick} disabled={uploadingAvatar}>
-            {uploadingAvatar ? "Yükleniyor…" : "Fotoğraf Değiştir"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle className="text-base">Ad Soyad</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label>Ad</Label>
-              <Input
-                value={displayFirstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                onBlur={handleSaveName}
-                placeholder="Adınız"
-              />
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-[#2D5BFF] flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-md">
+              {initials}
             </div>
-            <div className="space-y-1.5">
-              <Label>Soyad</Label>
+            <div className="flex-1 space-y-1.5">
+              <Label>Ad Soyad</Label>
               <Input
-                value={displayLastName}
-                onChange={(e) => setLastName(e.target.value)}
+                value={displayName}
+                onChange={(e) => setName(e.target.value)}
                 onBlur={handleSaveName}
-                placeholder="Soyadınız"
+                placeholder="Adınız Soyadınız"
               />
             </div>
           </div>
@@ -991,7 +933,6 @@ function SirketTab() {
 }
 
 function GuvenlikTab() {
-  const { user } = useUser();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -1011,14 +952,22 @@ function GuvenlikTab() {
 
     setSaving(true);
     try {
-      await user?.updatePassword({ currentPassword, newPassword });
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "Şifre güncellenemedi.");
+      }
       toast.success("Şifreniz başarıyla güncellendi.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err: any) {
-      const msg = err?.errors?.[0]?.message ?? err?.message ?? "Şifre güncellenemedi.";
-      toast.error(msg);
+      toast.error(err?.message ?? "Şifre güncellenemedi.");
     } finally {
       setSaving(false);
     }

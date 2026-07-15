@@ -2,13 +2,12 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import { db } from "@workspace/db";
 import { socialConnectionsTable, socialPostsTable, usersTable } from "@workspace/db";
 import { eq, and, desc, lte } from "drizzle-orm";
-import { getAuth } from "@clerk/express";
+import { getUserId } from "../lib/authHelpers.js";
 import { logger } from "../lib/logger.js";
 import crypto from "crypto";
 
 const router = Router();
 
-const DEFAULT_USER_ID = "demo-user";
 const ADMIN_USER_ID = process.env["ADMIN_USER_ID"];
 
 // ── Token encryption (AES-256-GCM) ───────────────────────────────────────────
@@ -64,11 +63,6 @@ setInterval(cleanOAuthStore, 60_000).unref();
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
 
-function getUserId(req: Request): string {
-  const { userId } = getAuth(req);
-  return userId ?? DEFAULT_USER_ID;
-}
-
 /**
  * Fail-closed admin check.
  * - When ADMIN_USER_ID is configured: that user is always admin (bootstrap mechanism).
@@ -77,8 +71,8 @@ function getUserId(req: Request): string {
  * Never returns true for unauthenticated requests.
  */
 async function checkIsAdmin(req: Request): Promise<boolean> {
-  const { userId } = getAuth(req);
-  if (!userId) return false;
+  const userId = getUserId(req);
+  if (!userId || userId === "demo-user") return false;
   if (ADMIN_USER_ID && userId === ADMIN_USER_ID) return true;
   try {
     const [row] = await db

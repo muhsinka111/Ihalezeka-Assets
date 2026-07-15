@@ -1,8 +1,7 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { getAuth } from "@clerk/express";
 import {
   getUserId,
   getEntitlement,
@@ -14,11 +13,16 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
-/** Email from the Clerk session claims, if any. */
-function getSessionEmail(req: Parameters<typeof getAuth>[0]): string | undefined {
-  const claims = getAuth(req as any).sessionClaims as Record<string, unknown> | null | undefined;
-  const email = claims?.["email"];
-  return typeof email === "string" ? email : undefined;
+/** Email for the current session's user, if any — looked up from our own users table. */
+async function getSessionEmail(req: Request): Promise<string | undefined> {
+  const userId = getUserId(req);
+  if (!userId || userId === DEFAULT_USER_ID) return undefined;
+  const [row] = await db
+    .select({ email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.userId, userId))
+    .limit(1);
+  return row?.email ?? undefined;
 }
 
 /** Build an absolute return URL from the browser origin + the app base path. */
@@ -328,7 +332,7 @@ router.post("/billing/checkout", async (req, res) => {
 
     // ── Attempt dynamic Stripe Checkout session ───────────────────────────
     try {
-      const email = getSessionEmail(req);
+      const email = await getSessionEmail(req);
       const customerId = await ensureStripeCustomer(userId, email);
 
       const stripe = await getUncachableStripeClient();
@@ -396,7 +400,7 @@ router.post("/billing/checkout-session", async (req, res) => {
       return res.status(503).json({ error: "no_price_configured" });
     }
 
-    const email = getSessionEmail(req);
+    const email = await getSessionEmail(req);
     const customerId = await ensureStripeCustomer(userId, email);
     logger.info({ userId, customerId, priceId }, "Creating hosted checkout session");
 
@@ -555,7 +559,7 @@ router.post("/billing/portal", async (req, res) => {
 
   try {
     // Resolve email from session claims so we can create a customer if needed.
-    const email = getSessionEmail(req);
+    const email = await getSessionEmail(req);
 
     // Create a Stripe customer on-the-fly if the user has never gone through
     // checkout (e.g. dev/force-pro accounts, or webhook delivery gap).
