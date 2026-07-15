@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
-import { shadcn } from "@clerk/themes";
 import { Switch, Route, Redirect, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -48,7 +47,6 @@ function stripBase(path: string): string {
 }
 
 const clerkAppearance = {
-  baseTheme: shadcn,
   cssLayerName: "clerk",
   options: {
     logoPlacement: "none" as const,
