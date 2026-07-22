@@ -57,3 +57,36 @@ ${urlEntries}
 });
 
 export default router;
+
+// ── Google Search Console verification ──────────────────────────────────
+// Serves the google<code>.html verification file. Two options:
+//  1. Place the file from Search Console into artifacts/api-server/public/
+//     (e.g. public/google1234567890abcdef.html) → served at /google...html
+//  2. Set GOOGLE_SITE_VERIFICATION env to the <code> value from Search
+//     Console; the route synthesizes the file on the fly (no redeploy).
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = join(__dirname, "..", "..", "public");
+
+router.get(/^\/google[a-z0-9]+\.html$/, async (req, res) => {
+  // Option 2: env-based code (highest priority, zero-redeploy)
+  const envCode = process.env.GOOGLE_SITE_VERIFICATION;
+  const reqCode = req.path.match(/^\/google([a-z0-9]+)\.html$/)?.[1];
+  if (envCode && reqCode === envCode) {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`google-site-verification: ${envCode}`);
+    return;
+  }
+  // Option 1: static file in public/
+  try {
+    const file = join(PUBLIC_DIR, req.path.replace(/^\//, ""));
+    const html = await readFile(file, "utf-8");
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch {
+    res.status(404).send("Not found");
+  }
+});

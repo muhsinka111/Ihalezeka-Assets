@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İhaleZeka — Yapay Zekâ Destekli Kamu İhalesi İstihbaratı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#050810; --bg2:#0a0f1e; --blue:#3b82f6; --cyan:#22d3ee;
+    --text:#e5e9f2; --muted:#8b93a7; --border:rgba(255,255,255,.08);
+    --glass:rgba(255,255,255,.04);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overflow-x:hidden;line-height:1.6}
+  h1,h2,h3,.sg{font-family:'Space Grotesk',sans-serif}
+  a{text-decoration:none;color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ---------- NAV ---------- */
+  nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    background:rgba(5,8,16,.7);border-bottom:1px solid var(--border)}
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:68px}
+  .logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk';font-weight:700;font-size:1.2rem}
+  .logo-badge{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ef4444,#b91c1c);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;color:#fff;
+    box-shadow:0 0 18px rgba(239,68,68,.45)}
+  .nav-links{display:flex;gap:32px;font-size:.92rem;color:var(--muted)}
+  .nav-links a:hover{color:#fff;transition:.2s}
+  .nav-cta{display:flex;gap:12px;align-items:center}
+  .btn{display:inline-block;padding:11px 22px;border-radius:10px;font-weight:600;font-size:.92rem;transition:.25s;cursor:pointer;border:none}
+  .btn-ghost{color:var(--text);background:transparent}
+  .btn-ghost:hover{background:rgba(255,255,255,.06)}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;
+    box-shadow:0 0 24px rgba(59,130,246,.35)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 36px rgba(34,211,238,.5)}
+  .btn-lg{padding:15px 32px;font-size:1rem;border-radius:12px}
+  .btn-outline{background:rgba(255,255,255,.05);border:1px solid var(--border);color:#fff}
+  .btn-outline:hover{border-color:rgba(34,211,238,.5);background:rgba(34,211,238,.08)}
+  .hamburger{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;min-height:100vh;display:flex;align-items:center;padding:140px 0 80px;overflow:hidden}
+  #heroCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .hero-glow{position:absolute;width:700px;height:700px;border-radius:50%;filter:blur(140px);z-index:0;opacity:.35;pointer-events:none}
+  .glow1{background:radial-gradient(circle,var(--blue),transparent 70%);top:-200px;left:-150px;animation:drift 14s ease-in-out infinite alternate}
+  .glow2{background:radial-gradient(circle,var(--cyan),transparent 70%);bottom:-250px;right:-150px;animation:drift 18s ease-in-out infinite alternate-reverse}
+  @keyframes drift{from{transform:translate(0,0) scale(1)}to{transform:translate(60px,40px) scale(1.15)}}
+  .hero-grid{position:absolute;inset:0;z-index:0;
+    background-image:linear-gradient(rgba(59,130,246,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.07) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse 80% 60% at 50% 40%,#000 30%,transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse 80% 60% at 50% 40%,#000 30%,transparent 75%);
+    animation:gridmove 12s linear infinite}
+  @keyframes gridmove{from{background-position:0 0}to{background-position:56px 56px}}
+  .hero-in{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr .9fr;gap:60px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:999px;font-size:.8rem;
+    background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.25);color:var(--cyan);margin-bottom:24px}
+  .pill::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.4}}
+  .hero h1{font-size:clamp(2.4rem,5.2vw,4.2rem);line-height:1.08;font-weight:700;letter-spacing:-.02em;margin-bottom:22px}
+  .grad-text{background:linear-gradient(120deg,#fff 20%,var(--blue) 55%,var(--cyan) 85%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+  .hero p.sub{color:var(--muted);font-size:1.12rem;max-width:520px;margin-bottom:34px}
+  .hero-ctas{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:48px}
+  .hero-stats{display:flex;gap:44px;flex-wrap:wrap}
+  .hstat .num{font-family:'Space Grotesk';font-size:1.9rem;font-weight:700;
+    background:linear-gradient(135deg,#fff,var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hstat .lbl{font-size:.82rem;color:var(--muted);margin-top:2px}
+
+  /* 3D dashboard card */
+  .tilt-scene{perspective:1200px}
+  .dash{background:linear-gradient(160deg,rgba(255,255,255,.09),rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:22px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(59,130,246,.12);
+    transform-style:preserve-3d;transition:transform .12s ease-out;will-change:transform;
+    backdrop-filter:blur(10px)}
+  .dash-head{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dash-title{margin-left:auto;font-size:.78rem;color:var(--muted);font-family:'Space Grotesk'}
+  .dash-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;
+    background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);margin-bottom:10px;transform:translateZ(30px)}
+  .dash-row .t{font-size:.85rem;font-weight:600}
+  .dash-row .s{font-size:.72rem;color:var(--muted)}
+  .score{font-family:'Space Grotesk';font-weight:700;font-size:.85rem;padding:5px 12px;border-radius:8px}
+  .score.hi{background:rgba(34,211,238,.15);color:var(--cyan);box-shadow:0 0 14px rgba(34,211,238,.25)}
+  .score.mid{background:rgba(59,130,246,.15);color:var(--blue)}
+  .score.lo{background:rgba(148,163,184,.12);color:#94a3b8}
+  .dash-bars{display:flex;gap:6px;align-items:flex-end;height:56px;margin-top:16px;transform:translateZ(40px)}
+  .dash-bars span{flex:1;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--cyan),var(--blue));opacity:.8;animation:bar 3s ease-in-out infinite alternate}
+  @keyframes bar{from{transform:scaleY(.75)}to{transform:scaleY(1)}}
+  .dash-bars span{transform-origin:bottom}
+
+  /* ---------- PROOF ---------- */
+  .proof{border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:34px 0;background:var(--bg2)}
+  .proof-in{display:flex;align-items:center;justify-content:center;gap:14px 44px;flex-wrap:wrap;
+    color:#5b6478;font-family:'Space Grotesk';font-weight:600;font-size:1.02rem;letter-spacing:.04em}
+  .proof-in span{transition:.3s}
+  .proof-in span:hover{color:var(--cyan);text-shadow:0 0 18px rgba(34,211,238,.4)}
+  .proof-label{width:100%;text-align:center;font-size:.75rem;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-bottom:18px;font-family:'Inter';font-weight:500}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:110px 0}
+  .sec-head{text-align:center;max-width:640px;margin:0 auto 64px}
+  .sec-tag{font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);font-weight:600;margin-bottom:14px}
+  .sec-head h2{font-size:clamp(1.8rem,3.6vw,2.7rem);letter-spacing:-.02em;margin-bottom:14px}
+  .sec-head p{color:var(--muted)}
+
+  /* Features */
+  .features{background:var(--bg2)}
+  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{background:var(--glass);border:1px solid var(--border);border-radius:18px;padding:32px 28px;
+    backdrop-filter:blur(8px);transition:transform .35s,border-color .35s,box-shadow .35s;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;inset:0;border-radius:18px;opacity:0;transition:.4s;pointer-events:none;
+    background:radial-gradient(500px circle at var(--mx,50%) var(--my,50%),rgba(34,211,238,.09),transparent 45%)}
+  .card:hover{transform:translateY(-6px);border-color:rgba(34,211,238,.35);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 40px rgba(59,130,246,.1)}
+  .card:hover::before{opacity:1}
+  .icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.35rem;
+    background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(34,211,238,.12));border:1px solid rgba(59,130,246,.3);margin-bottom:20px}
+  .card h3{font-size:1.12rem;margin-bottom:10px}
+  .card p{font-size:.9rem;color:var(--muted)}
+
+  /* Steps */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;counter-reset:step}
+  .step{position:relative;padding:30px 24px;border-radius:18px;background:var(--glass);border:1px solid var(--border)}
+  .step .n{font-family:'Space Grotesk';font-size:2.4rem;font-weight:700;
+    background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;opacity:.9}
+  .step h3{font-size:1.02rem;margin:12px 0 8px}
+  .step p{font-size:.87rem;color:var(--muted)}
+
+  /* Stats band */
+  .band{background:linear-gradient(120deg,rgba(59,130,246,.12),rgba(34,211,238,.07));
+    border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:80px 0}
+  .band-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;text-align:center}
+  .band .big{font-family:'Space Grotesk';font-size:clamp(2.2rem,4vw,3.4rem);font-weight:700;
+    background:linear-gradient(135deg,#fff,var(--cyan));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .band .cap{color:var(--muted);font-size:.88rem;margin-top:6px}
+
+  /* Pricing */
+  .price-card{max-width:520px;margin:0 auto;text-align:center;padding:52px 44px;border-radius:24px;position:relative;
+    background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    border:1px solid rgba(34,211,238,.3);box-shadow:0 0 80px rgba(59,130,246,.15),0 30px 70px rgba(0,0,0,.5)}
+  .price-card .plan{font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);font-weight:600}
+  .price{font-family:'Space Grotesk';font-size:4rem;font-weight:700;margin:16px 0 4px}
+  .price small{font-size:1.1rem;color:var(--muted);font-weight:500}
+  .price-card ul{list-style:none;text-align:left;margin:30px 0 34px;display:grid;gap:12px}
+  .price-card li{font-size:.92rem;color:#c6ccdb;display:flex;gap:10px;align-items:center}
+  .price-card li::before{content:'✓';color:var(--cyan);font-weight:700}
+
+  /* Final CTA */
+  .final{text-align:center;padding:130px 0;position:relative;overflow:hidden}
+  .final h2{font-size:clamp(2rem,4.4vw,3.4rem);letter-spacing:-.02em;margin-bottom:18px}
+  .final p{color:var(--muted);margin-bottom:36px}
+
+  footer{border-top:1px solid var(--border);padding:44px 0;background:var(--bg2)}
+  .foot-in{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:.85rem}
+  .foot-links{display:flex;gap:24px}
+  .foot-links a:hover{color:#fff}
+
+  /* Reveal */
+  .reveal{opacity:0;transform:translateY(34px);transition:opacity .8s ease,transform .8s ease}
+  .reveal.visible{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.1s}.reveal.d2{transition-delay:.2s}.reveal.d3{transition-delay:.3s}.reveal.d4{transition-delay:.4s}.reveal.d5{transition-delay:.5s}.reveal.d6{transition-delay:.55s}
+
+  @media(max-width:900px){
+    .hero-in{grid-template-columns:1fr;gap:48px}
+    .feat-grid{grid-template-columns:1fr 1fr}
+    .steps{grid-template-columns:1fr 1fr}
+    .band-grid{grid-template-columns:1fr 1fr;gap:40px}
+    .nav-links,.nav-cta .btn-ghost{display:none}
+    .hamburger{display:block}
+    .nav-links.open{display:flex;position:absolute;top:68px;left:0;right:0;flex-direction:column;
+      background:rgba(5,8,16,.97);padding:24px;border-bottom:1px solid var(--border)}
+  }
+  @media(max-width:560px){
+    .feat-grid,.steps{grid-template-columns:1fr}
+    .hero-stats{gap:28px}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="wrap nav-in">
+    <a href="#" class="logo"><span class="logo-badge">iZ</span>İhaleZeka</a>
+    <div class="nav-links" id="navLinks">
+      <a href="#moduller">Modüller</a>
+      <a href="#nasil">Nasıl Çalışır</a>
+      <a href="#fiyat">Fiyatlandırma</a>
+      <a href="#blog">Blog</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-ghost">Giriş Yap</a>
+      <a href="#fiyat" class="btn btn-primary">Hemen Başla</a>
+      <button class="hamburger" id="burger" aria-label="Menü">☰</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <canvas id="heroCanvas"></canvas>
+  <div class="hero-grid"></div>
+  <div class="hero-glow glow1"></div>
+  <div class="hero-glow glow2"></div>
+  <div class="wrap hero-in">
+    <div>
+      <div class="pill">Yapay zekâ destekli ihale istihbaratı</div>
+      <h1>İhaleleri Kaçırmayın.<br><span class="grad-text">Kazanmaya Odaklanın.</span></h1>
+      <p class="sub">İhaleZeka, EKAP'ta her gün yayınlanan 50.000'i aşkın kamu ihalesini tarar, yapay zekâ ile firmanıza uygunluğunu puanlar ve rakip tekliflerini öngörür. Siz sadece kazanacağınız ihalelere teklif verin.</p>
+      <div class="hero-ctas">
+        <a href="#fiyat" class="btn btn-primary btn-lg">14 Gün Ücretsiz Dene</a>
+        <a href="#nasil" class="btn btn-outline btn-lg">Nasıl Çalışır? →</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><div class="num"><span class="counter" data-target="50000" data-suffix="+">0</span></div><div class="lbl">Günlük taranan ihale</div></div>
+        <div class="hstat"><div class="num">&lt;<span class="counter" data-target="30">0</span>sn</div><div class="lbl">Şartname analizi</div></div>
+        <div class="hstat"><div class="num"><span class="counter" data-target="500" data-suffix="+">0</span></div><div class="lbl">Aktif firma</div></div>
+      </div>
+    </div>
+    <div class="tilt-scene">
+      <div class="dash" id="tiltCard">
+        <div class="dash-head">
+          <span class="dot" style="background:#ef4444"></span>
+          <span class="dot" style="background:#f59e0b"></span>
+          <span class="dot" style="background:#22c55e"></span>
+          <span class="dash-title">İhaleZeka Panel — Bugünkü Eşleşmeler</span>
+        </div>
+        <div class="dash-row">
+          <div><div class="t">Ankara Büyükşehir — Akıllı Trafik Sistemi</div><div class="s">EKAP 2025/1842203 · Kalan: 6 gün</div></div>
+          <span class="score hi">%94 Uyum</span>
+        </div>
+        <div class="dash-row">
+          <div><div class="t">Sağlık Bakanlığı — Tıbbi Cihaz Alımı</div><div class="s">EKAP 2025/1839871 · Kalan: 11 gün</div></div>
+          <span class="score mid">%81 Uyum</span>
+        </div>
+        <div class="dash-row">
+          <div><div class="t">İzmir Metro A.Ş. — Bakım Hizmeti</div><div class="s">EKAP 2025/1836402 · Kalan: 14 gün</div></div>
+          <span class="score lo">%62 Uyum</span>
+        </div>
+        <div class="dash-bars">
+          <span style="height:45%"></span><span style="height:70%"></span><span style="height:55%"></span>
+          <span style="height:90%"></span><span style="height:65%"></span><span style="height:100%"></span>
+          <span style="height:78%"></span><span style="height:60%"></span><span style="height:85%"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- PROOF -->
+<div class="proof">
+  <div class="wrap proof-in">
+    <div class="proof-label">Taradığımız kaynaklar</div>
+    <span>EKAP</span><span>Dünya Bankası</span><span>AB / TED</span><span>EBRD</span><span>BM / UNGM</span><span>AIIB</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features" id="moduller">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-tag">Modüller</div>
+      <h2>Teklif sürecinizin <span class="grad-text">her adımı</span> için bir modül</h2>
+      <p>İlan taramasından sözleşme imzasına kadar tüm ihale operasyonunuzu tek panelden yönetin.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="card reveal d1"><div class="icon">🎯</div><h3>AI Eşleştirme</h3><p>Her yeni ilan, firma profiliniz, geçmiş işleriniz ve kapasitenizle karşılaştırılır; 0–100 arası uyum skoruyla önceliklendirilir.</p></div>
+      <div class="card reveal d2"><div class="icon">📄</div><h3>Şartname Analizi</h3><p>Yüzlerce sayfalık idari ve teknik şartname PDF'leri 30 saniyeden kısa sürede özetlenir; kritik maddeler ve riskler işaretlenir.</p></div>
+      <div class="card reveal d3"><div class="icon">🕵️</div><h3>Rakip İstihbaratı</h3><p>Rakiplerinizin geçmiş teklifleri, kazanma oranları ve fiyat davranışları analiz edilir; olası teklif aralıkları öngörülür.</p></div>
+      <div class="card reveal d4"><div class="icon">🔍</div><h3>Akıllı Arama</h3><p>Anahtar kelime, OKAS kodu, bölge, bütçe aralığı ve idare tipine göre filtreleyin; kayıtlı aramalarla otomatik uyarı alın.</p></div>
+      <div class="card reveal d5"><div class="icon">📊</div><h3>Pipeline Yönetimi</h3><p>İlgilendiğiniz ihaleleri Kanban panosunda takip edin; son teklif tarihleri, dokümanlar ve görevler tek yerde.</p></div>
+      <div class="card reveal d6"><div class="icon">📈</div><h3>Raporlar &amp; Analitik</h3><p>Sektörünüzdeki ihale hacmi, ortalama kırım oranları ve kazanma performansınız haftalık raporlarla elinizin altında.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- STEPS -->
+<section id="nasil">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-tag">Nasıl Çalışır</div>
+      <h2>Dört adımda <span class="grad-text">kazanan teklifler</span></h2>
+      <p>Kurulum 5 dakika sürer; ilk eşleşmeleriniz aynı gün gelir.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal d1"><div class="n">01</div><h3>Profilinizi Oluşturun</h3><p>Faaliyet alanlarınızı, OKAS kodlarınızı ve hedef bölgelerinizi tanımlayın.</p></div>
+      <div class="step reveal d2"><div class="n">02</div><h3>AI Tarasın &amp; Skorlasın</h3><p>Motorumuz her gece 50.000+ ilanı tarar, size uygun olanları puanlar.</p></div>
+      <div class="step reveal d3"><div class="n">03</div><h3>Analizleri İnceleyin</h3><p>Şartname özetleri, rakip tahminleri ve kazanma olasılığı tek ekranda.</p></div>
+      <div class="step reveal d4"><div class="n">04</div><h3>Teklifinizi Verin</h3><p>Veriye dayalı fiyatlandırmayla doğru ihaleye, doğru teklifle girin.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAND -->
+<div class="band">
+  <div class="wrap band-grid">
+    <div class="reveal d1"><div class="big"><span class="counter" data-target="50000" data-suffix="+">0</span></div><div class="cap">Günlük taranan ilan</div></div>
+    <div class="reveal d2"><div class="big">%<span class="counter" data-target="98">0</span></div><div class="cap">Şartname doğruluk oranı</div></div>
+    <div class="reveal d3"><div class="big"><span class="counter" data-target="12" data-suffix="x">0</span></div><div class="cap">Daha hızlı ihale keşfi</div></div>
+    <div class="reveal d4"><div class="big"><span class="counter" data-target="500" data-suffix="+">0</span></div><div class="cap">Güvenen firma</div></div>
+  </div>
+</div>
+
+<!-- PRICING -->
+<section id="fiyat">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="sec-tag">Fiyatlandırma</div>
+      <h2>Tek plan. <span class="grad-text">Her şey dahil.</span></h2>
+      <p>Gizli ücret yok, modül başına ekstra ödeme yok. Tüm gücünüz tek abonelikte.</p>
+    </div>
+    <div class="price-card reveal">
+      <div class="plan">Profesyonel</div>
+      <div class="price">$99<small>/ay</small></div>
+      <p style="color:var(--muted);font-size:.9rem">Kullanıcı başı · KDV hariç · Dilediğinizde iptal</p>
+      <ul>
+        <li>Sınırsız ihale taraması ve AI eşleştirme</li>
+        <li>Sınırsız şartname analizi</li>
+        <li>Rakip istihbaratı ve fiyat öngörüsü</li>
+        <li>Pipeline ve ekip iş birliği araçları</li>
+        <li>Haftalık sektör raporları</li>
+        <li>Öncelikli Türkçe destek</li>
+      </ul>
+      <a href="#" class="btn btn-primary btn-lg" style="width:100%">14 Gün Ücretsiz Başla</a>
+      <p style="color:var(--muted);font-size:.78rem;margin-top:14px">Kredi kartı gerekmez · Kurulum 5 dakika</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final" id="blog">
+  <div class="hero-glow glow2" style="top:-200px;left:50%;transform:translateX(-50%)"></div>
+  <div class="wrap reveal">
+    <h2>Bir sonraki büyük ihaleyi<br><span class="grad-text">rakiplerinizden önce görün.</span></h2>
+    <p>Bugün katılın, ilk AI eşleşmelerinizi yarın sabah gelen kutunuzda bulun.</p>
+    <a href="#fiyat" class="btn btn-primary btn-lg">Hemen Başla — Ücretsiz</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-in">
+    <a href="#" class="logo" style="font-size:1rem"><span class="logo-badge" style="width:28px;height:28px;font-size:.8rem">iZ</span>İhaleZeka</a>
+    <div class="foot-links">
+      <a href="#moduller">Modüller</a><a href="#fiyat">Fiyatlandırma</a><a href="#">Gizlilik</a><a href="#">KVKK</a><a href="#">İletişim</a>
+    </div>
+    <div>© 2026 İhaleZeka Teknoloji A.Ş. · İstanbul</div>
+  </div>
+</footer>
+
+<script>
+// ---------- 3D tilt ----------
+(function(){
+  var card=document.getElementById('tiltCard');
+  var scene=card.parentElement;
+  scene.addEventListener('mousemove',function(e){
+    var r=card.getBoundingClientRect();
+    var x=(e.clientX-r.left)/r.width-.5;
+    var y=(e.clientY-r.top)/r.height-.5;
+    card.style.transform='rotateY('+(x*14)+'deg) rotateX('+(-y*12)+'deg) translateZ(0)';
+  });
+  scene.addEventListener('mouseleave',function(){
+    card.style.transform='rotateY(0deg) rotateX(0deg)';
+  });
+})();
+
+// ---------- Scroll reveal ----------
+(function(){
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){en.target.classList.add('visible');io.unobserve(en.target);}
+    });
+  },{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+})();
+
+// ---------- Counters ----------
+(function(){
+  function animate(el){
+    var target=+el.getAttribute('data-target');
+    var suffix=el.getAttribute('data-suffix')||'';
+    var dur=1800, start=null;
+    function fmt(n){
+      if(target>=1000){return Math.round(n).toLocaleString('tr-TR');}
+      return Math.round(n);
+    }
+    function step(ts){
+      if(!start)start=ts;
+      var p=Math.min((ts-start)/dur,1);
+      var e=1-Math.pow(1-p,3);
+      el.textContent=fmt(target*e)+suffix;
+      if(p<1)requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(en.isIntersecting){animate(en.target);io.unobserve(en.target);}
+    });
+  },{threshold:.5});
+  document.querySelectorAll('.counter').forEach(function(el){io.observe(el);});
+})();
+
+// ---------- Hero particle canvas ----------
+(function(){
+  var cv=document.getElementById('heroCanvas'),ctx=cv.getContext('2d');
+  var pts=[],N=70;
+  function resize(){cv.width=cv.offsetWidth;cv.height=cv.offsetHeight;}
+  resize();window.addEventListener('resize',resize);
+  for(var i=0;i<N;i++){
+    pts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+      vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.6+.4});
+  }
+  function tick(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for(var i=0;i<N;i++){
+      var p=pts[i];
+      p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>cv.width)p.vx*=-1;
+      if(p.y<0||p.y>cv.height)p.vy*=-1;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba(34,211,238,.5)';ctx.fill();
+      for(var j=i+1;j<N;j++){
+        var q=pts[j],dx=p.x-q.x,dy=p.y-q.y,d=dx*dx+dy*dy;
+        if(d<130*130){
+          ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+          ctx.strokeStyle='rgba(59,130,246,'+(0.14*(1-d/16900))+')';
+          ctx.lineWidth=1;ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// ---------- Card glow follows mouse ----------
+document.querySelectorAll('.card').forEach(function(c){
+  c.addEventListener('mousemove',function(e){
+    var r=c.getBoundingClientRect();
+    c.style.setProperty('--mx',(e.clientX-r.left)+'px');
+    c.style.setProperty('--my',(e.clientY-r.top)+'px');
+  });
+});
+
+// ---------- Mobile menu ----------
+document.getElementById('burger').addEventListener('click',function(){
+  document.getElementById('navLinks').classList.toggle('open');
+});
+</script>
+</body>
+</html>

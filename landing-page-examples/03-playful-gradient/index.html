@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İhaleZeka — İhale kazanmak artık bilim.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FAFAF7;
+  --ink:#14121F;
+  --ink-soft:#5B5870;
+  --grad1:#7C3AED; --grad2:#EC4899; --grad3:#F97316;
+  --grad-blue:#2563EB; --grad-cyan:#06B6D4; --grad-violet:#8B5CF6;
+  --radius:28px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.03em}
+::selection{background:#EC4899;color:#fff}
+
+/* ---------- gradient text ---------- */
+.grad-text{
+  background:linear-gradient(90deg,var(--grad1),var(--grad2),var(--grad3));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.grad-text-cool{
+  background:linear-gradient(90deg,var(--grad-blue),var(--grad-violet),var(--grad-cyan));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+
+/* ---------- blobs ---------- */
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;pointer-events:none;will-change:transform,border-radius}
+.blob-1{width:560px;height:560px;background:linear-gradient(135deg,#A78BFA,#F472B6);top:-140px;left:-120px;animation:blobMorph 18s ease-in-out infinite}
+.blob-2{width:480px;height:480px;background:linear-gradient(135deg,#FB923C,#F472B6);top:10%;right:-160px;animation:blobMorph 22s ease-in-out infinite reverse}
+.blob-3{width:420px;height:420px;background:linear-gradient(135deg,#60A5FA,#22D3EE);bottom:-140px;left:32%;animation:blobMorph 25s ease-in-out infinite 3s}
+@keyframes blobMorph{
+  0%,100%{transform:translate(0,0) scale(1);border-radius:50% 50% 50% 50%}
+  25%{transform:translate(40px,-50px) scale(1.08);border-radius:60% 40% 55% 45%}
+  50%{transform:translate(-30px,40px) scale(.95);border-radius:45% 55% 40% 60%}
+  75%{transform:translate(50px,20px) scale(1.05);border-radius:55% 45% 60% 40%}
+}
+
+/* ---------- nav ---------- */
+.nav-wrap{position:fixed;top:20px;left:0;right:0;z-index:100;display:flex;justify-content:center;padding:0 16px}
+nav{
+  display:flex;align-items:center;gap:28px;
+  background:rgba(255,255,255,.65);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 8px 32px rgba(20,18,31,.08);
+  border-radius:999px;padding:10px 12px 10px 22px;
+}
+.logo{font-family:'Space Grotesk';font-weight:700;font-size:1.15rem;display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--ink)}
+.logo-dot{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--grad1),var(--grad2),var(--grad3));display:inline-block;box-shadow:0 4px 14px rgba(236,72,153,.4)}
+.nav-links{display:flex;gap:22px}
+.nav-links a{text-decoration:none;color:var(--ink-soft);font-size:.9rem;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--ink)}
+.btn{
+  font-family:'Space Grotesk';font-weight:600;text-decoration:none;border:none;cursor:pointer;
+  border-radius:999px;display:inline-flex;align-items:center;gap:8px;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;
+}
+.btn-primary{
+  background:linear-gradient(90deg,var(--grad1),var(--grad2),var(--grad3));
+  background-size:200% 100%;
+  color:#fff;padding:12px 26px;font-size:.95rem;
+  box-shadow:0 8px 26px rgba(236,72,153,.45);
+  animation:gradShift 6s ease infinite;
+}
+.btn-primary:hover{transform:translateY(-3px) scale(1.03);box-shadow:0 14px 40px rgba(124,58,237,.5)}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.btn-ghost{
+  background:#fff;color:var(--ink);padding:14px 30px;font-size:1rem;
+  border:1.5px solid #E7E4F0;box-shadow:0 4px 16px rgba(20,18,31,.06);
+}
+.btn-ghost:hover{transform:translateY(-3px);border-color:#C4B5FD;box-shadow:0 12px 30px rgba(139,92,246,.18)}
+.btn-lg{padding:16px 36px;font-size:1.05rem}
+.nav-cta{padding:9px 20px;font-size:.85rem}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:140px 24px 80px;overflow:hidden}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#fff;border:1px solid #EDE9FE;border-radius:999px;
+  padding:8px 18px;font-size:.82rem;font-weight:600;color:#7C3AED;
+  box-shadow:0 4px 16px rgba(124,58,237,.12);margin-bottom:28px;
+}
+.hero-badge .pulse{width:8px;height:8px;border-radius:50%;background:#22C55E;animation:pulse 1.8s ease infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.5)}50%{box-shadow:0 0 0 7px rgba(34,197,94,0)}}
+.hero h1{font-size:clamp(2.6rem,7vw,5.4rem);font-weight:700;line-height:1.05;max-width:16ch;margin-bottom:26px}
+.hero p.sub{font-size:clamp(1rem,2vw,1.25rem);color:var(--ink-soft);max-width:56ch;line-height:1.65;margin-bottom:40px}
+.hero-ctas{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+
+/* floating stat cards */
+.float-card{
+  position:absolute;background:#fff;border-radius:20px;
+  box-shadow:0 18px 50px rgba(20,18,31,.13);
+  padding:16px 22px;text-align:left;
+  border:1px solid rgba(255,255,255,.9);
+  animation:floaty 6s ease-in-out infinite;
+  z-index:2;
+}
+.float-card .fc-num{font-family:'Space Grotesk';font-weight:700;font-size:1.5rem}
+.float-card .fc-label{font-size:.78rem;color:var(--ink-soft);font-weight:500}
+.fc-1{top:24%;left:6%;transform:rotate(-6deg)}
+.fc-1 .fc-num{color:#7C3AED}
+.fc-2{top:20%;right:6%;transform:rotate(5deg);animation-delay:1.4s}
+.fc-2 .fc-num{color:#EC4899}
+.fc-3{bottom:20%;left:10%;transform:rotate(4deg);animation-delay:2.6s}
+.fc-3 .fc-num{color:#F97316}
+.fc-4{bottom:16%;right:9%;transform:rotate(-5deg);animation-delay:.8s}
+.fc-4 .fc-num{color:#2563EB}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(var(--r,0deg))}50%{transform:translateY(-18px) rotate(var(--r,0deg))}}
+.fc-1{--r:-6deg}.fc-2{--r:5deg}.fc-3{--r:4deg}.fc-4{--r:-5deg}
+
+/* ---------- marquee ---------- */
+.marquee-band{
+  background:var(--ink);color:#fff;padding:22px 0;overflow:hidden;
+  transform:rotate(-1.2deg) scale(1.02);margin:20px 0 0;
+}
+.marquee{display:flex;width:max-content;animation:marquee 26s linear infinite}
+.marquee span{
+  font-family:'Space Grotesk';font-weight:600;font-size:1.1rem;letter-spacing:.06em;
+  padding:0 30px;white-space:nowrap;display:flex;align-items:center;gap:30px;
+}
+.marquee .dot{color:#EC4899;font-size:1.3rem}
+@keyframes marquee{to{transform:translateX(-50%)}}
+
+/* ---------- sections ---------- */
+section{padding:110px 24px}
+.container{max-width:1180px;margin:0 auto}
+.sec-eyebrow{font-size:.8rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#EC4899;margin-bottom:14px}
+.sec-title{font-size:clamp(1.9rem,4.5vw,3.1rem);font-weight:700;line-height:1.12;margin-bottom:16px}
+.sec-sub{color:var(--ink-soft);font-size:1.05rem;line-height:1.7;max-width:58ch}
+.center{text-align:center}
+.center .sec-sub{margin:0 auto}
+
+/* reveal on scroll */
+.reveal{opacity:0;transform:translateY(36px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- bento ---------- */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:minmax(150px,auto);gap:18px;margin-top:56px}
+.bento-card{
+  background:#fff;border-radius:var(--radius);padding:30px;
+  border:1px solid #F0EDF8;position:relative;overflow:hidden;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1),box-shadow .35s;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:8px;
+}
+.bento-card:hover{transform:translateY(-8px) scale(1.015);box-shadow:0 24px 60px rgba(124,58,237,.18)}
+.bento-card::before{
+  content:'';position:absolute;inset:0;opacity:0;transition:opacity .4s;pointer-events:none;
+  background:radial-gradient(500px circle at var(--mx,50%) var(--my,50%),rgba(139,92,246,.09),transparent 60%);
+}
+.bento-card:hover::before{opacity:1}
+.b-1{grid-column:span 3;grid-row:span 2;background:linear-gradient(145deg,#fff,#F5F0FF)}
+.b-2{grid-column:span 3;background:linear-gradient(145deg,#fff,#FFF1F5)}
+.b-3{grid-column:span 2;background:linear-gradient(145deg,#fff,#FFF7ED)}
+.b-4{grid-column:span 2;background:linear-gradient(145deg,#fff,#EFF6FF)}
+.b-5{grid-column:span 2;background:linear-gradient(145deg,#fff,#ECFEFF)}
+.b-6{grid-column:span 3;background:linear-gradient(145deg,#fff,#FAF5FF)}
+.b-7{grid-column:span 3;background:linear-gradient(145deg,#fff,#FFF1F2)}
+.bento-icon{
+  width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+.bento-card:hover .bento-icon{transform:scale(1.12) rotate(-6deg)}
+.bento-icon svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic-violet{background:linear-gradient(135deg,#8B5CF6,#6D28D9);box-shadow:0 8px 20px rgba(139,92,246,.4)}
+.ic-pink{background:linear-gradient(135deg,#F472B6,#DB2777);box-shadow:0 8px 20px rgba(236,72,153,.4)}
+.ic-orange{background:linear-gradient(135deg,#FB923C,#EA580C);box-shadow:0 8px 20px rgba(249,115,22,.4)}
+.ic-blue{background:linear-gradient(135deg,#60A5FA,#2563EB);box-shadow:0 8px 20px rgba(37,99,235,.4)}
+.ic-cyan{background:linear-gradient(135deg,#22D3EE,#0891B2);box-shadow:0 8px 20px rgba(6,182,212,.4)}
+.ic-fuchsia{background:linear-gradient(135deg,#E879F9,#A21CAF);box-shadow:0 8px 20px rgba(217,70,239,.4)}
+.ic-rose{background:linear-gradient(135deg,#FB7185,#E11D48);box-shadow:0 8px 20px rgba(244,63,94,.4)}
+.bento-card h3{font-size:1.25rem;font-weight:700}
+.bento-card p{color:var(--ink-soft);font-size:.92rem;line-height:1.6}
+.bento-metric{font-family:'Space Grotesk';font-size:2.4rem;font-weight:700;line-height:1;margin:6px 0}
+
+/* ---------- how it works ---------- */
+.steps-wrap{position:relative;margin-top:70px}
+.steps-line{
+  position:absolute;top:34px;left:6%;right:6%;height:4px;border-radius:4px;
+  background:#EFEBFA;overflow:hidden;
+}
+.steps-line-fill{
+  height:100%;width:0%;border-radius:4px;
+  background:linear-gradient(90deg,var(--grad1),var(--grad2),var(--grad3));
+  transition:width 1.6s cubic-bezier(.22,1,.36,1);
+}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;position:relative}
+.step{text-align:center;padding:0 8px}
+.step-num{
+  width:68px;height:68px;border-radius:50%;margin:0 auto 22px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Space Grotesk';font-weight:700;font-size:1.3rem;color:#fff;
+  background:linear-gradient(135deg,var(--grad1),var(--grad2));
+  box-shadow:0 10px 26px rgba(139,92,246,.4);
+  transition:transform .4s cubic-bezier(.34,1.56,.64,1);
+  position:relative;z-index:1;border:5px solid var(--bg);
+}
+.step:nth-child(2) .step-num{background:linear-gradient(135deg,var(--grad2),var(--grad3));box-shadow:0 10px 26px rgba(236,72,153,.4)}
+.step:nth-child(3) .step-num{background:linear-gradient(135deg,var(--grad-blue),var(--grad-violet));box-shadow:0 10px 26px rgba(37,99,235,.4)}
+.step:nth-child(4) .step-num{background:linear-gradient(135deg,var(--grad-violet),var(--grad-cyan));box-shadow:0 10px 26px rgba(6,182,212,.4)}
+.step:hover .step-num{transform:scale(1.14) rotate(8deg)}
+.step h3{font-size:1.1rem;margin-bottom:8px}
+.step p{color:var(--ink-soft);font-size:.9rem;line-height:1.6}
+
+/* ---------- stats ---------- */
+.stats-band{
+  background:linear-gradient(135deg,#1B1533,#3B1D5E 55%,#6D1E4B);
+  border-radius:40px;padding:80px 40px;position:relative;overflow:hidden;
+}
+.stats-band::before{content:'';position:absolute;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(236,72,153,.35),transparent 70%);top:-160px;right:-100px}
+.stats-band::after{content:'';position:absolute;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.3),transparent 70%);bottom:-160px;left:-80px}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;position:relative;z-index:1}
+.stat{text-align:center;color:#fff}
+.stat .stat-num{font-family:'Space Grotesk';font-weight:700;font-size:clamp(2.4rem,5vw,3.6rem);line-height:1}
+.stat .stat-num span{background:linear-gradient(90deg,#F0ABFC,#FDBA74);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stat p{color:rgba(255,255,255,.65);font-size:.9rem;margin-top:10px;font-weight:500}
+
+/* ---------- pricing ---------- */
+.pricing-wrap{display:flex;justify-content:center;margin-top:60px}
+.price-card{
+  position:relative;max-width:440px;width:100%;
+  background:#fff;border-radius:32px;padding:2.5px;
+  background:linear-gradient(135deg,var(--grad1),var(--grad2),var(--grad3),var(--grad-cyan));
+  background-size:300% 300%;animation:borderFlow 8s ease infinite;
+  box-shadow:0 30px 80px rgba(139,92,246,.3);
+}
+@keyframes borderFlow{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.price-inner{background:#fff;border-radius:30px;padding:44px 40px;text-align:center}
+.price-tag{font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#7C3AED;background:#F5F3FF;border-radius:999px;padding:7px 18px;display:inline-block;margin-bottom:22px}
+.price-amount{font-family:'Space Grotesk';font-weight:700;font-size:4rem;line-height:1}
+.price-amount small{font-size:1.1rem;color:var(--ink-soft);font-weight:500}
+.price-list{list-style:none;text-align:left;margin:30px 0;display:flex;flex-direction:column;gap:14px}
+.price-list li{display:flex;gap:12px;align-items:flex-start;font-size:.94rem;color:var(--ink-soft);line-height:1.5}
+.check{width:20px;height:20px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,#22C55E,#10B981);display:flex;align-items:center;justify-content:center;margin-top:1px}
+.check svg{width:11px;height:11px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.price-btn{width:100%;justify-content:center}
+
+/* ---------- final cta ---------- */
+.final-cta{text-align:center;padding:140px 24px;position:relative;overflow:hidden}
+.final-cta h2{font-size:clamp(2.4rem,6.5vw,4.6rem);font-weight:700;line-height:1.08;max-width:18ch;margin:0 auto 40px}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid #EDEAF5;padding:50px 24px 40px}
+.footer-inner{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px}
+.footer-inner p{color:var(--ink-soft);font-size:.85rem}
+.footer-links{display:flex;gap:22px}
+.footer-links a{color:var(--ink-soft);text-decoration:none;font-size:.85rem;font-weight:500;transition:color .2s}
+.footer-links a:hover{color:var(--ink)}
+
+/* ---------- responsive ---------- */
+@media(max-width:900px){
+  .nav-links{display:none}
+  .float-card{display:none}
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .b-1{grid-column:span 2}
+  .b-2,.b-6,.b-7{grid-column:span 2}
+  .b-3,.b-4,.b-5{grid-column:span 2}
+  .steps{grid-template-columns:1fr 1fr}
+  .steps-line{display:none}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:44px}
+}
+@media(max-width:560px){
+  .bento{grid-template-columns:1fr}
+  .b-1,.b-2,.b-3,.b-4,.b-5,.b-6,.b-7{grid-column:span 1}
+  .steps{grid-template-columns:1fr}
+  section{padding:80px 18px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="nav-wrap">
+  <nav>
+    <a class="logo" href="#"><span class="logo-dot"></span>İhaleZeka</a>
+    <div class="nav-links">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#nasil">Nasıl Çalışır</a>
+      <a href="#fiyat">Fiyatlandırma</a>
+    </div>
+    <a href="#fiyat" class="btn btn-primary nav-cta">Ücretsiz Başla</a>
+  </nav>
+</div>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <div class="float-card fc-1"><div class="fc-num">%95</div><div class="fc-label">uygunluk skoru</div></div>
+  <div class="float-card fc-2"><div class="fc-num">&lt;30sn</div><div class="fc-label">şartname analizi</div></div>
+  <div class="float-card fc-3"><div class="fc-num">50K+</div><div class="fc-label">günlük ihale taraması</div></div>
+  <div class="float-card fc-4"><div class="fc-num">₺2.4M</div><div class="fc-label">tahmin doğruluğu</div></div>
+
+  <div class="hero-badge"><span class="pulse"></span>EKAP ile canlı senkron — 50.000+ ihale taranıyor</div>
+  <h1>İhale kazanmak artık <span class="grad-text">bilim</span>.</h1>
+  <p class="sub">İhaleZeka, kamu ihalelerini yapay zekâyla tarar, firmanıza uygunluğunu puanlar, rakiplerinizin teklif davranışını tahmin eder ve şartnameleri 30 saniyeden kısa sürede analiz eder.</p>
+  <div class="hero-ctas">
+    <a href="#fiyat" class="btn btn-primary btn-lg">14 Gün Ücretsiz Dene</a>
+    <a href="#nasil" class="btn btn-ghost">Nasıl Çalışır?</a>
+  </div>
+</header>
+
+<!-- MARQUEE -->
+<div class="marquee-band">
+  <div class="marquee" id="marquee">
+    <span>EKAP <i class="dot">·</i> Dünya Bankası <i class="dot">·</i> TED <i class="dot">·</i> EBRD <i class="dot">·</i> UNGM <i class="dot">·</i> AIIB <i class="dot">·</i> İslam Kalkınma Bankası <i class="dot">·</i></span>
+  </div>
+</div>
+
+<!-- FEATURES BENTO -->
+<section id="ozellikler">
+  <div class="container">
+    <div class="center reveal">
+      <div class="sec-eyebrow">Özellikler</div>
+      <h2 class="sec-title">Teklif sürecinizin <span class="grad-text-cool">tamamı</span> tek panelde</h2>
+      <p class="sec-sub">İhale keşfinden teklif teslimine kadar ihtiyacınız olan her araç, yapay zekâyla güçlendirildi.</p>
+    </div>
+    <div class="bento">
+      <div class="bento-card b-1 reveal">
+        <div class="bento-icon ic-violet"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></div>
+        <div class="bento-metric grad-text">%95</div>
+        <h3>AI Eşleştirme</h3>
+        <p>Firma profiliniz, geçmiş iş deneyimleriniz ve kapasitenizle her ihaleyi saniyeler içinde karşılaştırır; kazanma olasılığınızı %95 doğrulukla puanlar. Zamanınızı sadece kazanabileceğiniz ihalelere ayırın.</p>
+      </div>
+      <div class="bento-card b-2 reveal">
+        <div class="bento-icon ic-pink"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg></div>
+        <h3>Şartname Analizi</h3>
+        <p>Yüzlerce sayfalık idari ve teknik şartname PDF'lerini 30 saniyeden kısa sürede okur; kritik madde, ceza ve yeterlilik koşullarını öne çıkarır.</p>
+      </div>
+      <div class="bento-card b-3 reveal">
+        <div class="bento-icon ic-orange"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></div>
+        <h3>Rakip Radar</h3>
+        <p>Rakiplerinizin geçmiş tekliflerini analiz eder, kırım oranlarını tahmin eder.</p>
+      </div>
+      <div class="bento-card b-4 reveal">
+        <div class="bento-icon ic-blue"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+        <h3>Akıllı Arama</h3>
+        <p>Doğal dille arayın: "Ankara'da 5M üzeri yemek ihalesi" yeter.</p>
+      </div>
+      <div class="bento-card b-5 reveal">
+        <div class="bento-icon ic-cyan"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 3 5-6"/></svg></div>
+        <h3>Pipeline</h3>
+        <p>Teklif süreçlerinizi kanban panosunda izleyin, teslim tarihi kaçmaz.</p>
+      </div>
+      <div class="bento-card b-6 reveal">
+        <div class="bento-icon ic-fuchsia"><svg viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.2 3.9A2 2 0 0 0 7.5 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></svg></div>
+        <h3>Belgelerim</h3>
+        <p>İş deneyim belgeleri, ISO sertifikaları ve imza sirküleriniz tek kasada; hangi ihalede hangi belge gerekli, otomatik eşleşir. Eksik belge uyarısı anında gelir.</p>
+      </div>
+      <div class="bento-card b-7 reveal">
+        <div class="bento-icon ic-rose"><svg viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
+        <h3>Raporlar</h3>
+        <p>Sektör bazlı fiyat trendleri, idare bazlı kırım ortalamaları ve kazanma oranınız; yönetim kuruluna hazır haftalık PDF raporlarla elinizde.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="nasil" style="background:#fff;border-radius:48px;margin:0 16px">
+  <div class="container">
+    <div class="center reveal">
+      <div class="sec-eyebrow">Nasıl Çalışır</div>
+      <h2 class="sec-title">4 adımda ilk <span class="grad-text">kazandıran teklif</span></h2>
+    </div>
+    <div class="steps-wrap reveal" id="stepsWrap">
+      <div class="steps-line"><div class="steps-line-fill" id="stepsFill"></div></div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><h3>Profilini Oluştur</h3><p>Faaliyet alanlarını, iş deneyimini ve kapasiteni bir kez gir.</p></div>
+        <div class="step"><div class="step-num">2</div><h3>AI Tarasın</h3><p>Her gün 50.000+ EKAP ihalesi senin için taranır ve puanlanır.</p></div>
+        <div class="step"><div class="step-num">3</div><h3>Analiz Et</h3><p>Şartname özeti, rakip tahmini ve önerilen kırım aralığını gör.</p></div>
+        <div class="step"><div class="step-num">4</div><h3>Teklif Ver, Kazan</h3><p>Doğru fiyatla, eksiksiz evrakla, tam zamanında teklifini teslim et.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section>
+  <div class="container">
+    <div class="stats-band reveal" id="statsBand">
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-num"><span class="counter" data-target="50000" data-suffix="+">0</span></div><p>Günlük taranan ihale</p></div>
+        <div class="stat"><div class="stat-num"><span class="counter" data-target="30" data-prefix="&lt;" data-suffix="sn">0</span></div><p>Şartname analiz süresi</p></div>
+        <div class="stat"><div class="stat-num"><span class="counter" data-target="95" data-prefix="%" data-suffix="">0</span></div><p>Uygunluk tahmin doğruluğu</p></div>
+        <div class="stat"><div class="stat-num"><span class="counter" data-target="4200" data-suffix="+">0</span></div><p>Aktif kullanan firma</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="fiyat" style="padding-top:20px">
+  <div class="container">
+    <div class="center reveal">
+      <div class="sec-eyebrow">Fiyatlandırma</div>
+      <h2 class="sec-title">Kazandığın ilk ihalede <span class="grad-text">kendini öder</span></h2>
+    </div>
+    <div class="pricing-wrap reveal">
+      <div class="price-card">
+        <div class="price-inner">
+          <div class="price-tag">Pro — Her şey dahil</div>
+          <div class="price-amount">$99<small>/ay</small></div>
+          <ul class="price-list">
+            <li><span class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Sınırsız ihale taraması ve AI eşleştirme</li>
+            <li><span class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Ayda 100 şartname analizi</li>
+            <li><span class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Rakip Radar ve fiyat tahminleri</li>
+            <li><span class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>Pipeline, belge kasası ve raporlar</li>
+            <li><span class="check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span>3 kullanıcı, e-posta + WhatsApp bildirimleri</li>
+          </ul>
+          <a href="#" class="btn btn-primary btn-lg price-btn">14 Gün Ücretsiz Başla</a>
+          <p style="margin-top:16px;font-size:.8rem;color:var(--ink-soft)">Kredi kartı gerekmez · İstediğin zaman iptal et</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <div class="blob blob-2" style="opacity:.35"></div>
+  <div class="blob blob-3" style="opacity:.35"></div>
+  <h2 class="reveal">Bir sonraki ihaleyi <span class="grad-text">tesadüfe</span> bırakma.</h2>
+  <a href="#fiyat" class="btn btn-primary btn-lg reveal">İhaleZeka'yı Ücretsiz Dene</a>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <a class="logo" href="#"><span class="logo-dot"></span>İhaleZeka</a>
+    <div class="footer-links">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#fiyat">Fiyatlandırma</a>
+      <a href="#">Gizlilik</a>
+      <a href="#">İletişim</a>
+    </div>
+    <p>© 2026 İhaleZeka Teknoloji A.Ş. — İstanbul</p>
+  </div>
+</footer>
+
+<script>
+// duplicate marquee for seamless loop
+(function(){
+  var m=document.getElementById('marquee');
+  m.innerHTML+=m.innerHTML;
+})();
+
+// scroll reveal
+var io=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+  });
+},{threshold:.12});
+document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+
+// steps progress line
+var stepsIO=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      document.getElementById('stepsFill').style.width='100%';
+      stepsIO.disconnect();
+    }
+  });
+},{threshold:.4});
+var sw=document.getElementById('stepsWrap');
+if(sw)stepsIO.observe(sw);
+
+// animated counters
+function animateCounter(el){
+  var target=+el.dataset.target, prefix=el.dataset.prefix||'', suffix=el.dataset.suffix||'';
+  var dur=1800, start=null;
+  function tick(ts){
+    if(!start)start=ts;
+    var p=Math.min((ts-start)/dur,1);
+    var eased=1-Math.pow(1-p,3);
+    el.innerHTML=prefix+Math.round(target*eased).toLocaleString('tr-TR')+suffix;
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+var statsIO=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      e.target.querySelectorAll('.counter').forEach(animateCounter);
+      statsIO.unobserve(e.target);
+    }
+  });
+},{threshold:.3});
+var sb=document.getElementById('statsBand');
+if(sb)statsIO.observe(sb);
+
+// bento cursor glow
+document.querySelectorAll('.bento-card').forEach(function(card){
+  card.addEventListener('mousemove',function(e){
+    var r=card.getBoundingClientRect();
+    card.style.setProperty('--mx',(e.clientX-r.left)+'px');
+    card.style.setProperty('--my',(e.clientY-r.top)+'px');
+  });
+});
+</script>
+</body>
+</html>
